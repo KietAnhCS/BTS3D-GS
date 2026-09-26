@@ -14,6 +14,7 @@
 #include <fstream>
 #include <algorithm>
 #include <numeric>
+#include <stdexcept>
 #include <cuda.h>
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
