@@ -82,11 +82,16 @@ def _run(command):
     return subprocess.run(command, check=False).returncode
 
 
-def _run_capture(command, tail=60):
+def _run_capture(command, tail=150):
     """Chạy command, in stdout/stderr nếu thất bại (thay vì nuốt lỗi bằng -q).
 
     Trả về returncode. Khi build lỗi (vd thiếu header, nvcc OOM-killed), in
     `tail` dòng cuối để thấy lỗi biên dịch thật thay vì chỉ "thất bại" chung chung.
+
+    Cần `-v` trên command vì pip mặc định giấu output của subprocess
+    `setup.py bdist_wheel` (lệnh nvcc/gcc thật) ngay cả khi không có -q --
+    thiếu -v thì log chỉ thấy "finished with status 'error' ... See above
+    for output" mà không thấy dòng lỗi biên dịch nào.
     """
     print("$", " ".join(command))
     result = subprocess.run(command, capture_output=True, text=True)
@@ -119,7 +124,7 @@ def install_dependencies(force=False, flag_path=DEPS_FLAG):
     failed = []
     for module in SUBMODULES:
         if os.path.isdir(module):
-            rc = _run_capture([sys.executable, "-m", "pip", "install", "--no-build-isolation", f"./{module}"])
+            rc = _run_capture([sys.executable, "-m", "pip", "install", "-v", "--no-build-isolation", f"./{module}"])
             if rc != 0:
                 failed.append(module)
         else:
