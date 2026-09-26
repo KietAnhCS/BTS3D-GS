@@ -1,0 +1,18 @@
+\frametitle{Quan sát 1: \texttt {final\_prune\_structgs} không hề chạy trong pipeline hiện tại}
+\begin{itemize}
+    \item Đính chính: \texttt{final\_prune\_structgs} \textbf{không} bị khoá bởi cửa sổ iteration $15000$--$30000$ -- không có đoạn code nào áp cửa sổ đó cho hàm này trong \texttt{SADGS/}. (Số $15000$ thực ra thuộc một hàm khác, xem box bên dưới.)
+    \item Sự thật trong mã nguồn (\texttt{SADGS/train.py}, quanh dòng 412--419): lệnh gọi \texttt{gaussians.final\_prune\_structgs(...)} \textbf{đã bị comment-out}, đứng cạnh một prune đơn giản đang chạy thật:
+\begin{verbatim}
+if iteration in prune_iterations:
+    prune_mask = (gaussians.get_opacity < 0.1).squeeze()
+    gaussians.prune_points(prune_mask)
+    # gaussians.final_prune_structgs(min_opacity=0.1,
+    #                                 pruning_score=pruning_score)
+\end{verbatim}
+    \item[$\Rightarrow$] Cơ chế loại floater đa-view (\texttt{final\_prune\_structgs}) là \textbf{dead code} trong pipeline mặc định hiện tại -- không chạy dù ngân sách iteration là bao nhiêu.
+    \item Prune thực sự đang chạy chỉ là ngưỡng opacity đơn giản, tại \texttt{prune\_iterations} (mặc định \texttt{[4000, 8000]}). Với \textbf{iterations=7000}, mốc \textbf{8000 không bao giờ tới} $\Rightarrow$ scene chỉ được prune-opacity đúng \textbf{1 lần} (ở iteration 4000) thay vì 2.
+    \item Đây là lời giải thích khả dĩ cho: kích thước file lớn bất thường (\textbf{248 B/Gaussian}, chưa nén) và LPIPS "chững" quanh \textbf{0.31}.
+    \item \alert{Hệ quả quan trọng:} mọi so sánh trực tiếp giữa số liệu 7k-iteration này với kết quả công bố gốc của SADGS/3DGS (chạy đủ 30k iteration, và giả định \texttt{final\_prune\_structgs} có được kích hoạt) đều \textbf{không hợp lệ} — khác ngân sách huấn luyện, khác điểm dừng pipeline, khác cả việc floater-pruning cuối có chạy hay không.
+\end{itemize}
+\vspace{1mm}
+{\scriptsize \textit{Ghi chú:} số $15000$ trong \texttt{SADGS/scene/gaussian\_model.py} (\texttt{optimizer\_step}) là ngưỡng đổi tần suất gọi \texttt{optimizer.step()} (mỗi iteration $\to$ mỗi 32 $\to$ mỗi 64 iteration), một cơ chế tiết kiệm chi phí optimizer hoàn toàn khác, không liên quan tới pruning.}

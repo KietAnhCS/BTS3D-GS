@@ -1,0 +1,84 @@
+% ============================================================
+% Bản 45 phút -- Slide 29-32
+% Nguồn: partADC_7.tex (Slide 29) + part5.tex (Slide 30-32)
+% CHỈ TẠO MỚI trong Slides45min/, không sửa file gốc.
+% ============================================================
+
+% --- Slide 29 (gốc: partADC_7.tex, "Cải tiến 5: final prune trên toy — khép lại chương ADC") ---
+% Đã bỏ minh hoạ "final prune trên toy" + kết luận N nhỏ hơn: cả prune multinomial
+% (pruning_score=None) và final_prune_structgs (lời gọi bị comment, train.py:419)
+% KHÔNG chạy trong pipeline thật, nên không được trình bày như kết quả huấn luyện.
+\begin{frame}{Tổng kết cải tiến ADC của SADGS}
+\footnotesize
+\begin{itemize}
+  \item \textbf{Đang chạy trong pipeline thật}: (1) Importance đa view AND với gradient; (2) split theo gradient tuyệt đối; (3) trần opacity $\alpha\leftarrow\min(\alpha,0.8)$ sau mỗi vòng densify+prune.
+  \item \textbf{Không chạy trong pipeline thật} (có trong code nhưng vô hiệu): prune theo lấy mẫu multinomial -- \texttt{train.py} luôn truyền \texttt{pruning\_score=None}; và \texttt{final\_prune\_structgs} -- lời gọi bị \textbf{comment out} tại \texttt{train.py:419}. Tại \texttt{prune\_iterations}, code thật chỉ xoá theo $\alpha<0.1$.
+\end{itemize}
+\end{frame}
+
+% --- Slide 30 (gốc: part5.tex, "Vì sao 3DGS gốc chậm?") ---
+\begin{frame}{Vì sao 3DGS gốc chậm?}
+\begin{itemize}
+    \item Mỗi iteration gồm: \textbf{render} (rasterize), \textbf{tính loss}, \textbf{backward}, định kỳ \textbf{densify/prune}.
+    \item Với hàng trăm nghìn -- hàng triệu Gaussian, \textbf{rasterize} và \textbf{backward} chiếm phần lớn thời gian mỗi bước.
+\end{itemize}
+\vspace{0.3cm}
+\centering
+\footnotesize
+\begin{tabular}{lcc}
+\toprule
+\textbf{Khâu} & \textbf{Tần suất} & \textbf{Tỉ trọng thời gian} \\
+\midrule
+Render (project + rasterize) & mỗi iteration & \textasciitilde 45\% \\
+Backward (gradient) & mỗi iteration & \textasciitilde 35\% \\
+Tính loss & mỗi iteration & \textasciitilde 10\% \\
+Densify/Prune & định kỳ & \textasciitilde 10\% (đột biến) \\
+\bottomrule
+\end{tabular}
+\end{frame}
+
+% --- Slide 31 (gốc: part5.tex, "Ba đòn bẩy tăng tốc của SADGS (tổng quan)") ---
+\begin{frame}{Ba đòn bẩy tăng tốc của SADGS (tổng quan)}
+\begin{columns}[t]
+\column{0.33\linewidth}
+\centering
+\textbf{1. Multi-view score}
+\begin{itemize}
+    \footnotesize
+    \item Đánh giá Gaussian qua nhiều góc nhìn
+    \item Pruning thông minh hơn
+\end{itemize}
+\column{0.33\linewidth}
+\centering
+\textbf{2. Compact Box}
+\begin{itemize}
+    \footnotesize
+    \item Giảm hệ số nhân bounding-box
+    \item Giảm số tile chạm
+\end{itemize}
+\column{0.33\linewidth}
+\centering
+\textbf{3. Sparse Adam}
+\begin{itemize}
+    \footnotesize
+    \item Lịch cập nhật phân tầng
+    \item Giảm tần suất optimizer.step()
+\end{itemize}
+\end{columns}
+\vspace{0.4cm}
+\begin{itemize}
+    \item Cả ba đòn bẩy nhắm đúng khâu chiếm tỉ trọng lớn nhất: rasterize, densify/prune, cập nhật tham số.
+\end{itemize}
+\end{frame}
+
+% --- Slide 32 (gốc: part5.tex, "Hiệu năng tích luỹ: Biểu đồ thác nước") ---
+\begin{frame}{Hiệu năng tích luỹ: Biểu đồ thác nước}
+\footnotesize
+\begin{itemize}
+    \item Waterfall chart minh hoạ tăng tốc \textbf{tích luỹ} khi bật lần lượt từng đòn bẩy lên baseline 3DGS gốc.
+    \item Thứ tự: baseline $\to$ + Compact Box $\to$ + Multi-view score $\to$ + Sparse Adam $\to$ SADGS đầy đủ.
+\end{itemize}
+\begin{center}
+\includegraphics[width=0.68\linewidth]{ch8_levers_waterfall.png}
+\end{center}
+\end{frame}

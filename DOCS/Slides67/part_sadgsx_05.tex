@@ -1,0 +1,184 @@
+% ===== BOT 05: densify_and_clone_structgs & cơ chế ghép tensor vào optimizer =====
+
+\begin{frame}{Clone trong SADGS: vị trí trong chuỗi densification}
+\footnotesize
+Mọi thao tác nhân bản Gaussian của SADGS đi qua \texttt{densify\_and\_prune\_structgs} (\texttt{scene/gaussian\_model.py:957--1052}), gọi từ \texttt{train.py:362}. Trình tự:
+\begin{enumerate}
+\item Tính gradient trung bình tích luỹ: $\bar g = \dfrac{\texttt{xyz\_gradient\_accum}}{\texttt{denom}}$, $\bar g_{abs} = \dfrac{\texttt{xyz\_gradient\_accum\_abs}}{\texttt{denom}}$, thay \texttt{NaN} bằng 0 (\texttt{:964--969}).
+\item Lập \textbf{ba} loại mặt nạ: \texttt{grad\_qualifiers} / \texttt{grad\_qualifiers\_abs} (\texttt{:971--972}), \texttt{full\_split\_mask} nhận từ ngoài (\texttt{:978--982}), và \texttt{clone\_qualifiers} theo kích thước (\texttt{:990}).
+\item Ghép thành \texttt{final\_clone\_mask} (\texttt{:998--1002}) và \texttt{metric\_mask} (\texttt{:1005}).
+\item Gọi \texttt{densify\_and\_clone\_structgs(metric\_mask, final\_clone\_mask)} (\texttt{:1007}), rồi mới tới split (\texttt{:1011}) và prune (\texttt{:1014--1044}).
+\end{enumerate}
+Hàm clone rất ngắn (\texttt{:934--955}) vì \emph{toàn bộ logic chọn điểm đã nằm ở hàm gọi}; nó chỉ làm ba việc: cắt lát theo mask, gọi \texttt{densification\_postfix}, và ghi đè \texttt{densify\_count} kế thừa.
+\vspace{2pt}
+\begin{block}{\footnotesize Điểm khác biệt cốt lõi so với 3DGS}
+3DGS: điều kiện chọn nằm \emph{bên trong} \texttt{densify\_and\_clone} (\texttt{:895--897}). SADGS: hàm clone nhận mask \emph{từ ngoài} $\Rightarrow$ tiêu chí có thể đến từ tần số/đa góc nhìn, không chỉ gradient.
+\end{block}
+\end{frame}
+
+
+\begin{frame}{\texttt{metric\_mask} và \texttt{filter} đến từ đâu?}
+\scriptsize
+Hai đối số của \texttt{densify\_and\_clone\_structgs(metric\_mask, filter)} được hợp bằng phép AND (\texttt{gaussian\_model.py:935}):
+\[
+\mathcal{S} \;=\; \texttt{metric\_mask} \;\wedge\; \texttt{filter}
+\]
+\textbf{(a) \texttt{filter} $=$ \texttt{final\_clone\_mask}} (\texttt{:998--1002}):
+\[
+\texttt{final\_clone\_mask} \;=\; \big(\underbrace{\texttt{full\_split\_mask}}_{\text{đa góc nhìn}} \vee \underbrace{(\|\bar g\|\ge \tau_g)}_{\texttt{grad\_qualifiers}}\big)\;\wedge\;\underbrace{\big(\max_i s_i \le \lambda_d\,\text{extent}\big)}_{\texttt{clone\_qualifiers}\ (:990)}
+\]
+với $\tau_g=\texttt{args.grad\_thresh}=2\times10^{-4}$ (\texttt{arguments/\_\_init\_\_.py:112}) và $\lambda_d=\texttt{args.dense}=0.001$ (\texttt{arguments/\_\_init\_\_.py:113}).
+\texttt{full\_split\_mask} chính là \texttt{split\_mask} của \texttt{train.py:345}: $\texttt{high\_ratio}>\texttt{opt.split\_ratio\_threshold}$ \textbf{và} $\|\bar g\|\ge 10^{-5}$, với $\texttt{high\_ratio}=\texttt{eta\_high\_count}/\texttt{accum\_view\_count}$ (\texttt{train.py:341}).
+
+\textbf{(b) \texttt{metric\_mask}} (\texttt{:1005}): $\texttt{importance\_score} > \texttt{args.importance\_score\_threshold}=0.5$ (\texttt{arguments/\_\_init\_\_.py:124}); \texttt{train.py:368} truyền \texttt{importance\_score = accum\_view\_count}. Thực chất: \emph{chỉ nhân bản Gaussian đã được ít nhất 1 camera nhìn thấy trong chu kỳ vừa rồi}. Nếu không truyền, mask này là \texttt{ones\_like} (vô hiệu).
+\begin{center}
+\includegraphics[width=0.49\linewidth]{sadgsx/05_decision_region_clone.png}
+\captionof{figure}{\scriptsize Vùng quyết định clone trên hai trục (gradient, scale). Vùng cam: phần SADGS mở thêm nhờ tiêu chí đa góc nhìn, kích hoạt cả khi gradient dưới ngưỡng.}
+\end{center}
+\end{frame}
+
+
+\begin{frame}{Clone copy nguyên xi — không dịch vị trí}
+\footnotesize
+Sáu thuộc tính tối ưu được cắt lát bằng \emph{cùng một} mask $\mathcal{S}$ (\texttt{gaussian\_model.py:937--942}):
+\[
+\mu_{new}=\mu[\mathcal{S}],\quad c^{dc}_{new}=c^{dc}[\mathcal{S}],\quad c^{rest}_{new}=c^{rest}[\mathcal{S}],\quad
+\alpha_{new}=\alpha[\mathcal{S}],\quad s_{new}=s[\mathcal{S}],\quad q_{new}=q[\mathcal{S}]
+\]
+kèm hai tensor phụ \texttt{tmp\_radii} và \texttt{filter\_3D} (\texttt{:943--944}).
+\begin{itemize}
+\item \textbf{Không} có nhiễu vị trí, \textbf{không} chia scale, \textbf{không} đổi opacity — bản sao trùng khít 100\% với Gaussian cha. Đây cũng là hành vi của 3DGS (\texttt{:899--904}); tương phản với \texttt{densify\_and\_split\_structgs} (\texttt{:638}) vốn lấy mẫu vị trí mới và chia scale theo $k\sim\sqrt{\eta}$.
+\item Hai bản trùng nhau chỉ tách ra nhờ gradient ở các iteration sau — cơ chế này là "tăng gấp đôi khối lượng/độ mờ tại chỗ" rồi để tối ưu hoá phân bổ lại.
+\item Vì thế điều kiện $\max_i s_i \le \lambda_d\cdot\text{extent}$ mới quan trọng: clone chỉ hợp lý cho Gaussian \emph{nhỏ} phủ chưa đủ chi tiết (under-reconstruction); Gaussian lớn thì phải split.
+\item \texttt{densify\_count} được \textbf{kế thừa} chứ không tăng (\texttt{:946--947, 952--954}): lưu \texttt{parent\_counts} và \texttt{n\_old} trước khi postfix, rồi ghi đè lên dải \texttt{[n\_old : n\_old+n\_new]} vốn bị postfix điền 0 (\texttt{:630}). Clone không bị tính là một lần "chẻ nhỏ".
+\end{itemize}
+\begin{center}
+\includegraphics[width=0.60\linewidth]{sadgsx/05_clone_under_reconstruction.png}
+\captionof{figure}{\footnotesize Vùng under-reconstruction được chọn (đỏ) sinh bản sao trùng khít tại đúng vị trí cũ.}
+\end{center}
+\end{frame}
+
+
+\begin{frame}{So sánh trực tiếp: 3DGS vs SADGS}
+\scriptsize
+\begin{center}
+\begin{tabular}{p{3.1cm}|p{4.5cm}|p{4.9cm}}
+\hline
+ & \textbf{3DGS} \texttt{densify\_and\_clone} (\texttt{:893--910}) & \textbf{SADGS} \texttt{densify\_and\_clone\_structgs} (\texttt{:934--955}) \\
+\hline
+Nơi quyết định & trong chính hàm & ở \texttt{densify\_and\_prune\_structgs:998--1007} \\
+Tiêu chí gradient & $\|\bar g\|\ge$ \texttt{grad\_threshold} (bắt buộc) & $\|\bar g\|\ge\tau_g$ \textbf{hoặc} \texttt{full\_split\_mask} \\
+Tiêu chí kích thước & $\max_i s_i \le \texttt{percent\_dense}\cdot\text{extent}$ & $\max_i s_i \le \texttt{args.dense}\cdot\text{extent}$ \\
+Tiêu chí bổ sung & không & \texttt{metric\_mask}: \texttt{accum\_view\_count} $>0.5$ \\
+Ngưỡng mặc định & \texttt{percent\_dense}$=0.01$ (gốc) & \texttt{percent\_dense}$=0.001$ (\texttt{arguments:85}), \texttt{dense}$=0.001$ (\texttt{arguments:113}) \\
+Vị trí bản sao & $\mu_{new}=\mu_{old}$ & $\mu_{new}=\mu_{old}$ (giống hệt) \\
+Bộ đếm & không có & \texttt{densify\_count} kế thừa, không tăng \\
+\hline
+\end{tabular}
+\end{center}
+\vspace{3pt}
+\textbf{Ba hệ quả thực tế:}
+\begin{itemize}
+\item Ngưỡng scale chặt hơn 10$\times$ ($0.001$ thay vì $0.01$) $\Rightarrow$ phần lớn Gaussian rơi vào nhánh \emph{split} (\texttt{split\_qualifiers} là phần bù đúng của \texttt{clone\_qualifiers}, \texttt{:990--991}), clone trở thành thao tác cho các Gaussian rất nhỏ.
+\item Nhánh $\vee$ \texttt{full\_split\_mask} cho phép nhân bản Gaussian có gradient \emph{thấp} nhưng vi phạm tần số nhất quán qua nhiều view — đúng động cơ của SADGS.
+\item \texttt{metric\_mask} chặn Gaussian "vô hình" (không camera nào thấy) khỏi việc sinh thêm điểm vô ích.
+\end{itemize}
+\end{frame}
+
+
+\begin{frame}{\texttt{densification\_postfix}: gắn M điểm mới vào toàn bộ trạng thái}
+\footnotesize
+\texttt{densification\_postfix} (\texttt{:595--636}) là điểm hội tụ chung của clone và split. Nó chia trạng thái làm ba nhóm:
+\begin{enumerate}
+\item \textbf{Tham số tối ưu} (6 tensor) đóng gói vào dict \texttt{d} theo \emph{tên param group} rồi đẩy qua \texttt{cat\_tensors\_to\_optimizer} (\texttt{:596--609}). Khoá dict phải khớp \texttt{"xyz", "f\_dc", "f\_rest", "opacity", "scaling", "rotation"} đúng như khai báo ở \texttt{training\_setup:306--313}.
+\item \textbf{Bộ tích luỹ gradient bị XOÁ TRẮNG}, không phải nối thêm (\texttt{:614--617}):
+\[
+\texttt{xyz\_gradient\_accum}\leftarrow \mathbf{0}_{(N+M)\times1},\quad
+\texttt{denom}\leftarrow \mathbf{0},\quad
+\texttt{max\_radii2D}\leftarrow \mathbf{0}
+\]
+tức là \emph{mọi} Gaussian — kể cả những cái không bị đụng tới — mất sạch lịch sử gradient sau mỗi lần densify. Đây là lý do densification chạy theo chu kỳ chứ không mỗi iteration.
+\item \textbf{Bộ tích luỹ riêng của SADGS} được nối thêm $M$ số 0 (\texttt{:624--636}): \texttt{accum\_eta}, \texttt{accum\_view\_count}, \texttt{max\_eta\_3ch} $(M\times3)$, \texttt{accum\_weights\_valid}, \texttt{densify\_count}, và 5 tensor nhất quán đa view (\texttt{eta\_high\_count}, \texttt{eta\_high\_sum\_3ch}, \texttt{eta\_mid\_count}, \texttt{eta\_mid\_sum\_3ch}, \texttt{eta\_low\_count}).
+\end{enumerate}
+Chú thích trong code nói rõ lý do (\texttt{:623}): \emph{"We append zeros because new points haven't been seen yet"} — điểm mới chưa được camera nào quan sát nên mọi thống kê $\eta$ phải bắt đầu từ 0. Hệ quả: ngay sau densify, \texttt{metric\_mask} của chính các điểm mới bằng \texttt{False}, chúng không thể được clone tiếp cho tới chu kỳ quan sát kế.
+\end{frame}
+
+
+\begin{frame}{\texttt{cat\_tensors\_to\_optimizer}: ghép tensor \emph{và} trạng thái Adam}
+\footnotesize
+Với mỗi param group (\texttt{:566--593}), mở rộng chiều 0 từ $N$ lên $N+M$ cho \emph{ba} tensor song song:
+\[
+\theta' = \mathrm{cat}(\theta,\ \theta_{ext}),\qquad
+m' = \mathrm{cat}\big(m,\ \mathbf{0}_M\big),\qquad
+v' = \mathrm{cat}\big(v,\ \mathbf{0}_M\big)
+\]
+(\texttt{:578--579, 585}); nếu Adam bật \texttt{amsgrad} thì \texttt{max\_exp\_avg\_sq} cũng được nối 0 (\texttt{:581--582}) — cần thiết vì chế độ \texttt{"hybrid"} tạo Adam với \texttt{amsgrad=True} (\texttt{:323}).
+\begin{itemize}
+\item Vòng lặp chạy trên \emph{danh sách} optimizer: \texttt{self.optimizer} và thêm \texttt{self.shoptimizer} nếu tồn tại (\texttt{:568--569}) — vì \texttt{f\_rest} (SH bậc cao) nằm ở optimizer riêng với learning rate \texttt{highfeature\_lr/20} (\texttt{:313, 318, 324}).
+\item \texttt{assert len(group["params"]) == 1} (\texttt{:573}): mỗi group đúng một tensor, nên có thể dùng \texttt{group['params'][0]} làm khoá trạng thái.
+\item Nhánh \texttt{stored\_state is None} (\texttt{:589--591}): khi Adam \emph{chưa} bước lần nào thì chưa có state, chỉ cần cat tham số.
+\end{itemize}
+\begin{center}
+\includegraphics[width=0.60\linewidth]{sadgsx/05_cat_tensor_optimizer.png}
+\captionof{figure}{\footnotesize Sơ đồ chiều tensor trước/sau: tham số được sao chép, còn hai moment của Adam nhận toàn số 0 cho $M$ dòng mới.}
+\end{center}
+\end{frame}
+
+
+\begin{frame}{Vì sao phải dựng lại param group, không gán trực tiếp?}
+\footnotesize
+Ba dòng then chốt, đúng thứ tự (\texttt{:584--586}):
+\begin{center}
+\texttt{del opt.state[group['params'][0]]} $\;\to\;$ \texttt{group["params"][0] = nn.Parameter(cat(...).requires\_grad\_(True))} $\;\to\;$ \texttt{opt.state[group['params'][0]] = stored\_state}
+\end{center}
+\begin{itemize}
+\item \textbf{Lý do 1 — khoá của \texttt{optimizer.state} là chính đối tượng \texttt{Parameter}.} \texttt{opt.state} là một dict đánh khoá theo danh tính (identity) của tensor. Nối thêm hàng làm đổi shape $\Rightarrow$ bắt buộc tạo \texttt{Parameter} \emph{mới} (tensor mới, địa chỉ mới). Nếu không \texttt{del} bản ghi cũ, dict sẽ giữ lại entry mồ côi trỏ tới tensor $N$ hàng: rò bộ nhớ GPU và trạng thái sai lệch.
+\item \textbf{Lý do 2 — không thể gán in-place.} \texttt{group["params"][0].data = ...} sẽ giữ nguyên khoá cũ nhưng làm shape của \texttt{data} lệch với shape của \texttt{exp\_avg}/\texttt{exp\_avg\_sq} đã lưu; bước Adam kế tiếp sẽ lỗi broadcast hoặc âm thầm tính sai.
+\item \textbf{Lý do 3 — \texttt{group["params"]} là list được optimizer duyệt mỗi \texttt{step()}.} Phải thay \emph{phần tử trong list} thì optimizer mới nhìn thấy tensor mới; tạo biến Python mới ở ngoài là vô nghĩa.
+\item \textbf{Lý do 4 — phải đồng bộ lại thuộc tính của model.} Sau khi cat, \texttt{densification\_postfix:604--609} gán lại \texttt{self.\_xyz, self.\_features\_dc, \dots} từ dict trả về; nếu quên, model vẫn trỏ tới tensor cũ $N$ hàng trong khi optimizer cập nhật tensor $N{+}M$ hàng.
+\end{itemize}
+Cùng một khuôn mẫu xuất hiện ở \texttt{replace\_tensor\_to\_optimizer} (\texttt{:485--501}) và \texttt{\_prune\_optimizer} (\texttt{:503--526}) — chỉ khác phép biến đổi (thay hẳn / cắt theo mask) áp lên cả ba tensor.
+\end{frame}
+
+
+\begin{frame}{Trạng thái Adam của Gaussian mới: khởi tạo 0 và hệ quả}
+\scriptsize
+Bản sao \textbf{kế thừa giá trị tham số} nhưng \textbf{không kế thừa moment}: $m_{new}=0,\ v_{new}=0$ (\texttt{:578--579}). Trong khi đó biến đếm bước \texttt{step} của Adam là một scalar dùng chung cho cả tensor, nên vẫn giữ giá trị lớn $t\gg1$. Bước cập nhật đầu tiên của điểm mới với gradient $g$:
+\[
+\hat m_1 = \frac{(1-\beta_1)g}{1-\beta_1^{t}} \approx (1-\beta_1)g,\qquad
+\hat v_1 = \frac{(1-\beta_2)g^2}{1-\beta_2^{t}} \approx (1-\beta_2)g^2
+\;\Longrightarrow\;
+\frac{|\Delta\theta|}{\eta}\approx\frac{1-\beta_1}{\sqrt{1-\beta_2}}=\frac{0.1}{\sqrt{0.001}}=3.16
+\]
+với $\beta=(0.9,\,0.999)$ (\texttt{:317--318, 323}). Tức là \emph{bước đi đầu tiên của Gaussian mới lớn hơn $\approx3\times$ bước bình thường}, và chỉ trở về $\approx1$ sau vài chục iteration.
+\begin{itemize}
+\item Hiệu ứng này thực ra \textbf{có lợi cho clone}: hai bản sao trùng khít cần một cú hích để tách nhau; nếu kế thừa moment của cha thì cả hai đi cùng hướng, cùng tốc độ và mãi không tách.
+\item Mặt trái: kèm \texttt{eps}$=10^{-\texttt{adam\_eps\_order}}$ (\texttt{:315}) rất nhỏ, điểm mới có thể bị "đá" quá xa trong vài bước đầu — một phần lý do vẫn cần prune opacity ngay sau đó (\texttt{:1014}) và reset opacity về $\min(\alpha,0.8)$ qua \texttt{replace\_tensor\_to\_optimizer} (\texttt{:1046--1048}).
+\end{itemize}
+\begin{center}
+\includegraphics[width=0.62\linewidth]{sadgsx/05_adam_moment_reset.png}
+\captionof{figure}{\scriptsize Mô phỏng $|\Delta\theta|/\eta$ vài chục iteration đầu sau densify: bản sao (đỏ) vọt lên $\approx3.16$ rồi cao hơn nữa trước khi hồi về mức của Gaussian cha (xanh).}
+\end{center}
+\end{frame}
+
+
+\begin{frame}{Tóm tắt và các cạm bẫy kỹ thuật}
+\footnotesize
+\begin{block}{\footnotesize Toàn bộ cơ chế trong 5 dòng}
+\begin{enumerate}
+\item $\mathcal{S}=\texttt{metric\_mask}\wedge\texttt{final\_clone\_mask}$ — chọn Gaussian nhỏ, gradient cao \emph{hoặc} vi phạm tần số nhất quán đa view, và đã được nhìn thấy.
+\item Cắt lát 6 tham số $+$ \texttt{tmp\_radii} $+$ \texttt{filter\_3D} theo $\mathcal{S}$, không biến đổi giá trị.
+\item \texttt{densification\_postfix}: cat tham số qua optimizer, xoá trắng accum gradient, nối 0 cho 9 bộ tích luỹ SADGS.
+\item \texttt{cat\_tensors\_to\_optimizer}: $\theta,\ m,\ v$ (và \texttt{max\_exp\_avg\_sq} nếu amsgrad) cùng lên $N+M$; dựng lại \texttt{Parameter} và di dời khoá \texttt{opt.state}.
+\item Ghi đè \texttt{densify\_count[n\_old:n\_old+n\_new]} bằng \texttt{parent\_counts}.
+\end{enumerate}
+\end{block}
+\textbf{Cạm bẫy đã được code xử lý:}
+\begin{itemize}
+\item \texttt{tmp\_radii is None} lần đầu $\Rightarrow$ tạo đệm 0 đúng kích thước cũ trước khi cat (\texttt{:611--613}).
+\item \texttt{filter\_3D} chỉ cat khi thực sự tồn tại và khác rỗng (\texttt{:619--620}); \texttt{\_prune\_optimizer} cũng kiểm tra tương tự (\texttt{:547--548}).
+\item Chụp \texttt{n\_old} \emph{trước} khi gọi postfix (\texttt{:948}) — sau đó \texttt{self.get\_xyz.shape[0]} đã là $N+M$.
+\item Ở chế độ \texttt{"sparse\_adam"} (\texttt{:320--321}) chỉ có một optimizer chứa cả \texttt{f\_rest}, còn \texttt{"default"}/\texttt{"hybrid"} tách hai — vòng lặp \texttt{:568--569} xử lý được cả hai cấu hình.
+\end{itemize}
+\textbf{Điểm cần lưu ý khi đọc code:} \texttt{densify\_and\_clone\_structgs} \emph{không} tự kiểm tra scale hay gradient; nếu gọi trực tiếp với mask tuỳ ý thì không có bất kỳ rào chắn nào ngăn nhân bản Gaussian khổng lồ.
+\end{frame}

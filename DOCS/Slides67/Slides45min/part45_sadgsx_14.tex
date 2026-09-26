@@ -1,0 +1,37 @@
+% ===== BOT 14: Rasterizer riêng của SADGS — diff-gaussian-rasterization\_structgs =====
+
+\begin{frame}{Rasterizer riêng của SADGS: \texttt{mult}, \texttt{cov2D} và $T^{\max}$}
+\scriptsize
+\begin{columns}[T]
+\begin{column}{0.50\textwidth}
+SADGS fork rasterizer CUDA của 3DGS thành \texttt{diff-gaussian-rasterization\_structgs}, gọi qua \texttt{render\_structgs(\dots, mult, \dots)} (\texttt{gaussian\_renderer/\_\_init\_\_.py:18}).
+\vspace{0.1cm}
+\textbf{1. Nền tảng không đổi} --- tile $16\times16$ (\texttt{config.h:16--17}), sort theo $\big[\text{tile}|\text{depth}\big]$, alpha blending:
+\[
+\alpha_i=\sigma_{o,i}e^{-\frac12 d_i^\top\Sigma_{2D,i}^{-1}d_i},\;\;
+T_i=\!\!\prod_{j<i}\!(1-\alpha_j),\;\;
+C=\sum_i c_i\alpha_iT_i
+\]
+bỏ qua $\alpha<1/255$, dừng sớm khi $T<10^{-4}$.
+\vspace{0.1cm}
+\textbf{2. \texttt{mult} --- compact box} thay AABB $3\sigma$: chỉ gán tile cho vùng
+\[
+d^\top\Sigma_{2D}^{-1}d\le t,\qquad t=\texttt{mult}\cdot 2\ln(255\,\sigma_o)
+\]
+(\texttt{auxiliary.h:332--333}). Mặc định \texttt{opt.mult}$=0.7$ (\texttt{arguments/\_\_init\_\_.py:114}) $\Rightarrow$ ít cặp (tile,\,Gaussian) $\Rightarrow$ sort ngắn, render nhanh; phần bị cắt có $\alpha$ dưới cả ngưỡng $1/255$ nên chất lượng gần như không đổi.
+\end{column}
+\begin{column}{0.49\textwidth}
+\centering
+\includegraphics[width=0.99\linewidth]{sadgsx/14_mult_vs_3sigma.png}
+\captionof{figure}{\footnotesize Vùng ảnh hưởng theo \texttt{mult} so với AABB $3\sigma$ và số tile $16\times16$ phải xử lý mỗi splat.}
+\raggedright
+\vspace{0.1cm}
+\textbf{3. Đầu ra mới: \texttt{cov2D} $(N,7)$} (\texttt{rasterize\_points.cu:92})
+\begin{itemize}\itemsep0pt
+    \item cột 0--2: $\Sigma_{2D}$; cột 3--4: tâm pixel; cột 5: depth (\texttt{forward.cu:241--246})
+    \item cột 6: $T^{\max}$ ghi bằng \texttt{atomicMax} trên bit-pattern float (\texttt{forward.cu:470})
+\end{itemize}
+Python lọc $\big(T^{\max}\!>\!\tau_T\big)\wedge\big(\sigma_o\!>\!\tau_o{=}0.05\big)$ rồi lấy mẫu Cholesky từ $\Sigma_{2D}$ để tính $\eta$ (\texttt{utils/freq\_utils.py:181--260}). Kèm theo: \texttt{accum\_metric\_counts}, \texttt{depth/opacity/normal\_map} khi \texttt{compute\_extra}.
+\end{column}
+\end{columns}
+\end{frame}

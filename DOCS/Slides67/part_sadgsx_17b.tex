@@ -1,0 +1,63 @@
+% ===== BOT 17b: Multiscale structure tensor -- so lieu that di sau v1/v2 =====
+% Anh dung: DOCS/assets/samples_drjohnson.png, crop (924,381)-(1365,671)
+% ("gt IMG_6500" -- tu sach go + cua kinh luoi mullion cheo), khac vung crop
+% cua samples_train.png ma cac hinh sadgsx/01_*.png va real_st_*.png da dung.
+% Nguon: DOCS/BOOK/adc_figures/deep17b_multiscale.py (numpy thuan, khong torch).
+
+\begin{frame}{v1 vs v2: chi phi va do lech THAT, khong chi ly thuyet}
+\footnotesize
+Bang so sanh chi phi o slide truoc la ly thuyet ($O(1)$ vs $O(L)$ Sobel). O day chay that ca hai
+bien the tren cung anh, quet \texttt{st\_levels} $L\in\{2,3,4,6\}$, do wall-clock that va \textbf{dem
+so lan goi that} \texttt{sobel\_channel}/\texttt{fast\_gaussian\_blur}:
+\[
+\#\text{Sobel}_{v1}=3\ \text{(co dinh)},\qquad \#\text{Sobel}_{v2}=3L\qquad\text{(\texttt{loss\_utils.py:241 vs :357}})
+\]
+\begin{itemize}
+\item Do that xac nhan dung ly thuyet: dem duoc $\#\text{Sobel}_{v1}=3$ voi \emph{moi} $L$; $\#\text{Sobel}_{v2}=9,12,15,21$ tai $L=2,3,4,6$ -- khop chinh xac $3L$.
+\item Wall-clock: v1 tu 50$\to$202\,ms, v2 tu 67$\to$285\,ms khi $L{:}2{\to}6$ -- khoang cach v1/v2 \textbf{gian ra} theo $L$ (chi phi them cua v2 tuyen tinh theo $L$).
+\item Do lech $\overline{|\mathrm{tr}_{v1}-\mathrm{tr}_{v2}|}$ tren toan anh \textbf{rat nho} ($\approx10^{-4}$) va \textbf{giam dan} khi $L$ tang -- nhieu octave hon pha loang dong gop cua cac octave tho, noi v1/v2 lech nhau nhieu nhat.
+\end{itemize}
+\begin{center}
+\includegraphics[width=0.92\linewidth]{deep17b_01_cost_divergence.png}
+\captionof{figure}{\footnotesize Chi phi that (wall-clock + so lan goi) va do lech trace v1/v2, quet $L\in\{2,3,4,6\}$ tren anh crop that (tu sach go, cua kinh luoi).}
+\end{center}
+\end{frame}
+
+
+\begin{frame}{Do nhay $r=$\texttt{octave\_step} va $p=$\texttt{power\_factor}: luoi 3$\times$3 that}
+\footnotesize
+Cong thuc gop trace da biet:
+\[
+\mathrm{tr}(\hat S)=\frac{\sum_i w_i f_i^2}{\sum_i w_i},\qquad w_i=R_i^{\,p},\quad f_i=r^{-i}
+\]
+Quet that $r\in\{1.2,1.5,2.0\}\times p\in\{1,3,6\}$ (9 to hop, \texttt{levels=4}) tren cung anh:
+\begin{itemize}
+\item Theo hang ($p$ tang, $r$ co dinh): \texttt{mean\_tr} giam manh -- vi du $r{=}1.5$: $0.4595\to0.4072\to0.0739$ khi $p{=}1\to3\to6$ -- xac nhan bang so hieu ung winner-take-all cua $p$.
+\item Theo cot ($r$ tang, $p{=}1$ co dinh): \texttt{mean\_tr} giam don dieu $0.7473\to0.4595\to0.2555$ -- $r$ lon lam $f_i^2=r^{-2i}$ giam nhanh hon o cac octave sau.
+\item Quan sat thi giac: o $p{=}6$, ca ba gia tri $r$ cho ban do \textbf{gan nhu giong het nhau ve cau truc khong gian} (chi con vien luoi kinh) -- $p$ du lon thi chi phoi hoan toan, $r$ chi con anh huong nhe toi bien do ($<0.5\%$ chenh lech \texttt{mean\_tr}).
+\end{itemize}
+\begin{center}
+\includegraphics[width=0.5\linewidth]{deep17b_02_rp_sensitivity.png}
+\captionof{figure}{\footnotesize Luoi $\mathrm{tr}(\hat S)$ that, quet $r\times p$, cung anh crop, \texttt{get\_multiscale\_structure\_tensor\_v1}.}
+\end{center}
+\end{frame}
+
+
+\begin{frame}{Kiem chung dang thuc: chuan hoa $\mathrm{tr}_i$ $\Rightarrow$ trace cuoi chi phu thuoc $w_i,f_i$}
+\footnotesize
+Vi moi octave chia cho $\mathrm{tr}_i=S_{xx,i}+S_{yy,i}+10^{-6}$ truoc khi gop (\texttt{:287--291}), nen
+$\frac{S_{xx,i}}{\mathrm{tr}_i}+\frac{S_{yy,i}}{\mathrm{tr}_i}=\frac{\mathrm{tr}_i-10^{-6}}{\mathrm{tr}_i}\approx1$. Suy ra dang thuc
+\textbf{khong can biet} gia tri $S_{xx,i},S_{yy,i}$ cu the:
+\[
+\boxed{\;\mathrm{tr}(\hat S)\ \approx\ \frac{\sum_i w_i f_i^2}{\sum_i w_i}\;}\qquad\text{(\texttt{loss\_utils.py:296--298, 309--311})}
+\]
+Kiem chung bang hai cach tinh trace \textbf{doc lap} tren cung anh: (i) chay thuat toan day du roi lay $S_{xx}+S_{yy}$; (ii) chi dung $w_i,f_i$ thu duoc trong vong lap, ap dung thang cong thuc tren.
+\begin{itemize}
+\item Hai ban do (i) va (ii) giong het nhau bang mat thuong; $\overline{|\text{residual}|}=3.7\times10^{-4}$ tren toan anh.
+\item $\max|\text{residual}|=4.0\times10^{-2}$, khu tru \textbf{dung o vung phang/toi} (tuong xanh, khe toi giua sach) -- noi $\mathrm{tr}_i$ nho toi muc $\epsilon=10^{-6}$ khong con "khong dang ke" -- dung nhu du doan tu chinh cong thuc, \textbf{khong phai loi tinh toan}.
+\end{itemize}
+\begin{center}
+\includegraphics[width=0.85\linewidth]{deep17b_03_trace_identity.png}
+\captionof{figure}{\footnotesize Trace that (i) vs cong thuc dai so (ii) vs residual, tren cung anh crop, \texttt{levels=4}, $r{=}1.5$, $p{=}3$.}
+\end{center}
+\end{frame}

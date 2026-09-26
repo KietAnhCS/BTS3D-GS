@@ -1,0 +1,133 @@
+% ============================================================
+% PHẦN SADGS — Slide 2/8: Structure Tensor & tỉ số tần số eta
+% ============================================================
+
+% --- Frame 1 ---
+\begin{frame}{Đo cấu trúc texture đa tỉ lệ: Structure Tensor $\to$ $\eta$}
+\footnotesize
+\begin{itemize}
+    \item Với mỗi camera nhìn thấy Gaussian, lấy mẫu \textbf{structure tensor} $S$ tại điểm chiếu $(u,v)$ trên ảnh gốc (được tiền tính đa tỉ lệ, \texttt{st\_levels} mức, \texttt{st\_mode}):
+\end{itemize}
+\[
+S = \begin{pmatrix} S_{xx} & S_{xy} \\ S_{xy} & S_{yy}\end{pmatrix}, \qquad
+\lambda_1 = \frac{\text{tr}(S)}{2} + \sqrt{\left(\frac{\text{tr}(S)}{2}\right)^2 - \det(S)}
+\]
+\begin{itemize}
+    \item $\lambda_1$ là trị riêng lớn nhất (năng lượng gradient cực đại) $\Rightarrow$ \textbf{bước sóng cục bộ} $w_{\min} = 1/(\sqrt{\lambda_1}+\varepsilon)$ (đơn vị pixel) -- vùng chi tiết mịn có $w_{\min}$ nhỏ, vùng phẳng có $w_{\min}$ lớn.
+    \item Chiều dài trục chiếu 2D của Gaussian (từ Jacobian phối cảnh $J$, ma trận xoay $R$, scale $\Sigma$): $\text{axis}_k = \lVert J R \,\text{diag}(\Sigma)\, e_k\rVert$, $k\in\{x,y,z\}$.
+\end{itemize}
+\[
+\eta_k^{\text{wavelength}} = \frac{\text{axis}_k}{w_{\min}}, \qquad
+\eta_k^{\text{projection}} = \sqrt{\,e_k^\top R^\top J^\top S J R\, e_k\,}
+\]
+\begin{itemize}
+    \item Hai chế độ (\texttt{eta\_compute\_mode}): \texttt{"wavelength"} (mặc định, so kích thước Gaussian với bước sóng texture) hoặc \texttt{"projection"} (chiếu trực tiếp structure tensor lên từng trục).
+    \item $\eta_k > 1$: trục $k$ của Gaussian \textbf{lớn hơn} chi tiết ảnh tại đó $\Rightarrow$ nguy cơ alias/mờ $\Rightarrow$ ứng viên split theo trục đó.
+    \item $\eta$ được tính \textbf{riêng cho từng trục} ($\eta_{3ch}$, 3 kênh), không phải một số vô hướng chung cho cả Gaussian.
+\end{itemize}
+\end{frame}
+
+% --- Frame 2 ---
+\begin{frame}{Structure tensor đa tỉ lệ là gì?}
+\begin{columns}
+\begin{column}{0.55\textwidth}
+\footnotesize
+\begin{itemize}
+    \item $S$ được xây từ \textbf{DoG (Difference of Gaussians)} đa octave trên ảnh ground-truth (\texttt{loss\_utils.py: get\_multiscale\_structure\_tensor\_v1}): structure tensor gốc $S_{\text{base}}$ (Di Zenzo + Sobel) được tích phân lại ở mỗi octave với $\rho_i = 3\sigma_i$ thành $S_i$, chuẩn hoá hướng $\hat S_i = S_i/(\mathrm{tr}\,S_i+\varepsilon)$ rồi cộng dồn có trọng số
+    $S = \frac{1}{\sum_i w_i+\varepsilon}\sum_i \hat S_i\, w_i\, f_i^2$, với $w_i = \lVert I_{\sigma_i}-I_{\sigma_{i+1}}\rVert_2^{\,p}$ ($p=$\texttt{power\_factor}$=3$) và $f_i = 1/\texttt{octave\_step}^i$.
+    \item Kết quả được \textbf{cache theo ảnh} và tra cứu lại trong \texttt{update\_freq\_stats\_online}, không tính lại mỗi iteration -- giữ chi phí runtime thấp.
+    \item Trị riêng lớn nhất $\lambda_1$ của $S$ = hướng \& độ mạnh của biến thiên cường độ pixel mạnh nhất tại điểm đó $\Rightarrow$ chính là \textbf{tần số không gian cục bộ} cao nhất của texture.
+    \item Vùng cạnh sắc/hoạ tiết dày đặc $\Rightarrow$ $\lambda_1$ lớn $\Rightarrow$ $w_{\min}$ nhỏ $\Rightarrow$ đòi hỏi Gaussian nhỏ để không làm mờ chi tiết.
+    \item Vùng mảng màu phẳng (tường, bầu trời) $\Rightarrow$ $\lambda_1$ nhỏ $\Rightarrow$ $w_{\min}$ lớn $\Rightarrow$ Gaussian lớn vẫn đủ, không cần chi tiết thêm.
+\end{itemize}
+\end{column}
+\begin{column}{0.45\textwidth}
+\centering
+\includegraphics[width=0.95\linewidth]{fig_07_threshold_sweep.png}
+\captionof{figure}{\footnotesize Minh hoạ định tính: độ nhạy của phân loại tần số khi quét ngưỡng $\tau$}
+\end{column}
+\end{columns}
+\end{frame}
+
+% --- Frame 3 ---
+\begin{frame}{Phân loại quan sát: high / mid / low}
+\footnotesize
+\begin{itemize}
+    \item Mỗi \textbf{quan sát} (một Gaussian trong một view) được gán nhãn dựa trên $\eta_{\max}=\max_k \eta_k$ lấy trên 3 trục (\texttt{freq\_utils.py:401}), theo hai ngưỡng cứng:
+\end{itemize}
+\[
+\text{label}(\eta_{\max}) =
+\begin{cases}
+\text{\textbf{high}} & \eta_{\max} > \tau_{\text{high}} = 1.0 \quad \text{(chi tiết vượt kích thước hiện tại} \Rightarrow \text{ứng viên split)} \\
+\text{\textbf{low}} & \eta_{\max} \le \tau_{\text{low}} = 0.1 \quad \text{(Gaussian thừa chi tiết so với texture} \Rightarrow \text{ứng viên prune)} \\
+\text{mid} & \tau_{\text{low}} < \eta_{\max} \le \tau_{\text{high}} \quad \text{(giữ nguyên)}
+\end{cases}
+\]
+\vspace{0.15cm}
+\centering
+\begin{tabular}{lccccl}
+\toprule
+\textbf{Ví dụ} & $\eta_x$ & $\eta_y$ & $\eta_z$ & $\eta_{\max}$ & \textbf{Nhãn của quan sát} \\
+\midrule
+Gaussian A & 1.3 & 0.4 & 0.08 & 1.3 & \textbf{high} $\Rightarrow$ \texttt{eta\_high\_count} $+1$ \\
+Gaussian B & 0.6 & 0.5 & 0.7 & 0.7 & mid $\Rightarrow$ \texttt{eta\_mid\_count} $+1$ \\
+Gaussian C & 0.08 & 0.05 & 0.03 & 0.08 & \textbf{low} $\Rightarrow$ \texttt{eta\_low\_count} $+1$ \\
+\bottomrule
+\end{tabular}
+\vspace{0.2cm}
+\begin{itemize}
+    \item Nhãn high/mid/low chỉ quyết định \textbf{có} split/prune hay không. \textbf{Mức độ} chia mới dùng $\eta$ \textbf{riêng từng trục}: \texttt{max\_eta\_3ch} (max qua các view, \texttt{freq\_utils.py:390--392}) $\to k_{\text{axis}}$ ở Slide~4.
+    \item Ngưỡng lọc bổ sung \texttt{freq\_grad\_threshold} và \texttt{importance\_score\_threshold} ($=0.5$) giúp loại các tín hiệu tần số yếu/nhiễu trước khi đưa vào quyết định densify.
+\end{itemize}
+\end{frame}
+
+% --- Frame 4 ---
+\begin{frame}{Tính nhất quán đa góc nhìn (multiview-consistency)}
+\begin{columns}
+\begin{column}{0.55\textwidth}
+\footnotesize
+\begin{itemize}
+    \item Một Gaussian được nhiều camera nhìn thấy trong quá trình huấn luyện; mỗi view cho một ước lượng $\eta_k$ khác nhau (do góc chiếu, occlusion, độ phân giải khác nhau).
+    \item \texttt{update\_freq\_stats\_online} \textbf{tích luỹ} qua từng view vào bộ đếm trên mỗi Gaussian: \texttt{accum\_eta}, \texttt{eta\_high\_count}, \texttt{eta\_low\_count}, \texttt{accum\_view\_count}.
+\end{itemize}
+\[
+\text{high\_ratio} = \frac{\texttt{eta\_high\_count}}{\texttt{accum\_view\_count}}, \qquad
+\text{low\_ratio} = \frac{\texttt{eta\_low\_count}}{\texttt{accum\_view\_count}}
+\]
+\begin{itemize}
+    \item Chỉ khi \text{high\_ratio} (hoặc \text{low\_ratio}) đủ lớn qua \textbf{nhiều view} thì Gaussian mới thực sự được coi là cần split (hoặc prune).
+    \item Lý do: một view đơn lẻ có thể bị occlusion, mờ do chuyển động, hoặc góc nhìn xấu $\Rightarrow$ tín hiệu $\eta$ nhiễu tại view đó. Tích luỹ đa view giúp lọc nhiễu, tránh split/prune sai vì một khung hình bất thường.
+\end{itemize}
+\end{column}
+\begin{column}{0.45\textwidth}
+\centering
+\includegraphics[width=0.95\linewidth]{fig_04_gbar_history.png}
+\captionof{figure}{\footnotesize Minh hoạ khái niệm: giá trị tích luỹ ổn định dần qua nhiều lần cập nhật (hình gốc vẽ cho gradient trung bình, dùng ở đây để minh hoạ ý tưởng tích luỹ theo view, không phải đúng 100\% cơ chế $\eta$)}
+\end{column}
+\end{columns}
+\end{frame}
+
+% --- Frame 5 ---
+\begin{frame}{So sánh hai chế độ \texttt{eta\_compute\_mode}}
+\footnotesize
+\centering
+\begin{tabular}{lll}
+\toprule
+\textbf{Tiêu chí} & \textbf{"wavelength"} & \textbf{"projection"} \\
+\midrule
+Công thức & $\eta_k = \text{axis}_k / w_{\min}$ & $\eta_k = \sqrt{e_k^\top R^\top J^\top S J R\, e_k}$ \\
+Ý nghĩa & So kích thước Gaussian & Chiếu trực tiếp dạng toàn phương \\
+ & với 1 con số bước sóng vô hướng & của $S$ lên từng trục Gaussian \\
+Thông tin dùng từ $S$ & Chỉ $\lambda_1$ (trị riêng lớn nhất) & Toàn bộ ma trận $S$ (cả hướng) \\
+Độ nhạy hướng & Đẳng hướng (isotropic) theo $w_{\min}$ & Bất đẳng hướng, theo đúng hướng trục \\
+Vai trò & Chế độ mặc định, đơn giản, ổn định & Lựa chọn thiết kế thay thế, tận dụng \\
+ & & đầy đủ thông tin hướng của $S$ \\
+\bottomrule
+\end{tabular}
+\vspace{0.3cm}
+\begin{itemize}
+    \item \textbf{"wavelength"}: quy $S$ về một đại lượng vô hướng ($\lambda_1 \to w_{\min}$) rồi so trực tiếp với độ dài trục -- đơn giản, dễ diễn giải như "kích thước Gaussian so với chi tiết ảnh".
+    \item \textbf{"projection"}: giữ nguyên thông tin hướng của $S$, chiếu quadratic form lên từng trục $e_k$ -- có thể phân biệt tốt hơn khi texture có tính bất đẳng hướng mạnh (vd. vân gỗ, sọc kẻ).
+    \item Đây là hai lựa chọn thiết kế đã cài sẵn trong \texttt{arguments/\_\_init\_\_.py} (\texttt{eta\_compute\_mode}); code không kèm ghi chú lý do chọn mặc định, nên không suy diễn thêm ngoài khác biệt công thức nêu trên.
+\end{itemize}
+\end{frame}

@@ -1,0 +1,9 @@
+% partADC_1b.tex --- [XOA] Toan bo 6 frame cu (Buoc (2)-(4): min-max, nguong
+% tau_loss, luong PyTorch get_loss/metric_map) da bi xoa vi mo ta mot co che
+% DEAD CODE -- SADGS/train.py khong bao gio goi get_loss() hay truyen
+% metric_map khac None (SADGS/utils/freq_utils.py:92 dinh nghia nhung khong
+% duoc goi o dau trong train.py). Co che clone/split/prune that dung gradient
+% tich luy + eta (structure tensor) + accum_view_count, khong lien quan gi
+% den e_v(x)/metric_map/tau_loss mo ta o day. Xem lich su git neu can tham
+% khao lai noi dung cu (1_7_norm_compare.png .. 1_12_torch_flow.png, cung da
+% bi xoa).

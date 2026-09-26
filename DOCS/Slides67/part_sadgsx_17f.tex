@@ -1,0 +1,63 @@
+% ===== BOT 17f: SAD-GS toàn cảnh — README->cơ chế, so sánh với 3DGS gốc =====
+% Hình: DOCS/BOOK/adc_figures/deep17f_overview_comparison.py
+%   deep17f_01_readme_mapping.png    -> mục 17.0
+%   deep17f_02_weakness_matrix.png   -> mục 17.7 (bảng 5 điểm yếu, đối chiếu 12.0.3)
+%   deep17f_03_new_problems.png      -> mục 17.7 (bảng vấn đề mới)
+%   deep17f_04_pipeline_recap.png    -> tổng hợp công thức 17.1->17.5
+% Đây là 4 hình schematic (matplotlib patches/text/arrows), vẽ lại trung thực
+% các bảng/kết luận đã có trong 17-sadgs-structure-aware-densification.md,
+% không phát sinh số liệu/kết luận mới.
+
+% --- Frame 1: bản đồ README -> cơ chế (mở đầu / nhắc lại toàn chương) ---
+\begin{frame}{Toàn cảnh SAD-GS: từ README tới 5 cơ chế}
+\scriptsize
+\vspace{-3mm}
+\begin{center}
+\includegraphics[width=0.92\linewidth]{deep17f_01_readme_mapping.png}
+\end{center}
+\vspace{-2mm}
+\captionof{figure}{\scriptsize Ba cụm từ khoá trong câu mô tả của \texttt{SADGS/README.md:7-10} ánh xạ
+trực tiếp sang ba cơ chế có code cụ thể (mục 17.0): không phải khẩu hiệu marketing, mỗi cụm từ
+đều truy được ra đúng hàm và đúng mục trong sách.}
+\end{frame}
+
+% --- Frame 2: sơ đồ toàn tuyến công thức, dùng làm hình tổng kết đóng chương ---
+\begin{frame}{Toàn tuyến công thức: §17.1 $\to$ §17.5 trong một hình}
+\scriptsize
+\vspace{-3mm}
+\begin{center}
+\includegraphics[width=0.98\linewidth]{deep17f_04_pipeline_recap.png}
+\end{center}
+\vspace{-2mm}
+\captionof{figure}{\scriptsize Nhánh \textbf{ảnh} (structure tensor $\to$ multiscale) chạy một lần trước train;
+nhánh \textbf{Gaussian} ($\eta\to$ multiview ratio $\to$ anisotropic split) chạy lặp lại mỗi 10--100 iteration.
+Ngưỡng thật lấy từ mục 17.4: $\tau_{\text{high}}=1.0$, $\tau_{\text{low}}=0.1$, $\tau_{\text{split}}=\tau_{\text{prune}}=0.8$.}
+\end{frame}
+
+% --- Frame 3: SAD-GS sửa được gì của 3DGS gốc (ma trận 5 điểm yếu) ---
+\begin{frame}{SAD-GS sửa được gì của 3DGS gốc — nhìn bằng hình}
+\scriptsize
+\vspace{-3mm}
+\begin{center}
+\includegraphics[width=0.7\linewidth]{deep17f_02_weakness_matrix.png}
+\end{center}
+\vspace{-2mm}
+\captionof{figure}{\scriptsize Vẽ lại đúng bảng 5 điểm yếu ở mục 17.7 (đối chiếu §12.0.3 của chương 12):
+xanh lá = SAD-GS đã sửa (kế thừa cơ chế nền, không đổi); xanh dương = SAD-GS sửa theo cơ chế khác/triệt để hơn (điểm \#2, dấu gradient
+triệt tiêu); vàng = có nhánh code nhưng bị vô hiệu hoá mặc định (điểm \#3, \texttt{pruning\_score=None});
+xám = không liên quan (điểm \#4, \#5 — opacity và final-prune, SAD-GS không đụng tới).}
+\end{frame}
+
+% --- Frame 4: vấn đề mới SAD-GS giải quyết, ngoài 5 điểm của 12.0.3 ---
+\begin{frame}{Ngoài 5 điểm cũ: SAD-GS còn giải vấn đề gì 3DGS gốc không thấy?}
+\scriptsize
+\vspace{-3mm}
+\begin{center}
+\includegraphics[width=0.92\linewidth]{deep17f_03_new_problems.png}
+\end{center}
+\vspace{-2mm}
+\captionof{figure}{\scriptsize Ba vấn đề mới ở mục 17.7 (bảng thứ hai), 3DGS gốc không có khái niệm tương
+đương: hai hàng đầu là vấn đề 3DGS gốc \emph{không thấy} vì khác hẳn miền tín hiệu (màu render vs.\ cấu
+trúc GT); hàng thứ ba (viền đỏ) là điểm yếu \textbf{thật} của ADC gốc đã ghi nhận ở mục 17.4 — ngưỡng
+Importance tuyệt đối không co giãn theo độ phân giải, còn \texttt{high\_ratio}/\texttt{low\_ratio} thì có.}
+\end{frame}

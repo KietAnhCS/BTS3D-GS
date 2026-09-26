@@ -1,0 +1,154 @@
+% ============================================================
+% PHẦN SADGS — Slide 8/8: Tổng kết mạch Structure-Aware Densification
+% ============================================================
+
+% --- Slide 1: Mở đầu tổng kết ---
+\begin{frame}{Tổng kết Phần SADGS: từ gradient tới cấu trúc tần số}
+\footnotesize
+\begin{itemize}
+    \item Qua 7 phần trước, SADGS thay \textbf{một} tín hiệu densify duy nhất (gradient vị trí tích luỹ, kiểu 3DGS gốc) bằng \textbf{ba trục điều khiển độc lập}: tần số cấu trúc cục bộ ($\eta$), nhất quán đa góc nhìn (multiview-consistency), và đóng góp thực vào pixel (importance).
+    \item Sáu hàm cốt lõi được cài đặt đầy đủ trong \texttt{scene/gaussian\_model.py}: \texttt{update\_freq\_stats\_online}, \texttt{densify\_and\_clone\_structgs}, \texttt{densify\_and\_split\_structgs}, \texttt{expand\_undersized\_gs}, \texttt{densify\_and\_prune\_structgs}, \texttt{final\_prune\_structgs}.
+    \item \alert{Nhưng} không phải cả 6 hàm đều chạy trong luồng huấn luyện mặc định -- đây chính là điều slide tiếp theo làm rõ trước khi tổng kết tham số và so sánh.
+\end{itemize}
+\centering
+\includegraphics[width=0.55\linewidth]{fig_01_timeline.png}
+\captionof{figure}{\footnotesize Dòng thời gian tổng thể: gradient (3DGS gốc) $\to$ tần số + đa view + importance (SADGS).}
+\end{frame}
+
+% --- Slide 2: Bản đồ toàn bộ 6 hàm ---
+\begin{frame}{Bản đồ toàn bộ 6 hàm: cái nào THẬT SỰ đang chạy?}
+\footnotesize
+\begin{table}
+\centering
+\begin{tabular}{lp{3.3cm}c}
+\toprule
+\textbf{Hàm} & \textbf{Vai trò} & \textbf{Trạng thái} \\
+\midrule
+\texttt{update\_freq\_stats\_online} & Đo tần số cấu trúc đa tỉ lệ mỗi ảnh, tích luỹ theo view & \textcolor{green!50!black}{\textbf{Chạy mặc định}} \\
+\texttt{densify\_and\_clone\_structgs} & Nhân bản Gaussian dựa importance\_score & \textcolor{green!50!black}{\textbf{Chạy mặc định}} \\
+\texttt{densify\_and\_split\_structgs} & Split dị hướng theo từng trục ($\eta_\text{axis}$) & \textcolor{green!50!black}{\textbf{Chạy mặc định}} \\
+\texttt{densify\_and\_prune\_structgs} & Gộp 1 vòng: clone+split+prune mỗi \texttt{densification\_interval} & \textcolor{green!50!black}{\textbf{Chạy mặc định}} \\
+\texttt{expand\_undersized\_gs} & Giãn giải tích Gaussian dưới cỡ ($\eta<\tau_\text{expand}$) & \alert{\textbf{Bị comment trong train.py}} \\
+\texttt{final\_prune\_structgs} & Tỉa cuối theo multi-view consistency (floater) & \alert{\textbf{Bị comment trong train.py}} \\
+\bottomrule
+\end{tabular}
+\end{table}
+\begin{itemize}
+    \item[$\Rightarrow$] 4/6 hàm định nghĩa được gọi thật trong \texttt{train.py}: đo tần số $\to$ \texttt{densify\_and\_prune\_structgs} (bản thân hàm này đã gộp cả clone lẫn split bên trong) mỗi 100 vòng.
+    \item[$\Rightarrow$] \alert{Điểm dễ hiểu lầm nhất:} \texttt{expand\_undersized\_gs} và \texttt{final\_prune\_structgs} là hai hàm \textbf{định nghĩa đúng, kiểm chứng được logic}, nhưng lời gọi của chúng trong \texttt{train.py} đang \textbf{bị comment out} -- nghĩa là cơ chế "giãn Gaussian dưới cỡ bằng giải tích" và "tỉa cuối theo nhất quán đa view" \textbf{không} tác động tới mô hình được huấn luyện mặc định.
+\end{itemize}
+\centering
+\includegraphics[width=0.32\linewidth]{fig_11_N_accounting.png}
+\captionof{figure}{\footnotesize Kế toán $N$: chỉ các hàm đang chạy mặc định mới đóng góp vào biến động số Gaussian quan sát được.}
+\end{frame}
+
+% --- Slide 3: Bảng đầy đủ tham số ---
+\begin{frame}{Bảng đầy đủ tham số: đang hoạt động vs dead code}
+\scriptsize
+\textbf{(a) 11 tham số đang thực sự được tham chiếu trong code:}
+\begin{table}
+\centering
+\begin{tabular}{lc p{4.6cm}}
+\toprule
+\textbf{Tham số} & \textbf{Giá trị} & \textbf{Vai trò} \\
+\midrule
+\texttt{eta\_compute\_mode} & "wavelength" & Cách tính $\eta$: so trục Gaussian với bước sóng, hoặc chiếu structure tensor \\
+\texttt{freq\_grad\_threshold} & -- & Ngưỡng gradient lọc điểm "active" trong \texttt{update\_freq\_stats\_online} \\
+\texttt{importance\_score\_threshold} & $0.5$ & Ngưỡng view tối thiểu để được clone/split \\
+\texttt{split\_ratio\_threshold} & $0.8$ & Tỉ lệ view có $\eta{>}1$ để bị đánh dấu split \\
+\texttt{prune\_ratio\_threshold} & $0.8$ & Tỉ lệ view có $\eta{\le}0.1$ để bị đề xuất prune \\
+\texttt{tau\_expand} & $1.0$ & Ngưỡng $\eta$ dưới đó Gaussian được giãn đúng bằng giải tích \\
+\texttt{dense} & $0.001$ & Ngưỡng mật độ dùng trong logic densify tần số \\
+\texttt{ks\_scale\_power} & -- & Hệ số mũ scale khi tính lưới con lúc split dị hướng \\
+\texttt{densify\_grad\_threshold} & $0.0002$ & Ngưỡng gradient kế thừa (tín hiệu cũ, vẫn kết hợp trong 1 vòng) \\
+\texttt{densify\_grad\_abs\_threshold} & $0.0004$ & Ngưỡng gradient tuyệt đối (kế thừa từ rasterizer/optimizer nền) \\
+\texttt{mult} & $0.7$ & Hệ số compact box (kế thừa nguyên vẹn từ rasterizer nền) \\
+\bottomrule
+\end{tabular}
+\end{table}
+\vspace{-1mm}
+\textbf{(b) 6 tham số khai báo trong \texttt{arguments/\_\_init\_\_.py} nhưng KHÔNG được tham chiếu ở bất kỳ đâu khác (dead code):}
+\begin{center}
+\begin{tabular}{llll}
+\toprule
+\texttt{min\_contribution\_threshold} & \texttt{importance\_error\_threshold} & \texttt{expansion\_speed} \\
+\texttt{clone\_target\_eta} & \texttt{max\_clones\_per\_axis} & \texttt{densification\_window\_width} \\
+\bottomrule
+\end{tabular}
+\end{center}
+\end{frame}
+
+% --- Slide 4: So sánh tổng thể 2 cột 3DGS gốc / SADGS ---
+\begin{frame}{So sánh tổng thể: 3DGS gốc vs SADGS}
+\footnotesize
+\begin{table}
+\centering
+\begin{tabular}{lcc}
+\toprule
+\textbf{Tiêu chí} & \textbf{3DGS gốc} & \textbf{SADGS} \\
+\midrule
+Tín hiệu densify chính & grad vị trí & tần số $\eta$ đa tỉ lệ \\
+Split dị hướng theo trục & không & có ($k_\text{axis}{=}\lceil\sqrt{\eta_\text{axis}}\rceil$) \\
+Tích luỹ đa view trước quyết định & không (1 view) & có (split/prune\_ratio\_threshold) \\
+Giãn Gaussian dưới cỡ bằng giải tích & không & định nghĩa nhưng \alert{bị tắt} \\
+Prune cuối theo nhất quán đa view & không & định nghĩa nhưng \alert{bị tắt} \\
+Compact box ($3\sigma$, mult=0.7) & không & có \\
+3D anti-aliasing filter & tuỳ chọn & có (tắt mặc định) \\
+Cost model tối ưu rasterization & không & có \\
+Optimizer & Adam thường & Fused/Sparse Adam \\
+\bottomrule
+\end{tabular}
+\end{table}
+\begin{itemize}
+    \item[$\Rightarrow$] Trục khác biệt thật sự nằm ở \textbf{hàng 1--3}: tín hiệu tần số, split dị hướng, và đa view -- đây là phần "structure-aware" mà SADGS đóng góp thêm vào nền rasterizer/optimizer đã có.
+\end{itemize}
+\centering
+\includegraphics[width=0.55\linewidth]{13_vram_time_real_log.png}
+\captionof{figure}{\footnotesize Chi phí VRAM/thời gian vẫn thừa hưởng lợi ích cost model + compact box từ nền rasterizer/optimizer, không đổi do phần structure-aware.}
+\end{frame}
+
+% --- Slide 5: Điều gì THẬT SỰ mới trong SADGS ---
+\begin{frame}{Điều gì THẬT SỰ mới trong SADGS so với 3DGS gốc?}
+\footnotesize
+\textbf{Cốt lõi khác biệt (structure-aware densification):}
+\begin{itemize}
+    \item Đo \textbf{tần số cấu trúc đa tỉ lệ} của ảnh gốc (\texttt{update\_freq\_stats\_online}) thay vì chỉ nhìn gradient loss.
+    \item \textbf{Split dị hướng theo từng trục} ($k_\text{axis}=\lceil\sqrt{\eta_\text{axis}}\rceil$) thay vì lấy mẫu ngẫu nhiên đẳng hướng.
+    \item Quyết định clone/split/prune dựa trên \textbf{tỉ lệ nhất quán đa góc nhìn} (\texttt{split\_ratio\_threshold}, \texttt{prune\_ratio\_threshold}) thay vì tín hiệu tức thời 1 view.
+    \item Kết hợp (không thay thế hoàn toàn) tín hiệu gradient cũ trong \texttt{densify\_and\_prune\_structgs} -- SADGS \textbf{bổ sung}, không xoá bỏ, tín hiệu gradient gốc.
+\end{itemize}
+\vspace{1mm}
+\textbf{Kế thừa nguyên vẹn từ nền rasterizer/optimizer (không đổi):}
+\begin{itemize}
+    \item Compact box ($3\sigma$, \texttt{mult}$=0.7$), 3D anti-aliasing filter (tắt mặc định), Fused/Sparse Adam, cấu trúc renderer/rasterizer.
+\end{itemize}
+\begin{itemize}
+    \item[$\Rightarrow$] Nói ngắn gọn: SADGS = 3DGS gốc (giữ nguyên phần rasterizer/optimizer nền) $+$ một lớp quyết định densify/prune mới dựa trên cấu trúc tần số và đa view, chạy \textbf{song song với}, không thay thế, tín hiệu gradient gốc.
+\end{itemize}
+\end{frame}
+
+% --- Slide 6: Hạn chế phát hiện qua rà soát code ---
+\begin{frame}{Tình trạng thực tế qua rà soát code (tại thời điểm review)}
+\footnotesize
+\begin{itemize}
+    \item \textbf{6 tham số dead code}: \texttt{min\_contribution\_threshold}, \texttt{importance\_error\_threshold}, \texttt{expansion\_speed}, \texttt{clone\_target\_eta}, \texttt{max\_clones\_per\_axis}, \texttt{densification\_window\_width} -- có khai báo trong \texttt{arguments/\_\_init\_\_.py} nhưng không được đọc ở bất kỳ nơi nào khác trong codebase; thay đổi giá trị các tham số này \textbf{không ảnh hưởng} kết quả huấn luyện.
+    \item \textbf{2 hàm bị tắt}: \texttt{expand\_undersized\_gs} và \texttt{final\_prune\_structgs} định nghĩa đúng, logic hợp lý, nhưng lời gọi trong \texttt{train.py} đang bị comment -- cơ chế "giãn giải tích Gaussian dưới cỡ" và "tỉa cuối theo nhất quán đa view" \textbf{không} có mặt trong mô hình huấn luyện mặc định.
+    \item Hệ quả trực tiếp: một Gaussian có $\eta$ rất thấp (quá nhỏ so với texture) sẽ \textbf{không} được giãn lại; và các floater không nhất quán giữa các view sẽ \textbf{không} được dọn ở bước cuối -- hai lỗ hổng này chỉ lộ ra khi đọc kỹ \texttt{train.py}, không thấy được nếu chỉ đọc \texttt{gaussian\_model.py}.
+    \item Đây là mô tả trạng thái thực tế của bản cài đặt được rà soát, không phải đánh giá về ý tưởng SADGS trong bài báo gốc -- ý tưởng đầy đủ (6 hàm) vẫn hợp lệ về mặt lý thuyết và đã được kiểm chứng logic ở các phần trước.
+\end{itemize}
+\centering
+\includegraphics[width=0.32\linewidth]{15_verification_status.png}
+\captionof{figure}{\footnotesize Trạng thái xác minh: 4/6 hàm chạy mặc định, 2/6 định nghĩa đúng nhưng bị tắt, 6 tham số dead code.}
+\end{frame}
+
+% --- Slide 7: Kết, cầu nối sang Phần 7 chung ---
+\begin{frame}{Kết mạch SADGS}
+\footnotesize
+\begin{itemize}
+    \item Qua 8 phần, mạch SADGS đã đi từ ý tưởng (Nyquist, $\eta$) $\to$ từng hàm cốt lõi (đo tần số, clone, split dị hướng, expand, densify+prune theo vòng, prune cuối) $\to$ bảng tham số đầy đủ $\to$ so sánh với 3DGS gốc $\to$ minh bạch về những gì đang thực sự chạy trong bản cài đặt này.
+    \item Thông điệp cốt lõi cần giữ lại: \textbf{ý tưởng structure-aware densification là đóng góp thật}, nhưng \textbf{bản triển khai hiện tại chỉ kích hoạt một phần} (4/6 hàm, 11/17 tham số) trong luồng huấn luyện mặc định.
+\end{itemize}
+\vspace{2mm}
+\centering
+{\large Phần tiếp theo: quan sát thực nghiệm và tổng kết chung toàn bộ deck.}
+\end{frame}

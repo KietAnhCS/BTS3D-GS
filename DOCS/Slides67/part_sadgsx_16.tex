@@ -1,0 +1,75 @@
+% ===== BOT 16: Đường dây SADGS từ Structure Tensor đến ADC — bản đồ tổng quan =====
+% Hình: figures/sadgsx/scripts/bot16_figs.py
+
+% --- Frame 1: bản đồ toàn tuyến ---
+\begin{frame}{Bản đồ toàn tuyến: từ \emph{structure tensor} đến \emph{ADC}}
+\scriptsize
+\vspace{-3mm}
+\begin{center}
+\includegraphics[width=0.78\linewidth]{sadgsx/16_flow_tensor_to_adc.png}
+\end{center}
+\vspace{-2mm}
+\captionof{figure}{\scriptsize Nhánh \textbf{ảnh} (xanh dương, một lần trước vòng lặp) sinh $\lambda_{\min}$; nhánh \textbf{Gaussian} (xanh lá, mỗi view) sinh $\|a_j\|$; hai nhánh gặp nhau đúng ở ô cam $\eta$. Tím = bỏ phiếu đa view; hồng = ADC; xám nét đứt = mặc định TẮT.}
+\end{frame}
+
+% --- Frame 2: đọc sơ đồ theo 5 tầng ---
+\begin{frame}{Đọc sơ đồ theo 5 tầng --- mỗi tầng đổi một đơn vị}
+\scriptsize
+\vspace{-3mm}
+\begin{center}
+\begin{tabular}{llll}
+\toprule
+\textbf{Tầng} & \textbf{Vào} & \textbf{Ra} & \textbf{Đơn vị ra} \\
+\midrule
+1. Structure tensor & ảnh $I$ ($H{\times}W{\times}3$) & \texttt{st\_map} $(S_{xx},S_{xy},S_{yy})$ & (cường độ/px)$^2$ \\
+2. Bước sóng & $\lambda_1$ của $S$ & $\lambda_{\min}=1/(\sqrt{\lambda_1}+10^{-5})$ & pixel \\
+3. Chiếu trục & $R,\,\mathrm{diag}(s),\,J$ & $\|a_j\|=\sqrt{u_j^2+v_j^2+10^{-8}}$ & pixel \\
+4. Tỉ số & $\|a_j\|$ và $\lambda_{\min}$ & $\eta_j=\|a_j\|/\lambda_{\min}$ & \alert{không thứ nguyên} \\
+5. Bỏ phiếu & $\eta$ qua $M$ view & \texttt{high\_ratio}, \texttt{low\_ratio} & tỉ lệ $\in[0,1]$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+\vspace{2mm}
+\textbf{Vì sao tầng 4 là mấu chốt:} $\eta$ là \emph{pixel chia pixel}, nên một ngưỡng hằng số ($\tau_{high}=1.0$, $\tau_{low}=0.1$ --- \texttt{freq\_utils.py:395--396}) mới có nghĩa xuyên cảnh. Nếu tử số còn đơn vị mét hoặc mẫu số còn là ``năng lượng gradient'', ngưỡng sẽ phải chỉnh lại cho từng dataset.
+
+\vspace{1mm}
+\textbf{Nhịp chạy:} tầng 1--2 chạy \textbf{một lần} (cache, \texttt{train.py:160--200}); tầng 3--5 chạy mỗi \textbf{10} iteration; quyết định ADC mỗi \textbf{100} iteration.
+\end{frame}
+
+% --- Frame 3: eta là một tỉ số ---
+\begin{frame}{Tầng 4 nhìn bằng mắt: $\eta$ so trục chiếu với bước sóng texture}
+\scriptsize
+\vspace{-3mm}
+\begin{center}
+\includegraphics[width=0.95\linewidth]{sadgsx/16_eta_geometry.png}
+\end{center}
+\vspace{-2mm}
+\captionof{figure}{\footnotesize (a) Cùng một ellipse Gaussian đặt trên vùng sọc mịn: tử số là độ dài trục sau khi chiếu, mẫu số là bước sóng texture tại chỗ. (b) Ba trục cho ba giá trị $\eta$ chênh nhau cả bậc độ lớn --- đây chính là thứ split đẳng hướng của 3DGS không thấy được. (c) Cùng một Gaussian, $\eta \propto 1/z$: ở view gần thì ``phải SPLIT'', ở view xa thì ``vô hại''. Các con số là minh hoạ.}
+\end{frame}
+
+% --- Frame 4: bỏ phiếu đa view ---
+\begin{frame}{Tầng 5: tách \emph{pha đo} khỏi \emph{pha quyết định}}
+\scriptsize
+\vspace{-3mm}
+\begin{center}
+\includegraphics[width=0.95\linewidth]{sadgsx/16_multiview_vote.png}
+\end{center}
+\vspace{-2mm}
+\captionof{figure}{\footnotesize (a) Mỗi 10 iteration, một view bỏ đúng một phiếu HIGH/MID/LOW vào 9 bộ đếm. (b) Mỗi 100 iteration, \texttt{train.py:337--343} đổi bộ đếm thành tỉ lệ rồi so với ngưỡng $0.8$. (c) Split đòi \textbf{AND} của nhất quán đa view với gradient $\ge 10^{-5}$ --- cổng AND này là chốt chặn chống bùng nổ $N$.}
+\end{frame}
+
+% --- Frame 5: ADC làm gì với eta ---
+\begin{frame}{Đầu ra của đường dây: ADC dùng $\eta$ để định \emph{hình dạng} phép chia}
+\scriptsize
+\vspace{-3mm}
+\begin{center}
+\includegraphics[width=0.95\linewidth]{sadgsx/16_adc_actions.png}
+\end{center}
+\vspace{-1mm}
+\captionof{figure}{\footnotesize 3DGS chia đều mọi trục cho 1.6; SADGS chia riêng từng trục theo $k_j=\lceil\sqrt{\max(\eta_j,1)}\rceil$, sinh lưới con $N_{\text{con}}=k_xk_yk_z$ rồi thu scale theo $s_j/k_j^{\,p}$ với $p=$\texttt{ks\_scale\_power}.}
+\vspace{1mm}
+\begin{itemize}
+    \item \textbf{Lập luận lấy mẫu} (\texttt{gaussian\_model.py:692--696}): muốn $\sigma_{\text{new}}\,\omega_{\max}\le 1$ thì cần $k\ge\sqrt{\eta}$.
+    \item \alert{Cảnh báo đọc từ code:} comment hứa ``clamp min=2, max=8'' nhưng dòng \texttt{:701} chỉ có \texttt{torch.clamp(ks, min=1)} --- \textbf{không có trần 8}. $N_{\text{con}}$ có thể bùng nổ nếu $\eta$ lớn; chốt chặn duy nhất còn lại là ngưỡng gradient $10^{-5}$ (\texttt{train.py:333}).
+\end{itemize}
+\end{frame}

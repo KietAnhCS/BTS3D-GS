@@ -1,0 +1,190 @@
+% ===== BOT 02: Chiếu trục Gaussian lên màn hình & tỉ số cấu trúc eta =====
+
+\begin{frame}{SADGS --- Trái tim của cơ chế: từ \texttt{cov2D} của rasterizer}
+\scriptsize
+Rasterizer trả về tensor \texttt{cov2D} \textbf{7 cột} cho mọi Gaussian
+(\texttt{gaussian\_renderer/\_\_init\_\_.py:91,104,124}); \texttt{update\_freq\_stats\_online}
+bóc ra dùng lại (\texttt{utils/freq\_utils.py:199--203, 253--255}):
+\vspace{-1mm}
+\begin{center}\scriptsize
+\begin{tabular}{llll}
+\hline
+cột 0--2 & \texttt{cov\_xx, cov\_xy, cov\_yy} & $\Sigma_{2D}$ trên màn hình & dùng cho jitter Cholesky (fu:263--274)\\
+cột 3--4 & \texttt{means2D} & tâm chiếu (pixel) & điểm lấy mẫu structure tensor\\
+cột 5 & \texttt{depths} & $z$ trong camera space & chia phối cảnh\\
+cột 6 & \texttt{max\_transmittance} & độ nhìn thấy & lọc Gaussian bị che (fu:207)\\
+\hline
+\end{tabular}
+\end{center}
+\vspace{-1mm}
+Hình dạng Gaussian sinh từ scale $s\in\mathbb{R}^3$ và quaternion $r$:
+\[
+\Sigma_{3D}=R(r)\,S\,S^\top R(r)^\top,\qquad S=\mathrm{diag}(s),\qquad
+\Sigma_{2D}=J\,\Sigma_{3D}\,J^\top
+\]
+\begin{center}
+\includegraphics[width=0.80\linewidth]{sadgsx/02_cov3d_to_cov2d.png}\\
+\captionof{figure}{\tiny Cùng một Gaussian, ảnh chiếu co lại theo $1/z$ --- kích thước trên màn hình \emph{phụ thuộc view}.}
+\end{center}
+\end{frame}
+
+
+\begin{frame}{Jacobian phối cảnh và 3 trục chiếu (\texttt{compute\_projected\_axes\_subset})}
+\scriptsize
+\texttt{utils/freq\_utils.py:116--178}. SADGS \textbf{không} dùng $\Sigma_{2D}$ để đo kích thước,
+mà chiếu trực tiếp \textbf{3 trục chính} của ellipsoid:
+\begin{enumerate}\itemsep0pt
+\item Back-project tâm về camera space (fu:134--135):
+$x=(u-\tfrac{W}{2})\tfrac{z}{f_x}$, $y=(v-\tfrac{H}{2})\tfrac{z}{f_y}$.
+\item Jacobian tại đúng điểm đó (fu:141--147), hàng $u$: $(f_x/z,\,0,\,-f_x x/z^2)$, hàng $v$: $(0,\,f_y/z,\,-f_y y/z^2)$.
+\item Xoay về camera space: $R_{total}=R_{view}R_{local}(r)$ rồi \textbf{nhân cột với scale} (fu:160,165):
+$A_{cam}=R_{total}\cdot\mathrm{diag}(s)$ --- cột $j$ là trục thứ $j$.
+\item Chiếu 2 thành phần (fu:174--175):
+$\;u_j=J_{00}A^x_j+J_{02}A^z_j$, $\;v_j=J_{11}A^y_j+J_{12}A^z_j$; trả về tensor $[N,3,2]$.
+\end{enumerate}
+\vspace{-1mm}
+\begin{center}
+\includegraphics[width=0.56\linewidth]{sadgsx/02_jacobian_axes.png}\\
+\captionof{figure}{\tiny Cột thứ 3 của $J$ (số hạng $-fx/z^2$) chính là méo phối cảnh: trục lệch khỏi tâm ảnh bị "nghiêng" thêm.}
+\end{center}
+\end{frame}
+
+
+\begin{frame}{Độ dài trục chiếu: đơn vị pixel, chia theo depth}
+\scriptsize
+Độ dài vật lý của mỗi trục trên màn hình (\texttt{freq\_utils.py:342}):
+\[
+\|a_j\|=\sqrt{u_j^2+v_j^2+10^{-8}}\quad[\text{pixel}],\qquad j=1,2,3
+\]
+Tại tâm ảnh ($x=y=0$) rút gọn thành $\|a_j\|\approx f\,s_j/z$ --- \textbf{tỉ lệ nghịch với khoảng cách}.
+\begin{itemize}\itemsep0pt
+\item Đây là lý do tiêu chí phải tính \emph{online theo từng view} chứ không phải một lần trong không gian 3D.
+\item Cùng một Gaussian: gần camera $\Rightarrow$ trục chiếu lớn $\Rightarrow$ dễ vi phạm tần số; xa $\Rightarrow$ vô hại.
+\item $\varepsilon=10^{-8}$ giữ cho gradient/sqrt không NaN với trục suy biến.
+\end{itemize}
+\begin{center}
+\includegraphics[width=0.62\linewidth]{sadgsx/02_axis_vs_depth.png}\\
+\captionof{figure}{\tiny Trái: $\|a_j\|\propto 1/z$. Phải: $\eta$ tụt qua $\tau_{high}=1.0$ khi Gaussian lùi xa.}
+\end{center}
+\end{frame}
+
+
+\begin{frame}{Bước sóng cục bộ từ trị riêng của structure tensor}
+\scriptsize
+Structure tensor $S=\begin{pmatrix}S_{xx}&S_{xy}\\S_{xy}&S_{yy}\end{pmatrix}$ được cache trước
+(Di Zenzo, cộng năng lượng RGB --- \texttt{utils/loss\_utils.py:170--215}), rồi lấy mẫu bằng
+\texttt{F.grid\_sample} tại điểm đã jitter trong ellipse 1-sigma (\texttt{freq\_utils.py:290--298}).
+
+Trị riêng lớn nhất = năng lượng tần số cực đại (\texttt{freq\_utils.py:325--334}):
+\[
+\lambda_1=\frac{\mathrm{tr}}{2}+\sqrt{\Big(\frac{\mathrm{tr}}{2}\Big)^2-\det},\qquad
+\boxed{\;\lambda_{\min}=\frac{1}{\sqrt{\lambda_1}+10^{-5}}\;}
+\]
+Ý nghĩa: $f\sim\sqrt{\lambda_1}$ nên $\lambda_{\min}\sim 1/f$ là \textbf{bước sóng nhỏ nhất} (pixel)
+mà texture cục bộ chứa --- "giới hạn tốc độ" cho kích thước Gaussian.
+Vùng phẳng: $\lambda_1\to 0 \Rightarrow \lambda_{\min}\to 10^5$ (rất lớn) $\Rightarrow$ Gaussian to vẫn hợp lệ.
+\begin{center}
+\includegraphics[width=0.72\linewidth]{sadgsx/02_wavelength_eigen.png}\\
+\captionof{figure}{\tiny Sọc càng mịn $\Rightarrow \lambda_1$ càng lớn $\Rightarrow \lambda_{\min}$ càng nhỏ.}
+\end{center}
+\end{frame}
+
+
+\begin{frame}{Định nghĩa $\eta$ và 3 kênh \texttt{eta\_3ch}}
+\scriptsize
+Mode mặc định \texttt{eta\_compute\_mode="wavelength"} (\texttt{arguments/\_\_init\_\_.py:150};
+\texttt{freq\_utils.py:313--348}):
+\[
+\boxed{\;\eta_j=\frac{\|a_j\|}{\lambda_{\min}}=\frac{\text{kích thước Gaussian trên màn hình}}{\text{kích thước chi tiết texture}}\;}
+\qquad j=1,2,3
+\]
+\begin{itemize}\itemsep0pt
+\item \textbf{3 kênh} = 3 trục chính của ellipsoid (3 cột của $R_{total}\mathrm{diag}(s)$ sau khi chiếu), \emph{không phải} 3 kênh màu.
+Nhờ vậy SADGS biết Gaussian vi phạm \emph{theo hướng nào} $\Rightarrow$ split \emph{đúng trục} đó.
+\item Trọng số transmittance: \texttt{eta\_3ch *= weights\_valid} (fu:380) --- Gaussian bị che thì ít quan trọng.
+\item Tích luỹ đa view: \texttt{accum\_eta += eta\_3ch.sum(dim=1)} (fu:382--384) và
+\texttt{max\_eta\_3ch = max(max\_eta\_3ch, eta\_3ch)} theo từng trục (fu:391--392).
+\end{itemize}
+\begin{center}
+\includegraphics[width=0.55\linewidth]{sadgsx/02_eta_3ch.png}\\
+\captionof{figure}{\tiny Trái: $\eta_{3ch}$ cho 3 trục. Phải: phân loại $\eta_{\max}$ qua 40 view.}
+\end{center}
+\end{frame}
+
+
+\begin{frame}{Trực giác Nyquist: vì sao tỉ số này là đúng đại lượng cần đo}
+\scriptsize
+Một Gaussian đóng vai trò \textbf{bộ lọc thông thấp} khi tô lên ảnh. Với texture tần số
+$\omega=2\pi/\lambda_{\min}$, biên độ còn lại sau khi Gaussian "lấy mẫu" là
+\[
+A_{\text{out}}=A_{\text{in}}\exp\!\Big(-\tfrac{1}{2}\|a\|^2\omega^2\Big)
+=A_{\text{in}}\exp\!\big(-2\pi^2\eta^2\big)
+\]
+$\eta$ là biến duy nhất điều khiển việc chi tiết bị mất:
+\begin{itemize}\itemsep0pt
+\item $\eta>1$: Gaussian rộng hơn cả chu kỳ texture $\Rightarrow$ chi tiết bị xoá/alias $\Rightarrow$ \textbf{SPLIT}.
+\item $\eta\approx 0.1\ldots 1$: vừa khớp $\Rightarrow$ \textbf{GIỮ}.
+\item $\eta\le 0.1$: Gaussian nhỏ hơn chi tiết hàng chục lần $\Rightarrow$ dư thừa $\Rightarrow$ ứng viên \textbf{PRUNE}.
+\end{itemize}
+\begin{center}
+\includegraphics[width=0.76\linewidth]{sadgsx/02_nyquist.png}\\
+\captionof{figure}{\tiny Cùng một texture, 3 kích thước Gaussian: chỉ cái ở giữa/nhỏ giữ được sóng.}
+\end{center}
+\end{frame}
+
+
+\begin{frame}{Ngưỡng $\tau_{high}$, $\tau_{low}$ và 3 vùng quyết định}
+\scriptsize
+Hard-code trong \texttt{utils/freq\_utils.py:395--396}:
+\;\texttt{TAU\_HIGH = 1.0},\; \texttt{TAU\_LOW = 0.1}. Phân loại dùng \emph{max} trên 3 trục (fu:399--404):
+\[
+\eta_{\max}=\max_{j}\eta_j,\qquad
+\begin{cases}
+\text{high} & \eta_{\max}>\tau_{high}=1.0\\
+\text{low} & \eta_{\max}\le\tau_{low}=0.1\\
+\text{mid} & \text{còn lại}
+\end{cases}
+\]
+Mỗi view cộng 1 vào \texttt{eta\_high/mid/low\_count} (fu:407--409). Tới kỳ densify,
+\texttt{train.py:341--353} quy ra tỉ lệ nhất quán đa view:
+\[
+\text{split}: \frac{\texttt{eta\_high\_count}}{\texttt{accum\_view\_count}}>\texttt{split\_ratio\_threshold}=0.8
+\;\wedge\;\|\nabla\|\ge 10^{-5};\qquad
+\text{prune}: \frac{\texttt{eta\_low\_count}}{\texttt{accum\_view\_count}}>0.8
+\]
+\begin{center}
+\includegraphics[width=0.38\linewidth]{sadgsx/02_eta_heatmap.png}\\
+\captionof{figure}{\tiny $\eta$ trên lưới (kích thước Gaussian) $\times$ (bước sóng texture); 2 đường đẳng trị chia 3 vùng.}
+\end{center}
+\end{frame}
+
+
+\begin{frame}{Mode thứ hai \texttt{"projection"} và bản đồ code}
+\scriptsize
+\texttt{freq\_utils.py:350--373} --- thay vì chuẩn hoá theo $\lambda_{\min}$ vô hướng, chiếu
+structure tensor lên \emph{hướng} của từng trục (dạng toàn phương):
+\[
+\eta_j=\sqrt{S_{xx}u_j^2+2S_{xy}u_jv_j+S_{yy}v_j^2}
+\]
+Khác biệt: mode này \emph{có hướng} --- với đường ngang ($S_{yy}$ lớn, $S_{xx}\approx 0$) trục dọc cho $\eta$ cao,
+trục ngang cho $\eta$ thấp. Mode \texttt{"wavelength"} thì mọi trục chia cùng một $\lambda_{\min}$.
+Mode lạ $\Rightarrow$ \texttt{raise ValueError} (fu:376).
+\vspace{1mm}
+
+\begin{center}\scriptsize
+\begin{tabular}{ll}
+\hline
+\texttt{gaussian\_renderer/\_\_init\_\_.py:91,124} & rasterizer xuất \texttt{cov2D} 7 cột\\
+\texttt{freq\_utils.py:116--178} & \texttt{compute\_projected\_axes\_subset} $\to$ $[N,3,2]$\\
+\texttt{freq\_utils.py:313--348} & mode \texttt{"wavelength"}: $\eta=\|a_j\|/\lambda_{\min}$\\
+\texttt{freq\_utils.py:350--373} & mode \texttt{"projection"}: dạng toàn phương\\
+\texttt{freq\_utils.py:395--409} & $\tau_{high}=1.0$, $\tau_{low}=0.1$, đếm high/mid/low\\
+\texttt{train.py:341--353} & \texttt{split\_ratio\_threshold}/\texttt{prune\_ratio\_threshold} $=0.8$\\
+\texttt{scene/gaussian\_model.py:699} & $k=\lceil\sqrt{\max(\eta,1)}\rceil$ --- số lát cắt mỗi trục\\
+\hline
+\end{tabular}
+\end{center}
+\vspace{1mm}
+Ghi chú: hàm \texttt{normalize} (\texttt{freq\_utils.py:104--114}, chuẩn hoá theo median) hiện \emph{không}
+được gọi ở nhánh $\eta$ --- di sản từ phiên bản scoring cũ.
+\end{frame}

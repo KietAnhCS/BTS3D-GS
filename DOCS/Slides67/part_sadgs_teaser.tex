@@ -1,0 +1,48 @@
+% ===== TEASER: 2 slide tổng quan trực quan cho SADGS =====
+% Ảnh: figures/sadgs_overview/*.png — dựng lại ĐÚNG công thức trong code (không thêm số liệu ảo):
+%   fast_gaussian_blur                  utils/loss_utils.py:113-168
+%   get_structure_tensor_torch          utils/loss_utils.py:170-230
+%   get_multiscale_structure_tensor_v1  utils/loss_utils.py:232-313
+%   eta (mode "wavelength")             utils/freq_utils.py:313-348
+%   densify_and_split_structgs          scene/gaussian_model.py:638-832
+% Ảnh gốc: ảnh thật cắt từ DOCS/assets/samples_train.png (gt 00001, scene "train"),
+% cùng cảnh với teaser paper gốc.
+
+\begin{frame}{SADGS nhìn tổng quan: từ ảnh 2D đến việc tách Gaussian 3D}
+\footnotesize
+Hai slide này ghép lại đúng bố cục teaser của paper (Input Image $\to$ Laplacian Scale Space $\to$
+Multiscale Structure-Tensor Field $\to$ 3D Gaussian Training), nhưng mọi con số, mọi công thức đều
+được tính \textbf{trực tiếp} trên ảnh thật bằng đúng code trong \texttt{SADGS/}, không phải minh hoạ vẽ tay.
+\begin{center}
+\includegraphics[width=0.98\linewidth]{sadgs_overview/01_2d_structure_analysis.png}
+\end{center}
+\vspace{-1mm}
+\begin{itemize}
+\item \textbf{Laplacian Scale Space}: mỗi tầng $i$ là dải Difference-of-Gaussians
+$b_i=\|I^{(i)}-G_{\Delta\sigma_i}{*}I^{(i)}\|_2$ với $\sigma_i=\sigma_0 s^i$, $s{=}1.5$
+(\texttt{loss\_utils.py:262--270}) — đây là "Laplacian" theo nghĩa xấp xỉ DoG$\approx$LoG, không phải Laplacian pyramid kiểu Burt--Adelson.
+\item \textbf{Multiscale Structure-Tensor Field}: mỗi tầng đóng góp \emph{hướng} $J_i/\mathrm{tr}J_i$ có trọng số
+$w_i=b_i^{p}$ ($p{=}3$) và nạp lại \emph{tần số} bằng $f_i^2=s^{-2i}$, gộp lại thành $\hat J$
+(\texttt{loss\_utils.py:300--311}). Ellipse vàng = hình elip lỗi $\propto(\sqrt{\lambda_1},\sqrt{\lambda_2})$ xoay theo $\theta$ trị riêng của $\hat J$ tại từng điểm lưới.
+\end{itemize}
+\end{frame}
+
+
+\begin{frame}{SADGS nhìn tổng quan: $\hat J$ dẫn tới tách Gaussian có hướng thế nào}
+\scriptsize
+\vspace{-2mm}
+\begin{center}
+\includegraphics[width=0.66\linewidth]{sadgs_overview/03_3d_gaussian_training_split.png}
+\end{center}
+\vspace{-3mm}
+Từ $\hat J$, mỗi Gaussian 3D nhận tỉ số $\eta=\dfrac{\text{độ dài trục chiếu 2D}}{w_{\min}}$,
+$w_{\min}=1/(\sqrt{\lambda_1}+10^{-5})$ (\texttt{freq\_utils.py:334,348}). $\eta>1$: trục Gaussian
+\emph{to hơn} chi tiết ảnh $\to$ alias $\to$ cần tách:\quad
+$k_i=\big\lceil\sqrt{\max(\eta_i,1)}\big\rceil,\ \sigma_{\text{new},i}=\sigma_i/k_i$
+(\texttt{gaussian\_model.py:699,722}, tách \emph{độc lập theo từng trục}).
+\begin{itemize}
+\item \textbf{3DGS gốc} (giữa, minh hoạ khái niệm): chỉ tách $k{=}2$ trên trục \emph{dài nhất}, không quan tâm hướng chi tiết ảnh. \alert{Lưu ý:} dòng \texttt{707--709} là nhánh \emph{fallback} mô phỏng hành vi này bên trong chính \texttt{densify\_and\_split\_structgs} (khi \texttt{max\_eta\_3ch=None}), không phải hàm \texttt{densify\_and\_split} gốc thật (dòng $\sim$866, dùng lấy mẫu ngẫu nhiên $\mathcal N(0,\mathrm{diag}(s^2))$ chứ không phải lưới tất định $k{=}2$).
+\item \textbf{SADGS} (phải): $k_x,k_y,k_z$ tính riêng theo $\eta$ từng trục $\to$ lưới con $N{=}k_xk_yk_z$,
+độ lệch $\text{sep}=\sigma_{\text{new}}\sqrt{12}$, xoay theo ma trận $R$ của Gaussian cha (\texttt{gaussian\_model.py:770--788}).
+\end{itemize}
+\end{frame}

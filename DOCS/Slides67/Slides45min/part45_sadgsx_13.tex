@@ -1,0 +1,39 @@
+% ===== BOT 13: Toàn bộ siêu tham số của SADGS & lịch trình huấn luyện thực tế =====
+
+\begin{frame}{Siêu tham số \& lịch trình huấn luyện của SADGS}
+\scriptsize
+\begin{columns}[T]
+\begin{column}{0.44\textwidth}
+\textbf{Các cờ MỚI quan trọng nhất} (\texttt{arguments/\_\_init\_\_.py})
+\begin{tabular}{ll}
+\toprule
+\textbf{Cờ} & \textbf{Mặc định} \\
+\midrule
+\texttt{mult} & \texttt{0.7} \\
+\texttt{eta\_compute\_mode} & \texttt{"wavelength"} \\
+\texttt{split\_ratio\_threshold} & \texttt{0.8} \\
+\texttt{prune\_ratio\_threshold} & \texttt{0.8} \\
+\texttt{dense} & \texttt{0.001} \\
+\texttt{freq\_grad\_threshold} & \texttt{2e-5} \\
+\texttt{freq\_opacity\_threshold} & \texttt{0.05} \\
+\texttt{opacity\_reset\_decay} & \texttt{0.1} \\
+\texttt{highfeature\_lr} & \texttt{0.005} ($/20$) \\
+\texttt{lambda\_l2} & \texttt{2.0} \\
+\texttt{optimizer\_type} & \texttt{"hybrid"} \\
+\texttt{warmup\_densification} & \texttt{False} \\
+\bottomrule
+\end{tabular}
+\vspace{0.12cm}\\
+$\tau_{high}=1.0$, $\tau_{low}=0.1$ \textbf{hard-code} trong \texttt{freq\_utils.py:395--396}.
+\vspace{0.1cm}\\
+\textbf{Lịch trình:} SH lên bậc mỗi iter; cập nhật $\eta$ mỗi 10 iter (đến 15k); densify mỗi 100 iter (500--15k) rồi xoá bộ đếm $\eta$; reset opacity mỗi 3k ($\alpha\!\leftarrow\!0.1\alpha$); prune thô tại 4k/8k; 15k--30k chỉ tinh chỉnh.
+\vspace{0.08cm}\\
+\textbf{Bị comment-out:} \texttt{expand\_undersized\_gs} ($\Rightarrow$ \texttt{tau\_expand} vô hiệu), prune warmup, \texttt{final\_prune\_structgs}.
+\end{column}
+\begin{column}{0.56\textwidth}
+\centering
+\includegraphics[width=\linewidth]{sadgsx/13_lich_trinh.png}
+\captionof{figure}{\scriptsize Lịch trình huấn luyện thật dựng từ \texttt{train.py:202--440}.}
+\end{column}
+\end{columns}
+\end{frame}

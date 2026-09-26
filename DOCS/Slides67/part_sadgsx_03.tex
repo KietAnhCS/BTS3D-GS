@@ -1,0 +1,226 @@
+% ===== BOT 03: Thống kê eta online đa view \& tỉ lệ nhất quán (multiview consistency ratio) =====
+
+\begin{frame}{SADGS --- Vì sao cần thống kê \texttt{eta} online trên nhiều view?}
+\footnotesize
+\textbf{Bài toán.} Đại lượng vi phạm tần số $\eta$ của một Gaussian được đo \emph{trên mặt phẳng ảnh}, nên nó phụ thuộc view: cùng một Gaussian có thể trông rất lớn so với chi tiết ảnh ở view gần, nhưng lại nhỏ hơn bước sóng kết cấu ở view xa hoặc xiên.
+
+\begin{columns}[T]
+\begin{column}{0.54\linewidth}
+\textbf{Nếu quyết định theo 1 view:}
+\begin{itemize}\itemsep1pt
+  \item Chia nhỏ (split) nhầm các Gaussian chỉ tình cờ bị chiếu lớn ở 1 góc nhìn $\Rightarrow$ bùng nổ số điểm.
+  \item Xoá (prune) nhầm các Gaussian bị che khuất tạm thời ở view đó.
+  \item Ước lượng $\eta$ còn mang nhiễu do \emph{stochastic jitter sampling} khi lấy mẫu structure tensor (\texttt{freq\_utils.py:263--292}).
+\end{itemize}
+\textbf{Giải pháp SADGS:} tích luỹ \emph{online} các bộ đếm trên từng Gaussian qua nhiều view, rồi ra quyết định theo \textbf{tỉ lệ nhất quán} (consistency ratio) tại thời điểm densify.
+\end{column}
+\begin{column}{0.44\linewidth}
+\centering
+\includegraphics[width=\linewidth]{sadgsx/03_view_stability.png}
+\captionof{figure}{\footnotesize Sai số quyết định giảm và độ bất định của \texttt{high\_ratio} co lại theo $1/\sqrt{M}$ khi số view tích luỹ $M$ tăng.}
+\end{column}
+\end{columns}
+\end{frame}
+
+
+\begin{frame}[fragile]{Các bộ đếm online trên từng Gaussian}
+\scriptsize
+Hàm \texttt{update\_freq\_stats\_online} (\texttt{SADGS/utils/freq\_utils.py:181}) được gọi \emph{cho từng camera trong batch}; các bộ đếm được khởi tạo trong \texttt{scene/gaussian\_model.py:293--304} và được cắt/nối theo prune/densify (\texttt{:551--564}, \texttt{:625--636}).
+
+\begin{center}
+\begin{tabular}{lll}
+\hline
+\textbf{Bộ đếm} & \textbf{Kiểu} & \textbf{Cập nhật (file:dòng)} \\
+\hline
+\texttt{accum\_eta} & $[N]$ & $+{=}\sum_{k=1}^{3}\eta_k$ --- \texttt{freq\_utils.py:384} \\
+\texttt{accum\_view\_count} & $[N]$ & $+{=}1.0$ mỗi view hợp lệ --- \texttt{:385} \\
+\texttt{accum\_weights\_valid} & $[N]$ & $+{=}w$ (trọng số transmittance) --- \texttt{:386} \\
+\texttt{max\_eta\_3ch} & $[N,3]$ & $\max(\cdot,\eta_{3ch})$ chạy dần --- \texttt{:391--392} \\
+\texttt{eta\_high\_count} & $[N]$ & $+{=}1$ nếu $\eta_{\max}>\tau_{high}$ --- \texttt{:407} \\
+\texttt{eta\_high\_sum\_3ch} & $[N,3]$ & $+{=}\eta_{3ch}$ khi high --- \texttt{:413} \\
+\texttt{eta\_mid\_count} / \texttt{eta\_mid\_sum\_3ch} & $[N]$/$[N,3]$ & vùng trung gian --- \texttt{:408, :415} \\
+\texttt{eta\_low\_count} & $[N]$ & $+{=}1$ nếu $\eta_{\max}\le\tau_{low}$ --- \texttt{:409} \\
+\hline
+\end{tabular}
+\end{center}
+
+\textbf{Phân loại mỗi quan sát} (\texttt{freq\_utils.py:395--404}), lấy trục xấu nhất trong 3 trục chiếu:
+\[
+\eta_{\max}=\max_{k\in\{1,2,3\}}\eta_k,\qquad
+\text{lớp}=\begin{cases}
+\text{HIGH} & \eta_{\max} > \tau_{high}=1.0\\
+\text{LOW} & \eta_{\max} \le \tau_{low}=0.1\\
+\text{MID} & \text{còn lại}
+\end{cases}
+\]
+$\eta>1$ nghĩa là trục Gaussian chiếu lên ảnh \emph{dài hơn bước sóng kết cấu cục bộ} $\Rightarrow$ aliasing.
+\end{frame}
+
+
+\begin{frame}{Chuỗi bộ lọc: chỉ mẫu ``đáng tin'' mới được vào thống kê}
+\footnotesize
+\begin{columns}[T]
+\begin{column}{0.52\linewidth}
+\texttt{freq\_utils.py:207--218}
+\[
+\texttt{is\_active\_vis}=\underbrace{(T_{\max}>\tau_T)}_{\text{transmittance}}\wedge\underbrace{(\alpha>\tau_\alpha)}_{\text{opacity}}\wedge\underbrace{(\|\nabla_{xy}\|_2>\tau_g)}_{\text{gradient}}
+\]
+\begin{itemize}\itemsep1pt
+  \item \textbf{visibility\_filter} (\texttt{train.py:249}): bỏ Gaussian không chạm view --- không có $\eta$ để đo.
+  \item \textbf{$\tau_T=$\texttt{freq\_transmittance\_threshold}$=0.0$} (\texttt{arguments/\_\_init\_\_.py:146}): Gaussian bị che hoàn toàn thì aliasing của nó không xuất hiện trên ảnh $\Rightarrow$ không nên đếm.
+  \item \textbf{$\tau_\alpha=$\texttt{freq\_opacity\_threshold}$=0.05$} (\texttt{:145}): Gaussian gần trong suốt đóng góp màu không đáng kể; chia nhỏ chúng chỉ tốn bộ nhớ.
+  \item \textbf{$\tau_g=$\texttt{freq\_grad\_threshold}$=2\!\times\!10^{-5}$} (\texttt{:123}): chỉ đếm nơi \emph{hình học còn sai} (gradient view-space lớn). Vùng đã khớp tốt thì $\eta$ cao cũng không cần chia.
+\end{itemize}
+\end{column}
+\begin{column}{0.48\linewidth}
+\centering
+\includegraphics[width=\linewidth]{sadgsx/03_filter_impact.png}
+\captionof{figure}{\footnotesize Mô phỏng tác động lần lượt của từng ngưỡng lên số mẫu đi vào thống kê $\eta$ --- mẫu số \texttt{accum\_view\_count} chỉ tăng cho các mẫu sống sót.}
+\end{column}
+\end{columns}
+\end{frame}
+
+
+\begin{frame}{Công thức tỉ lệ nhất quán đa view}
+\footnotesize
+Tại mỗi lần densify, với $M_i=\texttt{accum\_view\_count}[i]$ là số view hợp lệ đã quan sát Gaussian $i$ kể từ lần reset gần nhất (\texttt{train.py:337--342}):
+\[
+\texttt{valid\_mask}_i = (M_i>0),\qquad
+r^{high}_i=\frac{\texttt{eta\_high\_count}_i}{M_i},\qquad
+r^{low}_i=\frac{\texttt{eta\_low\_count}_i}{M_i}
+\]
+\[
+r^{high}_i + r^{mid}_i + r^{low}_i = 1 \quad\text{(ba lớp phủ kín các quan sát)}
+\]
+\textbf{Vì sao dùng tỉ lệ chứ không dùng số đếm thô?} Mỗi Gaussian được nhìn thấy ở số view khác nhau (vật ở rìa scene có $M_i$ nhỏ). Chia cho $M_i$ chuẩn hoá về $[0,1]$ nên một ngưỡng duy nhất dùng được cho mọi Gaussian. \texttt{valid\_mask} chặn phép chia cho 0 --- Gaussian chưa được quan sát lần nào giữ $r=0$ và không bị prune.
+\begin{center}
+\includegraphics[width=0.72\linewidth]{sadgsx/03_ratio_hist.png}
+\captionof{figure}{\footnotesize Mô phỏng $N=4000$ Gaussian qua $M=24$ view: phân bố $r^{high}$ (trái) và $r^{low}$ (phải); chỉ phần đuôi vượt ngưỡng $0.8$ được chọn.}
+\end{center}
+\end{frame}
+
+
+\begin{frame}[fragile]{Ngưỡng so sánh: SPLIT và PRUNE}
+\footnotesize
+\texttt{SADGS/train.py:345} và \texttt{:353}, với \texttt{split\_ratio\_threshold}$=0.8$ (\texttt{arguments/\_\_init\_\_.py:148}) và \texttt{prune\_ratio\_threshold}$=0.8$ (\texttt{:149}):
+\[
+\texttt{split\_mask}_i = \big(r^{high}_i > 0.8\big)\ \wedge\ \big(\|\bar{g}_i\|_2 \ge 10^{-5}\big)
+\]
+\[
+\texttt{prune\_mask}_i = \big(r^{low}_i > 0.8\big)\ \wedge\ \texttt{valid\_mask}_i
+\]
+trong đó $\bar{g}_i=\texttt{xyz\_gradient\_accum}_i/\texttt{denom}_i$ là gradient trung bình chuẩn 3DGS (\texttt{train.py:329--333}).
+
+\begin{itemize}\itemsep1pt
+  \item \textbf{Ngưỡng $0.8$ = ``ít nhất 80\% số view đồng ý''.} Một Gaussian chỉ bị chia khi nó vi phạm tần số \emph{một cách nhất quán}, không phải do một góc nhìn cá biệt.
+  \item \textbf{SPLIT cần thêm điều kiện gradient} (\texttt{train.py:333}, comment ghi rõ ``We MUST use this to prevent 7M points''): $\eta$ cao mà ảnh đã khớp thì không chia --- đây là chốt chặn chống bùng nổ số Gaussian.
+  \item \textbf{PRUNE chỉ cần $r^{low}$ và \texttt{valid\_mask}}: nếu mọi view đều thấy Gaussian nhỏ hơn nhiều so với chi tiết ảnh ($\eta_{\max}\le 0.1$), nó thuộc vùng nền phẳng và dư thừa.
+  \item Hai mask được truyền xuống \texttt{densify\_and\_prune\_structgs} dưới dạng \texttt{custom\_split\_mask} / \texttt{custom\_prune\_mask} (\texttt{train.py:357--373}), cùng \texttt{importance\_score=accum\_view\_count}.
+\end{itemize}
+\end{frame}
+
+
+\begin{frame}{Trung bình hay cực đại? --- \texttt{avg\_high\_eta\_3ch} vs \texttt{max\_eta\_3ch}}
+\footnotesize
+\begin{columns}[T]
+\begin{column}{0.5\linewidth}
+Hai đại lượng 3 kênh được tính song song (\texttt{train.py:348--351}):
+\[
+\overline{\eta}^{high}_{i,k}=\frac{\texttt{eta\_high\_sum\_3ch}_{i,k}}{\texttt{eta\_high\_count}_i},\quad \texttt{eta\_high\_count}_i>0
+\]
+\[
+\eta^{\max}_{i,k}=\max_{\text{view }v}\ \eta_{i,k}(v)\quad(\texttt{max\_eta\_3ch})
+\]
+\begin{itemize}\itemsep1pt
+  \item $\overline{\eta}^{high}$ \emph{khử nhiễu} (jitter sampling, lỗi lấy mẫu structure tensor) --- hữu ích để \emph{chẩn đoán} mức vi phạm điển hình.
+  \item Nhưng cái được truyền vào hàm chia là \texttt{max\_high\_eta = gaussians.max\_eta\_3ch} (\texttt{train.py:351, 373}).
+  \item \textbf{Lý do:} kích thước Gaussian con phải đủ nhỏ để \emph{không} aliasing ở \textbf{mọi} view. Nếu dùng trung bình, view xấu nhất vẫn còn vi phạm $\Rightarrow$ phải chia lại nhiều vòng. Dùng $\max$ là ràng buộc ``worst-case'' --- chia một lần là đủ.
+  \item Luôn có $\eta^{\max}_{i,k}\ge\overline{\eta}^{high}_{i,k}$, nên bước chia không bao giờ thiếu.
+\end{itemize}
+\end{column}
+\begin{column}{0.5\linewidth}
+\centering
+\includegraphics[width=\linewidth]{sadgsx/03_avg_vs_max_eta.png}
+\captionof{figure}{\footnotesize Cùng một mẫu $1500$ Gaussian $\times\,20$ view: $\max$ luôn nằm trên đường $y=x$ so với trung bình các quan sát HIGH; phân bố của $\max$ dịch hẳn sang phải ngưỡng $\tau_{high}=1.0$.}
+\end{column}
+\end{columns}
+\end{frame}
+
+
+\begin{frame}{Vòng đời thống kê: cập nhật --- quyết định --- reset}
+\footnotesize
+\begin{columns}[T]
+\begin{column}{0.46\linewidth}
+\textbf{1. Cập nhật (mỗi 10 iteration)} --- \texttt{train.py:275--276}
+\[
+\texttt{iter}<\texttt{densify\_until\_iter}\ \wedge\ \texttt{iter} \bmod 10 = 0
+\]
+Giảm chi phí: grid\_sample structure tensor + tính trục chiếu chỉ chạy $1/10$ số vòng, nhưng vẫn phủ đủ view nhờ batch nhiều camera.
+
+\textbf{2. Quyết định (mỗi \texttt{densification\_interval})} --- \texttt{train.py:321}
+\[
+\texttt{iter}>\underbrace{500}_{\texttt{densify\_from\_iter}}\ \wedge\ \texttt{iter}\bmod \underbrace{100}_{\texttt{densification\_interval}}=0
+\]
+$\Rightarrow$ mỗi chu kỳ tích luỹ khoảng $100/10=10$ lần cập nhật.
+
+\textbf{3. Warm-up} --- \texttt{train.py:322}: khi \texttt{warmup\_densification} bật (mặc định \texttt{False}, \texttt{arguments:130}), các mốc $\bmod\,100$ \emph{không trùng} densify chuẩn sẽ chạy \texttt{densify\_and\_prune} 3DGS cổ điển.
+\end{column}
+\begin{column}{0.54\linewidth}
+\centering
+\includegraphics[width=\linewidth]{sadgsx/03_timeline_reset.png}
+\captionof{figure}{\footnotesize Mốc cập nhật (xanh, mỗi 10 iter), mốc densify + reset (đỏ), và \texttt{accum\_view\_count} của một Gaussian dạng răng cưa do \texttt{zero\_()}.}
+\end{column}
+\end{columns}
+\end{frame}
+
+
+\begin{frame}[fragile]{Reset bộ đếm: vì sao phải xoá sau mỗi lần densify?}
+\footnotesize
+Ngay sau \texttt{densify\_and\_prune\_structgs}, toàn bộ 9 bộ đếm bị đưa về 0 (\texttt{train.py:376--386}):
+\begin{block}{\scriptsize \texttt{train.py:377--386}}
+\scriptsize
+\texttt{gaussians.accum\_eta.zero\_() ; gaussians.accum\_view\_count.zero\_()} \\
+\texttt{gaussians.max\_eta\_3ch.zero\_() ; gaussians.accum\_weights\_valid.zero\_()} \\
+\texttt{gaussians.eta\_high\_count.zero\_() ; gaussians.eta\_high\_sum\_3ch.zero\_()} \\
+\texttt{gaussians.eta\_mid\_count.zero\_() ; gaussians.eta\_mid\_sum\_3ch.zero\_()} \\
+\texttt{gaussians.eta\_low\_count.zero\_()}
+\end{block}
+\begin{itemize}\itemsep1pt
+  \item \textbf{Thống kê đã lỗi thời.} Sau khi chia/xoá, hình học đã đổi: Gaussian cha biến mất, các con có scale mới. Giữ lại $r^{high}$ cũ sẽ chia tiếp ngay ở chu kỳ sau dù con đã đủ nhỏ.
+  \item \textbf{Tránh tích luỹ đơn điệu.} \texttt{max\_eta\_3ch} là cực đại chạy dần, không bao giờ giảm; không reset thì nó chỉ tăng và mọi Gaussian dần vượt ngưỡng.
+  \item \textbf{Cửa sổ trượt cố định.} Reset làm mẫu số $M_i$ luôn nằm trong một chu kỳ $\approx 10$ lần cập nhật $\Rightarrow$ ngưỡng $0.8$ có nghĩa nhất quán theo thời gian.
+  \item \textbf{Điểm mới sinh khởi tạo bằng 0} (\texttt{gaussian\_model.py:625--636}) nên tự động có \texttt{valid\_mask}=\texttt{False} và không bị prune ở chu kỳ kế tiếp.
+  \item Mặt trái: $M_i$ nhỏ $\Rightarrow$ ước lượng $r^{high}$ còn nhiễu; chính vì thế ngưỡng để khá cao ($0.8$) và SPLIT còn phải kèm điều kiện gradient.
+\end{itemize}
+\end{frame}
+
+
+\begin{frame}{Tóm tắt --- multiview consistency ratio trong SADGS}
+\footnotesize
+\begin{enumerate}\itemsep2pt
+  \item Mỗi 10 iteration, mỗi camera: đo $\eta_{3ch}$ cho các Gaussian qua bộ lọc \texttt{visibility} $\wedge$ transmittance $\wedge$ opacity $\wedge$ gradient, rồi phân loại HIGH/MID/LOW theo $\tau_{high}=1.0$, $\tau_{low}=0.1$ (\texttt{freq\_utils.py:395--409}).
+  \item Tích luỹ 9 bộ đếm per-Gaussian; \texttt{accum\_view\_count} là mẫu số chung.
+  \item Mỗi \texttt{densification\_interval}$=100$ iteration (từ iter 500 đến 15000): tính
+        $r^{high}=\texttt{eta\_high\_count}/M$, $r^{low}=\texttt{eta\_low\_count}/M$ trên \texttt{valid\_mask}.
+  \item SPLIT khi $r^{high}>0.8$ \emph{và} gradient cao; PRUNE khi $r^{low}>0.8$. Kích thước con được định hình bằng \texttt{max\_eta\_3ch} (worst-case), không phải trung bình.
+  \item \texttt{zero\_()} tất cả bộ đếm $\Rightarrow$ chu kỳ mới bắt đầu lại từ thống kê sạch.
+\end{enumerate}
+\begin{center}
+\scriptsize
+\begin{tabular}{lll}
+\hline
+\textbf{Tham số} & \textbf{Giá trị} & \textbf{Nguồn} \\
+\hline
+\texttt{split\_ratio\_threshold} & $0.8$ & \texttt{arguments/\_\_init\_\_.py:148} \\
+\texttt{prune\_ratio\_threshold} & $0.8$ & \texttt{arguments/\_\_init\_\_.py:149} \\
+\texttt{freq\_opacity\_threshold} & $0.05$ & \texttt{arguments/\_\_init\_\_.py:145} \\
+\texttt{freq\_transmittance\_threshold} & $0.0$ & \texttt{arguments/\_\_init\_\_.py:146} \\
+\texttt{freq\_grad\_threshold} & $2\times10^{-5}$ & \texttt{arguments/\_\_init\_\_.py:123} \\
+\texttt{densification\_interval} & $100$ & \texttt{arguments/\_\_init\_\_.py:87} \\
+\texttt{densify\_from\_iter} / \texttt{densify\_until\_iter} & $500$ / $15000$ & \texttt{arguments/\_\_init\_\_.py:91--92} \\
+\texttt{eta\_compute\_mode} & \texttt{"wavelength"} & \texttt{arguments/\_\_init\_\_.py:150} \\
+$\tau_{high}$ / $\tau_{low}$ (hard-coded) & $1.0$ / $0.1$ & \texttt{freq\_utils.py:395--396} \\
+\hline
+\end{tabular}
+\end{center}
+\end{frame}

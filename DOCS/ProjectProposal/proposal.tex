@@ -1,0 +1,305 @@
+% !TeX program = xelatex
+% Compile với XeLaTeX: xelatex proposal.tex && xelatex proposal.tex
+\documentclass[a4paper,11pt]{article}
+
+\usepackage{fontspec}
+\setmainfont{Noto Serif}
+\setsansfont{Noto Sans}
+\usepackage{polyglossia}
+\setmainlanguage{vietnamese}
+
+\usepackage[a4paper,margin=2.5cm]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue!50!black,
+    urlcolor=blue!50!black,
+    citecolor=blue!50!black,
+    pdftitle={Đề xuất dự án: Digital Twin cho SADGS},
+    pdfauthor={Digital Twin GS}
+}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{tcolorbox}
+\tcbuselibrary{skins,breakable}
+
+\titleformat{\section}{\normalfont\Large\bfseries}{\thesection.}{0.5em}{}
+\titleformat{\subsection}{\normalfont\large\bfseries}{\thesubsection.}{0.5em}{}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small Đề xuất dự án -- Digital Twin cho SADGS}
+\fancyhead[R]{\small\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\newtcolorbox{luuy}[1][]{colback=yellow!8,colframe=orange!60!black,fonttitle=\bfseries,title=Lưu ý trung thực,boxrule=0.6pt,#1}
+\newtcolorbox{muctieu}[1][]{colback=blue!5,colframe=blue!40!black,fonttitle=\bfseries,#1}
+
+\title{\textbf{Đề xuất Dự án}\\[4pt]
+\Large Digital Twin cho 3D Gaussian Splatting:\\
+Nghiên cứu, Xác minh và Tài liệu hoá\\
+Structure-Aware Densification (SADGS)}
+\author{Digital Twin GS}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+\thispagestyle{empty}
+
+\begin{abstract}
+\noindent
+Tài liệu này đề xuất một dự án học thuật nhằm xây dựng một bộ tài liệu ``digital twin'' đầy
+đủ -- sách kỹ thuật, slide thuyết trình, và hình minh hoạ được sinh từ số liệu/thực nghiệm
+thật -- cho phương pháp \emph{Structure-Aware Densification for Gaussian Splatting} (SADGS,
+Lyu et al., SIGGRAPH 2026). Điểm khác biệt cốt lõi của dự án so với việc chép lại paper là:
+\textbf{mọi công thức, tên hàm, số dòng code và tham số mặc định trình bày trong tài liệu đều
+phải được đối chiếu (grep/read) trực tiếp với mã nguồn thật trong \texttt{SADGS/}}, và mọi
+hình matplotlib minh hoạ phải được tính từ dữ liệu/ảnh/checkpoint thật thay vì số liệu bịa.
+Báo cáo này trình bày bối cảnh, mục tiêu, phạm vi, phương pháp luận, kế hoạch triển khai và
+các hạn chế đã biết của dự án tại thời điểm đề xuất.
+\end{abstract}
+
+\vspace{0.5cm}
+\tableofcontents
+
+\newpage
+
+\section{Bối cảnh và động lực}
+
+\subsection{Bài toán gốc}
+3D Gaussian Splatting (3DGS, Kerbl et al. 2023) biểu diễn cảnh 3D bằng một tập hợp Gaussian
+dị hướng, được khởi tạo từ point cloud SfM (COLMAP) và tối ưu bằng render khả vi. Một khâu
+quan trọng của pipeline là \emph{Adaptive Density Control} (ADC): quyết định khi nào một
+Gaussian cần được nhân đôi (clone), tách (split), hay loại bỏ (prune) dựa trên gradient vị trí
+tích luỹ qua các bước huấn luyện.
+
+\subsection{Hạn chế của ADC nguyên bản và đóng góp của SADGS}
+ADC nguyên bản chỉ dùng độ lớn gradient vị trí trung bình -- một tín hiệu gián tiếp, dễ bị
+nhiễu bởi hiện tượng \emph{gradient cancellation} khi nhiều view ``triệt tiêu'' lẫn nhau.
+SADGS thay thế bằng một tín hiệu trực tiếp hơn: so khớp \emph{screen-space extent} của mỗi
+Gaussian với \emph{cấu trúc texture đa tỉ lệ} (multiscale structure tensor) của ảnh mục tiêu,
+từ đó suy ra tỉ số $\eta$ và thực hiện \emph{split dị hướng} (anisotropic split) thay vì
+clone/split đẳng hướng, cộng thêm bước \emph{multiview-consistency} để tránh quyết định dựa
+trên một view nhiễu đơn lẻ. Các hàm lõi nằm tại \texttt{SADGS/scene/gaussian\_model.py}:
+\texttt{densify\_and\_split\_structgs}, \texttt{densify\_and\_clone\_structgs},
+\texttt{densify\_and\_prune\_structgs}, \texttt{final\_prune\_structgs}.
+
+\subsection{Vấn đề đã phát hiện trong tài liệu hiện có}
+Trước khi đề xuất này được viết, một đợt rà soát toàn diện (đối chiếu từng chương sách, từng
+slide, từng script matplotlib với mã nguồn thật trong \texttt{SADGS/}) đã phát hiện một lượng
+đáng kể nội dung \textbf{không khớp với code đang chạy thật}, cụ thể:
+\begin{itemize}[leftmargin=1.2em]
+    \item Một cơ chế ``FastGS'' được mô tả như một baseline đã được triển khai và kiểm thử
+    (hàm \texttt{compute\_gaussian\_score\_fastgs}, \texttt{render\_fastgs}, framework 7 bước)
+    -- trong khi thực tế \texttt{SADGS/} chỉ có \emph{một dòng comment} và một dòng credit
+    trong README; các hàm này không tồn tại.
+    \item Một điểm số ``Importance'' dựa trên lỗi pixel trong footprint (\texttt{metric\_map})
+    được trình bày như cơ chế quyết định prune/clone thật -- trong khi lệnh gọi thật trong
+    \texttt{train.py} truyền \texttt{importance\_score=accum\_view\_count} (một bộ đếm số
+    view nhìn thấy, hoàn toàn khác về ngữ nghĩa).
+    \item \texttt{final\_prune\_structgs} và \texttt{expand\_undersized\_gs} bị comment out
+    trong \texttt{train.py} -- tức là \textbf{không chạy trong pipeline mặc định} -- nhưng
+    nhiều đoạn tài liệu mô tả như thể chúng đang hoạt động.
+    \item Một số chương trích dẫn một package \texttt{pipeline/} (\texttt{trainer.py},
+    \texttt{config.py}, v.v.) như thể nó là kiến trúc thật của repo này, trong khi đó thực ra
+    là cấu trúc của một fork Colab riêng (``SADGS-lite''), không tồn tại trong
+    \texttt{SADGS/}.
+    \item Nhiều hình matplotlib minh hoạ dùng số liệu \texttt{np.random}/tự bịa, được gắn nhãn
+    ngầm như thể là kết quả đo thật.
+\end{itemize}
+
+\begin{luuy}
+Đợt rà soát này đã sửa phần lớn các điểm trên (xoá nội dung bịa hoàn toàn, đính chính các nội
+dung có công thức thật nhưng bị mô tả sai ngữ cảnh live/dead-code, tạo lại hình minh hoạ từ dữ
+liệu/ảnh/checkpoint thật). Dự án được đề xuất trong tài liệu này chính thức hoá quy trình xác
+minh đó thành phương pháp luận bắt buộc cho mọi nội dung được thêm mới về sau, thay vì xử lý
+một lần rồi thôi.
+\end{luuy}
+
+\section{Mục tiêu dự án}
+
+\begin{muctieu}
+\textbf{Mục tiêu tổng quát:} Xây dựng một bộ tài liệu digital-twin cho SADGS mà mọi khẳng
+định kỹ thuật đều \emph{truy vết được} (traceable) tới một trong hai nguồn: (a) mã nguồn thật
+trong \texttt{SADGS/}, hoặc (b) dữ liệu/ảnh/log thật được lưu trong repo -- không có nội dung
+nào được trình bày như sự thật mà không kiểm chứng được.
+\end{muctieu}
+
+\noindent Mục tiêu cụ thể:
+\begin{enumerate}[leftmargin=1.4em]
+    \item \textbf{Giải thích chính xác pipeline 3DGS gốc} (khởi tạo, rasterizer khả vi, loss,
+    backprop, ADC) làm nền tảng trước khi trình bày phần mở rộng SADGS.
+    \item \textbf{Giải thích chính xác cơ chế SADGS}: structure tensor đa tỉ lệ, tỉ số $\eta$,
+    split dị hướng, multiview-consistency pruning -- kèm chỉ rõ những phần đã cài đặt nhưng
+    \emph{không active} trong pipeline mặc định.
+    \item \textbf{Sinh hình minh hoạ từ dữ liệu thật}: mọi biểu đồ matplotlib phải được tính
+    từ ảnh huấn luyện thật (\texttt{DOCS/assets/}), checkpoint Gaussian thật (\texttt{.ply}),
+    hoặc log CSV thật (\texttt{history.csv}, \texttt{leaderboard.csv}) -- không dùng số liệu
+    tự bịa để minh hoạ một phép đo.
+    \item \textbf{Chạy lại benchmark chính thức cho SADGS thật}. Số liệu hiện có trong
+    \texttt{DOCS/README.md} là của pipeline \emph{trước khi} tích hợp structure-aware
+    densification (``FastGS-lite''); cần một lần chạy \texttt{SADGS/run\_train.sh} trên cùng
+    scene để có số liệu SADGS chính thức, so sánh công bằng với baseline.
+    \item \textbf{Duy trì quy trình kiểm chứng liên tục}: mọi lần cập nhật tài liệu sau này
+    đều đi kèm bước đối chiếu lại với code, tránh tài liệu trôi dạt (drift) khỏi thực tế như
+    đã xảy ra trước đợt rà soát.
+\end{enumerate}
+
+\section{Phạm vi dự án}
+
+\subsection{Trong phạm vi}
+\begin{itemize}[leftmargin=1.2em]
+    \item Sách kỹ thuật \texttt{DOCS/BOOK/} (18 chương + phụ lục lời giải), tiếng Việt.
+    \item Hai bộ slide LaTeX/Beamer: bản đầy đủ (\texttt{Slides67/main.tex}, tra cứu sâu) và
+    bản 45 phút (\texttt{Slides67/Slides45min/main45.tex}, báo cáo chính).
+    \item Toàn bộ script sinh hình \texttt{matplotlib} kèm hình \texttt{.png} tương ứng.
+    \item Một lượt chạy benchmark chính thức cho SADGS thật trên hạ tầng Colab T4.
+    \item Quy trình kiểm chứng (checklist đối chiếu code) áp dụng cho mọi nội dung mới.
+\end{itemize}
+
+\subsection{Ngoài phạm vi}
+\begin{itemize}[leftmargin=1.2em]
+    \item Sửa đổi/mở rộng thuật toán SADGS gốc (dự án chỉ tài liệu hoá, không đề xuất thuật
+    toán mới).
+    \item Tối ưu hiệu năng CUDA của rasterizer (\texttt{SADGS/submodules/}).
+    \item Chạy benchmark trên nhiều bộ dữ liệu chuẩn (Mip-NeRF360, Tanks\&Temples) ngoài scene
+    của cuộc thi \texttt{VAI\_NVS\_DATA\_ROUND2} -- có thể là hướng mở rộng ở giai đoạn sau.
+\end{itemize}
+
+\section{Phương pháp luận}
+
+\subsection{Nguyên tắc xác minh bắt buộc}
+Mọi khẳng định kỹ thuật thêm vào tài liệu phải đi qua quy trình sau trước khi được chấp nhận:
+\begin{enumerate}[leftmargin=1.4em]
+    \item \textbf{Grep/Read mã nguồn thật}: tên hàm, đường dẫn file, số dòng, giá trị tham số
+    mặc định phải được tìm thấy nguyên văn trong \texttt{SADGS/}.
+    \item \textbf{Phân biệt live path vs.\ dead code}: nếu một hàm tồn tại trong code nhưng lời
+    gọi của nó bị comment out (như \texttt{final\_prune\_structgs}), tài liệu phải nói rõ điều
+    này, không được ngầm định là đang chạy.
+    \item \textbf{Dữ liệu minh hoạ phải thật hoặc dán nhãn rõ}: nếu một hình cần số liệu để
+    minh hoạ một công thức, số liệu đó phải đến từ (a) chạy công thức thật trên ảnh/checkpoint
+    thật, hoặc (b) một ví dụ đồ chơi (toy) được dán nhãn tường minh là ``minh hoạ, không phải
+    số đo thật'' ngay trong tiêu đề/chú thích hình.
+    \item \textbf{Không suy diễn thay cho code}: khi không chắc chắn, tài liệu ghi rõ
+    \texttt{[cần xác minh lại]} thay vì khẳng định.
+\end{enumerate}
+
+\subsection{Quy trình sinh hình minh hoạ}
+\begin{enumerate}[leftmargin=1.4em]
+    \item Đọc công thức thật trong \texttt{SADGS/} (ví dụ: \texttt{get\_structure\_tensor\_torch},
+    \texttt{densify\_and\_split\_structgs}).
+    \item Tái hiện công thức đó bằng \texttt{numpy} thuần (môi trường viết tài liệu không có
+    \texttt{torch}), có trích dẫn \texttt{file:line} ngay trong docstring của script.
+    \item Chạy trên dữ liệu thật: ảnh huấn luyện (\texttt{DOCS/assets/samples\_*.png}),
+    checkpoint Gaussian thật (\texttt{point\_cloud\_iter5000.ply}), hoặc log CSV thật
+    (\texttt{history.csv}, \texttt{leaderboard.csv}).
+    \item Lưu hình với tên mô tả, chạy thử script để xác nhận không lỗi trước khi đưa vào sách.
+\end{enumerate}
+
+\subsection{Công cụ}
+Biên soạn bằng Markdown (sách) và LaTeX/Beamer + XeLaTeX (slide, do cần font Unicode tiếng
+Việt qua \texttt{fontspec}/\texttt{polyglossia}). Hình minh hoạ bằng \texttt{matplotlib}. Mã
+nguồn tham chiếu: \texttt{SADGS/} (Python/PyTorch/CUDA).
+
+\section{Kế hoạch triển khai và sản phẩm bàn giao}
+
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{3.6cm} p{9.5cm}@{}}
+\toprule
+\textbf{Giai đoạn} & \textbf{Nội dung} \\
+\midrule
+\endhead
+G0 -- Rà soát nền & Đối chiếu toàn bộ sách/slide/hình hiện có với mã nguồn thật; xoá nội dung
+bịa; sửa trích dẫn sai; tạo lại hình từ dữ liệu thật. \emph{(Đã hoàn thành phần lớn tại thời
+điểm đề xuất -- xem Mục~6.)} \\
+G1 -- Chuẩn hoá quy trình & Viết checklist xác minh (Mục~4.1) thành quy tắc bắt buộc cho mọi
+đóng góp nội dung mới; thiết lập chỗ lưu trữ số liệu thật (\texttt{DOCS/assets/}) làm nguồn
+tham chiếu duy nhất cho hình minh hoạ. \\
+G2 -- Chạy benchmark SADGS chính thức & Chạy \texttt{SADGS/run\_train.sh} đầy đủ 30\,000
+iteration trên scene \texttt{HCM0539} (hoặc scene chuẩn khác), ghi \texttt{history.csv}/
+\texttt{leaderboard.csv} thật cho SADGS (khác với số liệu FastGS-lite hiện có). \\
+G3 -- Cập nhật so sánh định lượng & Thay số liệu ``tham khảo'' hiện tại trong
+\texttt{DOCS/README.md} và chương 17 bằng số liệu SADGS thật; cập nhật slide so sánh
+3DGS gốc / SADGS tương ứng. \\
+G4 -- Hoàn thiện \& build cuối & Build PDF cả hai bộ slide (\texttt{main.pdf},
+\texttt{main45.pdf}) và rà lỗi biên dịch; đối chiếu lần cuối mục lục sách với nội dung. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Sản phẩm bàn giao}
+\begin{itemize}[leftmargin=1.2em]
+    \item \texttt{DOCS/BOOK/} -- sách kỹ thuật hoàn chỉnh, 18 chương + lời giải.
+    \item \texttt{DOCS/Slides67/main.pdf} -- slide tra cứu đầy đủ.
+    \item \texttt{DOCS/Slides67/Slides45min/main45.pdf} -- slide báo cáo 45 phút.
+    \item Bộ script + hình \texttt{matplotlib} sinh từ dữ liệu thật (\texttt{DOCS/BOOK/adc\_figures/real\_*.py}).
+    \item Bảng số liệu benchmark SADGS chính thức (giai đoạn G2--G3).
+\end{itemize}
+
+\section{Hiện trạng tại thời điểm đề xuất}
+
+Bảng dưới tóm tắt kết quả đợt rà soát G0, được thực hiện bằng cách đối chiếu song song từng
+phần tài liệu với \texttt{SADGS/} qua nhiều lượt kiểm tra độc lập:
+
+\begin{longtable}{@{}p{4.2cm} p{8.9cm}@{}}
+\toprule
+\textbf{Hạng mục} & \textbf{Kết quả} \\
+\midrule
+\endhead
+Hình matplotlib bịa/không liên quan & Xoá khoảng 65 hình dùng số liệu \texttt{np.random}
+hoặc công thức không tồn tại trong code; tạo mới khoảng 39 hình từ ảnh/checkpoint/log thật. \\
+Cơ chế ``FastGS'' bịa & Gỡ bỏ/viết lại toàn bộ tuyên bố trình bày FastGS như baseline đã cài
+đặt (395+ lần nhắc trong sách, 88+ lần trong slide) -- chỉ giữ lại như trích dẫn công trình
+liên quan. \\
+Cơ chế ``Importance score'' pixel-error & Đính chính toàn bộ slide/sách mô tả sai cơ chế
+prune/clone thật (\texttt{accum\_view\_count > 0.5}, không phải điểm lỗi pixel). \\
+Dead code bị mô tả như đang chạy & Chỉ rõ \texttt{final\_prune\_structgs},
+\texttt{expand\_undersized\_gs} bị comment out trong \texttt{train.py}, không chạy ở cấu hình
+mặc định. \\
+Package \texttt{pipeline/} bịa & Viết lại chương 1--4 để tách rõ kiến trúc thật của
+\texttt{SADGS/} (một entry point duy nhất, \texttt{train.py}) khỏi cấu trúc của fork ngoài
+``SADGS-lite''. \\
+Trích dẫn file:line sai & Sửa hàng loạt trích dẫn lệch dòng trong \texttt{16-loi-giai/} (do
+\texttt{gaussian\_model.py} đã được mở rộng nhiều so với bản 3DGS gốc mà lời giải trích theo). \\
+Lỗi biên dịch LaTeX & Sửa 2 lỗi khiến \texttt{main.tex} và \texttt{part7.tex} không build được
+(comment \texttt{\%} lồng trong đối số brace; thiếu \texttt{[fragile]} cho frame chứa
+\texttt{verbatim}) -- cả hai bộ slide hiện build thành công (339 trang và 58 trang). \\
+\bottomrule
+\end{longtable}
+
+\section{Hạn chế và rủi ro đã biết}
+
+\begin{itemize}[leftmargin=1.2em]
+    \item \textbf{Số liệu benchmark hiện tại chưa phải của SADGS thật.} Bảng số liệu trong
+    \texttt{DOCS/README.md} (Score 0.8579, PSNR 25.27\,dB, \ldots) là của pipeline
+    ``FastGS-lite'' \emph{trước khi} tích hợp \texttt{densify\_and\_split\_structgs} et al. --
+    đây là rủi ro lớn nhất nếu không thực hiện Giai đoạn G2, vì mọi so sánh định lượng
+    ``SADGS nhanh hơn X\%'' hiện tại đều chưa có cơ sở.
+    \item \textbf{Môi trường viết tài liệu không có \texttt{torch}/GPU.} Toàn bộ hình minh
+    hoạ phải tái hiện công thức bằng \texttt{numpy} thuần -- rủi ro sai khác nhỏ so với bản
+    CUDA/PyTorch thật nếu công thức bị tái hiện sai; mọi script cần trích dẫn \texttt{file:line}
+    để người đọc tự đối chiếu lại.
+    \item \textbf{Một số nhánh code không active có thể được kích hoạt lại trong tương lai}
+    (ví dụ nếu \texttt{final\_prune\_structgs} được un-comment trong một bản cập nhật
+    \texttt{SADGS/} sau này) -- tài liệu cần cơ chế theo dõi để không bị lỗi thời.
+    \item \textbf{Chưa chạy lại toàn bộ 18--16-loi-giai/ và 18-sadgs-co-che-chuyen-sau/ với
+    quy trình xác minh mới nhất} -- phần lớn đã được kiểm chứng trong đợt G0, nhưng nội dung
+    phát sinh sau này cần đi qua checklist Mục~4.1 trước khi merge.
+\end{itemize}
+
+\section{Kết luận}
+
+Dự án này không đề xuất một thuật toán mới, mà đề xuất một \textbf{kỷ luật tài liệu hoá}: mọi
+tuyên bố về SADGS phải truy vết được tới mã nguồn hoặc dữ liệu thật. Đợt rà soát G0 (đã hoàn
+thành phần lớn) cho thấy kỷ luật này là cần thiết -- một lượng lớn nội dung trước đó không
+khớp với code đang chạy thật, dù không cố ý. Các giai đoạn còn lại (G1--G4), đặc biệt việc
+chạy lại benchmark chính thức cho SADGS thật (G2), là điều kiện để tài liệu có thể được dùng
+làm cơ sở so sánh định lượng đáng tin cậy.
+
+\end{document}

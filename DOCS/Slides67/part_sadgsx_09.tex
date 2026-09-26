@@ -1,0 +1,195 @@
+% ===== BOT 09: Optimizer, learning-rate schedule & opacity reset trong SADGS =====
+
+% --- Frame 1 ---
+\begin{frame}{Bức tranh chung: ba lịch trình điều khiển tối ưu hoá trong SADGS}
+\footnotesize
+Toàn bộ quá trình huấn luyện SADGS được điều khiển bởi \textbf{ba lịch trình} chạy song song, tất cả khai báo trong \texttt{scene/gaussian\_model.py} và được gọi từ \texttt{train.py}:
+\begin{enumerate}
+    \item \textbf{Lịch learning rate} -- \texttt{training\_setup} (286--340) khai báo lr riêng cho từng nhóm tham số; \texttt{update\_learning\_rate} (341--356) cập nhật lr của nhóm \texttt{xyz} mỗi iteration (gọi tại \texttt{train.py:214}).
+    \item \textbf{Lịch reset opacity} -- \texttt{reset\_opacity} (415--433) được gọi mỗi \texttt{opacity\_reset\_interval} $=3000$ iteration (\texttt{train.py:402--403}), \textbf{nhân} opacity với \texttt{opacity\_reset\_decay} $=0.1$.
+    \item \textbf{Lịch nâng bậc SH} -- \texttt{oneupSHdegree} (257--259) tăng \texttt{active\_sh\_degree} lên tối đa \texttt{sh\_degree} $=3$; SADGS gọi nó \textbf{mỗi iteration} (\texttt{train.py:216--217}).
+\end{enumerate}
+\vspace{0.15cm}
+\begin{itemize}
+    \item Optimizer nền: \texttt{torch.optim.Adam} với $\beta=(0.9,\,0.999)$ và $\varepsilon = 10^{-\texttt{adam\_eps\_order}} = 10^{-8}$ (\texttt{gaussian\_model.py:315--324}, \texttt{arguments/\_\_init\_\_.py:156}).
+    \item Điểm khác 3DGS gốc: SADGS tách \textbf{hai} optimizer -- \texttt{self.optimizer} cho hình học/màu DC và \texttt{self.shoptimizer} riêng cho hệ số SH bậc cao \texttt{\_features\_rest}.
+\end{itemize}
+\end{frame}
+
+% --- Frame 2 ---
+\begin{frame}{Learning rate riêng cho từng nhóm tham số}
+\scriptsize
+\texttt{training\_setup} chia tham số thành 5 nhóm cho \texttt{optimizer} và 1 nhóm riêng cho \texttt{shoptimizer} (306--313):
+\vspace{0.1cm}
+\centering
+\begin{tabular}{llll}
+\toprule
+\textbf{Nhóm} & \textbf{Tensor} & \textbf{Learning rate (code)} & \textbf{Giá trị thật} \\
+\midrule
+\texttt{xyz}      & \texttt{\_xyz}           & \texttt{position\_lr\_init}$\times$\texttt{spatial\_lr\_scale} & $1.6\times10^{-4}\cdot s$ (có lịch) \\
+\texttt{f\_dc}    & \texttt{\_features\_dc}   & \texttt{lowfeature\_lr}   & $0.0025$ \\
+\texttt{opacity}  & \texttt{\_opacity}        & \texttt{opacity\_lr}      & $0.05$ \\
+\texttt{scaling}  & \texttt{\_scaling}        & \texttt{scaling\_lr}      & $0.01$ \\
+\texttt{rotation} & \texttt{\_rotation}       & \texttt{rotation\_lr}     & $0.002$ \\
+\midrule
+\texttt{f\_rest}  & \texttt{\_features\_rest} & \texttt{highfeature\_lr}\,$/\,20.0$ & $0.005/20 = 2.5\times10^{-4}$ \\
+\bottomrule
+\end{tabular}
+\vspace{0.2cm}
+\flushleft
+\begin{itemize}
+    \item Mọi giá trị lấy từ \texttt{arguments/\_\_init\_\_.py:76--82, 110--111} -- SADGS tăng \texttt{opacity\_lr} lên $0.05$ (3DGS gốc $0.025$), \texttt{scaling\_lr} $0.01$ (gốc $0.005$), \texttt{rotation\_lr} $0.002$ (gốc $0.001$): \textbf{gấp đôi} tốc độ học hình học/độ đục.
+    \item Hệ số chia $20.0$ cho \texttt{f\_rest} là quy ước 3DGS: SH bậc cao học chậm hơn DC 20 lần để tránh dao động màu.
+    \item Adam được khởi tạo với \texttt{lr=0.0} ở mức optimizer -- lr thực nằm ở từng \texttt{param\_group}.
+\end{itemize}
+\end{frame}
+
+% --- Frame 3 ---
+\begin{frame}{Công thức lịch learning rate mũ (\texttt{get\_expon\_lr\_func})}
+\footnotesize
+\texttt{utils/general\_utils.py:32--64} -- nội suy \textbf{log-tuyến tính} giữa $lr_{\text{init}}$ và $lr_{\text{fin}}$:
+\[
+t = \mathrm{clip}\!\left(\frac{k}{\texttt{max\_steps}},\,0,\,1\right), \qquad
+\mathrm{lr}(k) = r_{\text{delay}}(k)\cdot\exp\!\big[(1-t)\ln lr_{\text{init}} + t\,\ln lr_{\text{fin}}\big]
+\]
+\[
+r_{\text{delay}}(k) = \begin{cases}
+m + (1-m)\sin\!\Big(\dfrac{\pi}{2}\,\mathrm{clip}\big(\tfrac{k}{\texttt{lr\_delay\_steps}},0,1\big)\Big), & \texttt{lr\_delay\_steps} > 0\\[2mm]
+1, & \texttt{lr\_delay\_steps} = 0
+\end{cases}
+\]
+\begin{itemize}
+    \item Tham số thật: $lr_{\text{init}}=1.6\times10^{-4}$, $lr_{\text{fin}}=1.6\times10^{-6}$ (giảm $100\times$), \texttt{max\_steps}$=30000$ khớp đúng \texttt{iterations}$=30000$.
+    \item \textbf{Phát hiện quan trọng}: \texttt{training\_setup} (325--328) chỉ truyền \texttt{lr\_delay\_mult}$=0.01$ mà \textbf{không} truyền \texttt{lr\_delay\_steps} $\Rightarrow$ giữ mặc định $0$ $\Rightarrow$ nhánh warm-up \textbf{không bao giờ kích hoạt}, $r_{\text{delay}}\equiv 1$. Đường lr là mũ thuần tuý từ iteration 0.
+    \item lr vị trí còn nhân \texttt{spatial\_lr\_scale} (= bán kính bao cảnh) để bước dịch chuyển tỉ lệ với kích thước cảnh.
+\end{itemize}
+\begin{center}
+\includegraphics[width=0.52\linewidth]{sadgsx/09_lr_xyz_schedule.png}
+\captionof{figure}{\footnotesize Đường lr(xyz) (trục $y$ log): đường liền là hành vi thật trong SADGS; đường đứt là kịch bản giả định nếu \texttt{lr\_delay\_steps}$>0$.}
+\end{center}
+\end{frame}
+
+% --- Frame 4 ---
+\begin{frame}{Ảnh hưởng \texttt{max\_steps} và bức tranh lr toàn cục}
+\footnotesize
+\begin{itemize}
+    \item \texttt{max\_steps} quyết định \textbf{độ dốc} của đường log-tuyến tính: $\ln \mathrm{lr}$ giảm tuyến tính với hệ số $\dfrac{\ln lr_{\text{fin}} - \ln lr_{\text{init}}}{\texttt{max\_steps}}$. Đặt \texttt{max\_steps} nhỏ hơn số iteration thật $\Rightarrow$ lr bị kẹp ở $lr_{\text{fin}}$ và vị trí ``đóng băng'' sớm.
+    \item Chỉ nhóm \texttt{xyz} có lịch; 5 nhóm còn lại giữ lr \textbf{hằng số} suốt 30k iteration (\texttt{update\_learning\_rate} chỉ ghi đè \texttt{param\_group['lr']} khi \texttt{name=="xyz"}).
+    \item Tuỳ chọn \texttt{scale\_rotation\_scheduler} (\texttt{arguments:154}, mặc định \texttt{False}) nếu bật sẽ thêm hai lịch mũ cho scaling/rotation: $lr_{\text{init}}=3\times lr$ và $lr_{\text{fin}}=0.5\times lr$ (330--339) -- tức khởi động \textbf{nhanh gấp 3} rồi hãm còn một nửa.
+\end{itemize}
+\begin{center}
+\includegraphics[width=0.78\linewidth]{sadgsx/09_lr_groups_maxsteps.png}
+\captionof{figure}{\footnotesize Trái: so sánh nhiều \texttt{max\_steps}. Phải: lr thật của 6 nhóm tham số -- chỉ \texttt{xyz} giảm, các nhóm khác phẳng.}
+\end{center}
+\end{frame}
+
+% --- Frame 5 ---
+\begin{frame}{Optimizer: \texttt{default} / \texttt{sparse\_adam} / \texttt{hybrid}}
+\scriptsize
+\texttt{training\_setup:315--324} chọn optimizer theo \texttt{optimizer\_type} (mặc định \textbf{\texttt{"hybrid"}}, \texttt{arguments:128}):
+\vspace{0.1cm}
+\centering
+\begin{tabular}{lll}
+\toprule
+\textbf{Chế độ} & \texttt{self.optimizer} (hình học) & \texttt{self.shoptimizer} (SH bậc cao) \\
+\midrule
+\texttt{default}     & \texttt{Adam}, $\varepsilon=10^{-8}$ & \texttt{Adam}, \texttt{weight\_decay}=0 \\
+\texttt{sparse\_adam}& \texttt{SparseGaussianAdam}(cả 6 nhóm) & -- (gộp chung) \\
+\texttt{hybrid}      & \texttt{Adam} + \texttt{amsgrad=True} & \texttt{SparseGaussianAdam} \\
+\bottomrule
+\end{tabular}
+\vspace{0.2cm}
+\flushleft
+\begin{itemize}
+    \item \texttt{SparseGaussianAdam} (\texttt{submodules/diff-gaussian-rasterization\_structgs/.../\_\_init\_\_.py:249}) chỉ cập nhật các Gaussian \textbf{hiển thị} trong view hiện tại: \texttt{step(visible, N)} với \texttt{visible = radii > 0} (\texttt{train.py:429--432}) -- bỏ qua Gaussian ngoài khung hình, tiết kiệm băng thông bộ nhớ.
+    \item \texttt{hybrid} = tốt nhất cả hai: hình học dùng Adam dày đặc + \texttt{amsgrad} (ổn định hơn khi gradient bùng nổ lúc densify), SH bậc cao -- nhóm tham số \textbf{lớn nhất} ($45$ hệ số/Gaussian khi $\ell=3$) -- dùng cập nhật thưa.
+    \item Hàm \texttt{optimizer\_step(iteration)} (357--378) \textbf{giãn tần suất} cập nhật theo giai đoạn: bước mỗi iteration khi $k\le 15000$; mỗi $32$ iteration khi $15000<k\le 20000$; mỗi $64$ iteration khi $k>20000$ (ý tưởng tương tự sparse Adam của Taming-3DGS). Lưu ý: hàm này chỉ được \texttt{train.py:422--423} gọi khi \texttt{optimizer\_type=="default"}.
+\end{itemize}
+\end{frame}
+
+% --- Frame 6 ---
+\begin{frame}{\texttt{reset\_opacity}: nhân suy giảm thay vì kẹp hằng số}
+\footnotesize
+\texttt{gaussian\_model.py:415--433}, gọi tại \texttt{train.py:402--403} với \texttt{opacity\_reset\_decay}$=0.1$:
+\[
+\alpha^{\text{3D}} = \sigma(o)\cdot c, \qquad c=\sqrt{\frac{\prod_j s_j^2}{\prod_j (s_j^2 + f_{3D}^2)}} \;\;(\le 1)
+\]
+\[
+\alpha_{\text{new}} = \frac{\alpha^{\text{3D}}\cdot \texttt{decay\_factor}}{c}
+= \frac{\sigma(o)\,c\cdot 0.1}{c} = 0.1\,\sigma(o), \qquad
+o_{\text{new}} = \sigma^{-1}\!\big(0.1\,\sigma(o)\big)
+\]
+\begin{itemize}
+    \item \textbf{Phát hiện then chốt}: hệ số 3D filter $c$ được nhân vào rồi chia ra $\Rightarrow$ \textbf{triệt tiêu hoàn toàn}. Kết quả cuối chỉ là phép \textbf{nhân opacity với $0.1$} trong không gian $[0,1]$, không phụ thuộc \texttt{filter\_3D}.
+    \item \textbf{Khác 3DGS gốc}: 3DGS dùng $\alpha \leftarrow \min(\alpha,\,0.01)$ -- \textit{kẹp về một hằng số}, mọi Gaussian rơi xuống cùng mức. SADGS dùng $\alpha \leftarrow 0.1\alpha$ -- \textit{giảm theo tỉ lệ}, \textbf{giữ nguyên thứ tự} độ đục giữa các Gaussian. Dòng \texttt{torch.min(..., 0.1)} kiểu cũ vẫn còn trong code nhưng đã bị comment (418).
+    \item Hệ quả: Gaussian đang rất đục ($\alpha=0.9\to 0.09$) vẫn sống sót gần ngưỡng prune $0.1$, còn Gaussian mờ ($\alpha=0.2\to0.02$) bị đẩy sâu xuống -- reset trở thành phép \textbf{lọc mềm} thay vì san phẳng.
+\end{itemize}
+\begin{center}
+\includegraphics[width=0.72\linewidth]{sadgsx/09_opacity_reset_hist.png}
+\captionof{figure}{\footnotesize Trái: histogram $\alpha$ trước/sau reset theo đúng công thức code. Phải: ánh xạ reset của SADGS ($0.1\alpha$, giữ thứ tự) so với 3DGS gốc ($\min(\alpha,0.01)$, san phẳng).}
+\end{center}
+\end{frame}
+
+% --- Frame 7 ---
+\begin{frame}{Chu kỳ reset opacity qua toàn bộ quá trình huấn luyện}
+\footnotesize
+\begin{itemize}
+    \item Điều kiện kích hoạt (\texttt{train.py:402}): \texttt{iteration \% opacity\_reset\_interval == 0} với \texttt{opacity\_reset\_interval}$=3000$ (\texttt{arguments:89}), hoặc trường hợp đặc biệt nền trắng tại \texttt{iteration == densify\_from\_iter} ($=500$).
+    \item Với $30000$ iteration $\Rightarrow$ tối đa \textbf{10 lần reset} tại $k=3000, 6000, \dots, 30000$. Sau mỗi lần, Gaussian nào không được gradient ``kéo lên'' kịp sẽ rơi dưới ngưỡng và bị loại bởi \texttt{prune\_mask = (get\_opacity < 0.1)} (\texttt{train.py:415--416}).
+    \item Vì reset là phép nhân, sau $n$ chu kỳ mà không hồi phục thì $\alpha_n = 0.1^n\alpha_0$ -- suy giảm \textbf{hàm mũ}, Gaussian ``chết'' rất nhanh (2 chu kỳ đã giảm $100\times$).
+    \item \texttt{opacity\_lr}$=0.05$ cao gấp đôi 3DGS chính là để opacity hồi phục kịp giữa hai lần reset cách nhau 3000 bước.
+\end{itemize}
+\begin{center}
+\includegraphics[width=0.6\linewidth]{sadgsx/09_opacity_reset_traj.png}
+\captionof{figure}{\footnotesize Quỹ đạo $\alpha$ (log) của vài Gaussian qua 10 chu kỳ reset: răng cưa ``rơi $10\times$ rồi hồi phục''. Gaussian hồi phục chậm liên tục nằm dưới ngưỡng prune $0.1$.}
+\end{center}
+\end{frame}
+
+% --- Frame 8 ---
+\begin{frame}{Lịch nâng bậc Spherical Harmonics}
+\footnotesize
+\texttt{oneupSHdegree} (257--259) rất đơn giản:
+\[
+d_{k+1} = \begin{cases} d_k + 1, & d_k < \texttt{max\_sh\_degree}\\ d_k, & \text{ngược lại}\end{cases}
+\qquad \texttt{max\_sh\_degree}=\texttt{sh\_degree}=3
+\]
+\begin{itemize}
+    \item \textbf{Khác biệt lớn so với 3DGS gốc}: 3DGS gọi \texttt{oneupSHdegree()} mỗi \textbf{1000} iteration nên $d_k = \min(\lfloor k/1000\rfloor, 3)$, đạt bậc tối đa ở $k=3000$. SADGS gọi tại \texttt{train.py:216--217} với điều kiện \texttt{if iteration \% 1 == 0} tức \textbf{mỗi iteration} $\Rightarrow$
+    \[ d_k = \min(k,\,3) \]
+    bậc SH đạt tối đa ngay tại iteration \textbf{3}.
+    \item Nói cách khác, SADGS thực chất \textbf{vô hiệu hoá} cơ chế warm-up SH: toàn bộ $(3+1)^2 = 16$ hệ số $\times 3$ kênh được tối ưu gần như từ đầu.
+    \item Bù lại, rủi ro overfit màu theo góc nhìn sớm được kiềm chế bằng lr rất nhỏ cho \texttt{f\_rest} ($2.5\times10^{-4}$) và bằng cập nhật thưa qua \texttt{shoptimizer} (\texttt{SparseGaussianAdam}) -- chỉ Gaussian đang hiển thị mới được cập nhật SH.
+\end{itemize}
+\begin{center}
+\includegraphics[width=0.72\linewidth]{sadgsx/09_sh_degree_schedule.png}
+\captionof{figure}{\footnotesize Bậc thang \texttt{active\_sh\_degree} theo iteration: SADGS bão hoà tại $k=3$, 3DGS gốc tại $k=3000$.}
+\end{center}
+\end{frame}
+
+% --- Frame 9 ---
+\begin{frame}{Tổng kết: những khác biệt tối ưu hoá của SADGS so với 3DGS}
+\scriptsize
+\centering
+\begin{tabular}{lll}
+\toprule
+\textbf{Thành phần} & \textbf{3DGS gốc} & \textbf{SADGS (code thật)} \\
+\midrule
+Optimizer & 1 Adam cho tất cả & \texttt{hybrid}: Adam+amsgrad \,$\oplus$\, SparseGaussianAdam \\
+Adam $\varepsilon$ & $10^{-15}$ & $10^{-8}$ (\texttt{adam\_eps\_order}$=8$) \\
+\texttt{opacity\_lr} & $0.025$ & $\mathbf{0.05}$ \\
+\texttt{scaling\_lr} & $0.005$ & $\mathbf{0.01}$ \\
+\texttt{rotation\_lr} & $0.001$ & $\mathbf{0.002}$ \\
+lr SH bậc cao & \texttt{feature\_lr}$/20$ & \texttt{highfeature\_lr}$/20 = 2.5\times10^{-4}$ \\
+Lịch lr xyz & mũ $1.6\!\times\!10^{-4}\!\to\!1.6\!\times\!10^{-6}$ & giống, nhưng \texttt{lr\_delay\_steps}$=0$ (warm-up tắt) \\
+Reset opacity & $\alpha \leftarrow \min(\alpha, 0.01)$ & $\alpha \leftarrow \mathbf{0.1\,\alpha}$ (giữ thứ tự) \\
+Nâng bậc SH & mỗi 1000 iter & \textbf{mỗi iteration} (bão hoà ở $k=3$) \\
+Lịch cập nhật & mỗi iteration & \texttt{optimizer\_step}: 1 / 32 / 64 theo giai đoạn \\
+\bottomrule
+\end{tabular}
+\vspace{0.25cm}
+\flushleft
+\begin{itemize}
+    \item \textbf{Triết lý chung}: SADGS học hình học và độ đục \textbf{nhanh hơn} (lr gấp đôi), để cơ chế densify/prune theo tần số có tín hiệu rõ ràng sớm; đồng thời \textbf{giữ thứ tự} độ đục qua các lần reset thay vì san phẳng, nên việc prune bằng ngưỡng $0.1$ chọn lọc chính xác hơn.
+    \item \textbf{Điểm cần lưu ý khi đọc code}: hệ số \texttt{filter\_3D} trong \texttt{reset\_opacity} triệt tiêu về mặt toán học; \texttt{lr\_delay\_mult} khai báo nhưng vô tác dụng; \texttt{optimizer\_step} chỉ chạy ở chế độ \texttt{default}.
+\end{itemize}
+\end{frame}

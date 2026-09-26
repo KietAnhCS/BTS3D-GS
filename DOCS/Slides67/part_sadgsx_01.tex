@@ -1,0 +1,202 @@
+% ===== BOT 01: Structure tensor & multiscale image structure =====
+
+\begin{frame}{SADGS đo cấu trúc ảnh thế nào? Từ ảnh tới gradient}
+\footnotesize
+Toàn bộ cơ chế densification của SADGS dựa trên một bản đồ cấu trúc \texttt{st\_map} tính \emph{một lần} từ ảnh GT.
+Bước đầu tiên (\texttt{utils/loss\_utils.py:170--196}) là làm mượt rồi lấy đạo hàm:
+\[
+\tilde I = G_\sigma * I,\qquad
+I_x = S_x * \tilde I,\quad I_y = S_y * \tilde I,\qquad
+S_x=\begin{bmatrix}-1&0&1\\-2&0&2\\-1&0&1\end{bmatrix},\;
+S_y=S_x^{\top}
+\]
+\begin{itemize}
+\item Làm mượt trước bằng \texttt{fast\_gaussian\_blur} (\texttt{loss\_utils.py:113}), kernel $k=2\cdot4\sigma+1$ (ép lẻ) — \texttt{loss\_utils.py:179--183}.
+\item Mặc định $\sigma=1.0$, $\rho=1.0$ (\texttt{loss\_utils.py:170}).
+\item Sobel chạy \emph{riêng từng kênh} RGB bằng \texttt{groups=C} (\texttt{loss\_utils.py:191--196}) — phương pháp \textbf{Di Zenzo}, cộng năng lượng 3 kênh nên không bỏ sót cạnh đẳng độ sáng (iso-luminant).
+\end{itemize}
+\begin{center}
+\includegraphics[width=0.72\linewidth]{sadgsx/01_gradient_ix_iy.png}
+\captionof{figure}{\footnotesize Ảnh test 4 vùng tần số (sọc dọc chu kỳ 4\,px, sọc ngang 24\,px, sọc chéo 10\,px, vùng phẳng + cung tròn) và hai thành phần gradient $I_x,I_y$.}
+\end{center}
+\end{frame}
+
+
+\begin{frame}{Tensor cấu trúc $J_\rho$: ma trận 2$\times$2 mô tả cấu trúc cục bộ}
+\footnotesize
+\[
+J_\rho(x,y) \;=\; G_\rho * \big(\nabla I\,\nabla I^{\top}\big)
+\;=\;
+\begin{bmatrix}
+G_\rho * \sum_c I_{x,c}^2 & G_\rho * \sum_c I_{x,c}I_{y,c}\\[2pt]
+G_\rho * \sum_c I_{x,c}I_{y,c} & G_\rho * \sum_c I_{y,c}^2
+\end{bmatrix}
+=\begin{bmatrix} S_{xx} & S_{xy}\\ S_{xy} & S_{yy}\end{bmatrix}
+\]
+\begin{itemize}
+\item Cộng qua kênh $c$ (\texttt{loss\_utils.py:206--208}) cho ra $(B,1,H,W)$ cho mỗi thành phần.
+\item Tích phân cửa sổ bằng Gauss $\rho$ (\texttt{loss\_utils.py:215--217}): \textbf{bắt buộc} — nếu không có $G_\rho$ thì $\det J=0$ ở mọi điểm (ma trận hạng 1) và không phân biệt được cạnh với góc/texture.
+\item Chuẩn hoá theo \emph{batch}: chia cả ba kênh cho $\max_{H,W}(S_{xx}+S_{yy})+10^{-6}$ (\texttt{loss\_utils.py:222--227}) để ngưỡng không trôi theo độ sáng cảnh.
+\item Trả về \texttt{torch.cat([Sxx,Sxy,Syy], dim=1)} $\Rightarrow$ tensor $(B,3,H,W)$ (\texttt{loss\_utils.py:230}).
+\end{itemize}
+\begin{center}
+\includegraphics[width=0.7\linewidth]{sadgsx/01_structure_tensor_channels.png}
+\captionof{figure}{\footnotesize Ba kênh của $J_\rho$. Vùng sọc dọc $\to S_{xx}$ lớn; sọc ngang $\to S_{yy}$ lớn; sọc chéo $\to S_{xy}$ lớn (dấu theo hướng nghiêng).}
+\end{center}
+\end{frame}
+
+
+\begin{frame}{Trị riêng $\lambda_1\ge\lambda_2$ và ý nghĩa coherence}
+\footnotesize
+$J$ đối xứng nửa xác định dương nên có hai trị riêng thực không âm:
+\[
+\mathrm{tr}=S_{xx}+S_{yy},\quad \det=S_{xx}S_{yy}-S_{xy}^2,\qquad
+\lambda_{1,2}=\frac{\mathrm{tr}}{2}\pm\sqrt{\Big(\frac{\mathrm{tr}}{2}\Big)^2-\det}
+\]
+Đây chính là công thức SADGS dùng lại ở \texttt{utils/freq\_utils.py:325--329}:
+\[
+\lambda_1=\frac{\mathrm{tr}}{2}+\delta,\qquad
+w_{\min}=\frac{1}{\sqrt{\lambda_1}+10^{-5}}\quad\text{(\texttt{freq\_utils.py:334})}
+\]
+\begin{itemize}
+\item $\lambda_1$ = năng lượng biến thiên \emph{mạnh nhất} $\Rightarrow$ tần số cao nhất cục bộ. $w_{\min}$ là \textbf{bước sóng nhỏ nhất} (đơn vị pixel) — "giới hạn tốc độ" cho kích thước Gaussian.
+\item $\mathrm{tr}=\lambda_1+\lambda_2$ = tổng năng lượng; $\det=\lambda_1\lambda_2$ lớn khi \emph{cả hai} hướng đều biến thiên (góc, texture 2D).
+\item Coherence $\left(\frac{\lambda_1-\lambda_2}{\lambda_1+\lambda_2}\right)^2\in[0,1]$: $\approx 1$ ở cạnh thẳng (1 hướng trội), $\approx 0$ ở vùng phẳng hoặc texture đẳng hướng.
+\item Ba chế độ: $\lambda_1\approx\lambda_2\approx0$ (phẳng) — $\lambda_1\gg\lambda_2\approx0$ (cạnh) — $\lambda_1\approx\lambda_2\gg0$ (góc/texture).
+\end{itemize}
+\begin{center}
+\includegraphics[width=0.66\linewidth]{sadgsx/01_eigen_coherence.png}
+\captionof{figure}{\footnotesize $\lambda_1$, $\lambda_2$ và coherence tính trực tiếp từ $J_\rho$ của ảnh test.}
+\end{center}
+\end{frame}
+
+
+\begin{frame}{Vector riêng: hướng cạnh và hướng texture}
+\footnotesize
+\[
+J v_1=\lambda_1 v_1,\qquad J v_2=\lambda_2 v_2,\qquad v_1\perp v_2,\qquad
+v_1 \propto \begin{bmatrix} S_{xy}\\ \lambda_1-S_{xx}\end{bmatrix},\qquad
+\theta=\tfrac12\arctan\frac{2S_{xy}}{S_{xx}-S_{yy}}
+\]
+\begin{itemize}
+\item $v_1$: hướng biến thiên mạnh nhất $=$ \textbf{pháp tuyến} của cạnh.
+\item $v_2$: hướng biến thiên yếu nhất $=$ \textbf{hướng texture} — cạnh chạy dọc theo $v_2$. Đây là hướng mà Gaussian \emph{được phép} kéo dài.
+\item Dạng toàn phương $u^{\top}Ju = S_{xx}u^2+2S_{xy}uv+S_{yy}v^2$ đo năng lượng tần số dọc theo hướng $u$ bất kỳ — SADGS dùng đúng công thức này cho \texttt{eta\_compute\_mode="projection"} (\texttt{freq\_utils.py:371}).
+\item Chế độ mặc định \texttt{"wavelength"} thì dùng $\lambda_1$: $\eta = \dfrac{\text{độ dài trục Gaussian chiếu}}{w_{\min}}$ (\texttt{freq\_utils.py:348}); $\eta>1$ nghĩa là Gaussian to hơn chi tiết $\to$ aliasing $\to$ cần tách.
+\item \texttt{utils/gaussian\_sampling.py} (module lấy mẫu Gaussian ban đầu, tách biệt khỏi vòng train chính) dùng $S_{xx}+S_{yy}$ làm bản đồ xác suất \emph{chọn vị trí} điểm mẫu (\texttt{:38--43}); phân rã trị riêng/vector riêng của $J_\rho$ chỉ chạy \emph{sau đó}, để gán hướng/độ lệch (orientation) cho từng Gaussian đã chọn vị trí (\texttt{:87--90}) — hai bước khác nhau, không cùng một dòng.
+\end{itemize}
+\begin{center}
+\includegraphics[width=0.62\linewidth]{sadgsx/01_eigenvector_quiver.png}
+\captionof{figure}{\footnotesize Quiver $v_1$ (đỏ) và $v_2$ (xanh), độ dài tỉ lệ $\sqrt{\lambda_1}$. Quanh cung tròn, $v_2$ đi theo tiếp tuyến.}
+\end{center}
+\end{frame}
+
+
+\begin{frame}{Kim tự tháp đa tỉ lệ: một $\sigma$ là không đủ}
+\footnotesize
+Một $\sigma$ duy nhất chỉ "nhìn thấy" một dải tần. SADGS quét \texttt{levels} octave
+(\texttt{loss\_utils.py:262--306}), mỗi level $i$:
+\[
+\sigma_i=\underbrace{\sigma_0}_{\texttt{base\_sigma}}\!\cdot s^{\,i},\quad
+f_i=s^{-i},\quad s=\texttt{octave\_step},\qquad
+\Delta\sigma_i=\sqrt{\sigma_i^2-\sigma_{i-1}^2}\ \ \text{(\texttt{:266})}
+\]
+\[
+b_i=\big\|\,I^{(i)}-G_{\Delta\sigma_i}*I^{(i)}\big\|_{2,\text{kênh}}\ \ \text{(DoG, \texttt{:270})},\qquad
+w_i=b_i^{\,p},\ p=\texttt{power\_factor}\ \ \text{(\texttt{:294})}
+\]
+\[
+\boxed{\;
+\hat J=\frac{\sum_i \dfrac{J_i}{\mathrm{tr}\,J_i}\; w_i\; f_i^{\,2}}{\sum_i w_i + 10^{-6}}
+\;}\qquad \text{(\texttt{loss\_utils.py:300--311})}
+\]
+\begin{itemize}
+\item $J_i/\mathrm{tr}J_i$ = \emph{chỉ giữ hướng} (trace $=1$); $f_i^2$ nạp lại \emph{tần số}, $w_i$ nạp \emph{năng lượng dải}.
+\item $\rho_i=3\sigma_i$ (\texttt{:279,:354}) — cửa sổ tích phân lớn là cần thiết để "thấy" độ cong.
+\item \texttt{smoothing\_factor} chỉ dùng như \emph{cờ bật/tắt} (\texttt{if i>0 and smoothing\_factor>0}, \texttt{:273,:347}); độ mượt thực tế bị \textbf{hard-code} là $2\sigma_i$ (\texttt{:275,:349}) — giá trị số của tham số này không có tác dụng.
+\item \texttt{aggregation\_mode} có trong chữ ký cả v1 lẫn v2 (\texttt{:232,:315}) nhưng \textbf{không được dùng ở đâu cả} — tham số chết.
+\end{itemize}
+\begin{center}
+\includegraphics[width=0.55\linewidth]{sadgsx/01_pyramid_levels.png}
+\captionof{figure}{\footnotesize levels=4, $\sigma_0{=}1$, $s{=}1.5$, $p{=}3$: dải DoG $b_i$, trọng số $w_i$, và đóng góp $\cdot f_i^2$ theo từng level.}
+\end{center}
+\end{frame}
+
+
+\begin{frame}{v1 vs v2: khác nhau đúng ở một dòng}
+\footnotesize
+Hai hàm \texttt{get\_multiscale\_structure\_tensor\_v1} (\texttt{:232}) và \texttt{\_v2} (\texttt{:315}) có \emph{cùng} vòng lặp,
+cùng DoG, cùng $w_i=b_i^p$, cùng $f_i^2$, cùng chuẩn hoá cuối. Khác biệt duy nhất là cách lấy $J_i$:
+\begin{center}\scriptsize
+\begin{tabular}{p{4.6cm}p{4.9cm}}
+\toprule
+\textbf{v1} (\texttt{:241, :282--284}) & \textbf{v2} (\texttt{:357}) \\
+\midrule
+Tính $J_{\text{base}}$ \textbf{một lần} trên ảnh gốc với $\sigma=\sigma_0$, $\rho=1.0$ & Không có tensor gốc \\
+Mỗi level: \emph{làm mờ lại chính $J_{\text{base}}$} bằng $G_{\rho_i}$ & Mỗi level: \emph{tính lại toàn bộ} $J$ trên ảnh đã mờ \texttt{next\_smooth} với $\sigma=\sigma_i,\ \rho=\rho_i$ \\
+Gradient luôn đến từ thang mịn nhất $\Rightarrow$ hướng cạnh sắc, ổn định & Gradient tính trên ảnh đã mờ $\Rightarrow$ hướng đúng \emph{của từng thang} \\
+Rẻ: 1 lần Sobel $+$ $3\cdot$levels lần blur & Đắt: levels lần gọi đầy đủ \texttt{get\_structure\_tensor\_torch} \\
+\bottomrule
+\end{tabular}
+\end{center}
+\begin{itemize}
+\item Vì mỗi level đều chia cho $\mathrm{tr}J_i$, phép chuẩn hoá $\max$ bên trong \texttt{get\_structure\_tensor\_torch} (\texttt{:222--227}) \textbf{bị triệt tiêu} — chỉ hướng và $w_i,f_i$ quyết định kết quả.
+\item Hệ quả: v1 và v2 chỉ lệch nhau ở vùng có cấu trúc \emph{đổi hướng theo thang} (cạnh cong, texture chồng lớp); vùng sọc thẳng gần như trùng khít.
+\item Mặc định huấn luyện: \texttt{st\_mode = "v1"}, \texttt{st\_levels = 4} (\texttt{arguments/\_\_init\_\_.py:120--121}), chọn ở \texttt{train.py:187--190}.
+\end{itemize}
+\begin{center}
+\includegraphics[width=0.62\linewidth]{sadgsx/01_v1_vs_v2.png}
+\captionof{figure}{\footnotesize Trace của \texttt{st\_map} theo v1, v2 và hiệu số: khác biệt tập trung ở cung tròn và ranh giới vùng.}
+\end{center}
+\end{frame}
+
+
+\begin{frame}{Các siêu tham số điều khiển gì}
+\footnotesize
+\begin{center}\scriptsize
+\begin{tabular}{llp{6.4cm}}
+\toprule
+Tham số & Mặc định & Vai trò trong công thức \\
+\midrule
+\texttt{levels} & 3 (train dùng 4) & Số octave quét; dải $\sigma$ từ $\sigma_0$ tới $\sigma_0 s^{L-1}$ \\
+\texttt{base\_sigma} & 1.0 & $\sigma_0$ — thang mịn nhất, cũng là $\sigma$ của $J_{\text{base}}$ ở v1 \\
+\texttt{octave\_step} & 1.5 & $s$ trong $\sigma_i=\sigma_0 s^i$ và $f_i=s^{-i}$ \\
+\texttt{power\_factor} & 3.0 & $p$ trong $w_i=b_i^p$ — độ "winner-take-all" giữa các thang \\
+\texttt{smoothing\_factor} & 1.0 & Chỉ bật/tắt bước làm mượt $b_i$ ở $i>0$; độ mượt cố định $2\sigma_i$ \\
+\texttt{aggregation\_mode} & 'average' & \textbf{Không được sử dụng} (tham số chết) \\
+\bottomrule
+\end{tabular}
+\end{center}
+\vspace{2pt}
+Vì $\mathrm{tr}\big(J_i/\mathrm{tr}J_i\big)=1$, trace của kết quả cuối rút gọn thành \emph{trung bình có trọng số của bình phương tần số}:
+\[
+\mathrm{tr}\,\hat J \;=\; \frac{\sum_i w_i f_i^{\,2}}{\sum_i w_i}\;=\;\overline{f^{\,2}}(x,y)
+\]
+$p$ càng lớn thì trung bình này càng bị thang có $b_i$ lớn nhất chiếm ưu thế; $s$ càng lớn thì $f_i^2=s^{-2i}$ tụt càng nhanh nên các level thô đóng góp tần số càng thấp.
+\begin{center}
+\includegraphics[width=0.78\linewidth]{sadgsx/01_power_octave_effect.png}
+\captionof{figure}{\footnotesize Trái: $w_i=b_i^p$. Giữa: $f_i^2=s^{-2i}$ (log). Phải: dải $\sigma_i$ và $\rho_i=3\sigma_i$ theo level.}
+\end{center}
+\end{frame}
+
+
+\begin{frame}{\texttt{st\_map}: đầu ra, ý nghĩa và cách cache}
+\footnotesize
+\textbf{Shape:} $(B,3,H,W)$, ba kênh theo thứ tự $(S_{xx},S_{xy},S_{yy})$ — đủ để dựng lại ma trận đối xứng $2\times2$ tại \emph{mỗi pixel}.
+\[
+\mathrm{tr}\,\hat J=\overline{f^{\,2}}\;\Rightarrow\;
+\lambda_1 \text{ (tần số trội)},\quad w_{\min}=1/\sqrt{\lambda_1}\ \text{px},\quad v_2 \text{ (hướng texture)}
+\]
+\textbf{Cache (\texttt{train.py:160--200}) — tính một lần, trước vòng lặp huấn luyện:}
+\begin{itemize}
+\item Gom camera theo độ phân giải \texttt{cameras\_by\_res} (\texttt{:169--174}), chạy theo lô \texttt{batch\_size = 100} (\texttt{:179}).
+\item \texttt{torch.stack} ảnh GT lên GPU thành $(B,3,H,W)$ (\texttt{:184}), gọi trong \texttt{torch.no\_grad()} (\texttt{:186}).
+\item Chọn v1/v2 theo \texttt{opt.st\_mode}, truyền \texttt{levels=opt.st\_levels} (\texttt{:187--190}).
+\item Lưu \texttt{structure\_tensor\_cache[cam.image\_name] = st\_batch[j:j+1]} — giữ nguyên shape $(1,3,H,W)$ (\texttt{:193--194}). Thư mục \texttt{structure\_tensors/} vẫn được tạo nhưng phần ghi ảnh debug đang bị comment (\texttt{:165--166, :197--199}).
+\end{itemize}
+\textbf{Tiêu thụ:} \texttt{update\_freq\_stats\_online} tra cache theo \texttt{image\_name} (\texttt{freq\_utils.py:233}), lấy mẫu bằng \texttt{F.grid\_sample} tại toạ độ 2D có jitter theo hiệp phương sai (\texttt{freq\_utils.py:296}), rồi tính $\eta$ (\texttt{:348} hoặc \texttt{:371}) — gọi từ \texttt{train.py:276}.
+\begin{center}
+\includegraphics[width=0.72\linewidth]{sadgsx/01_power_factor_stmap.png}
+\captionof{figure}{\footnotesize Trace của \texttt{st\_map} khi đổi \texttt{power\_factor}: giá trị cao $=$ tần số trội cao $=$ bước sóng ngắn $=$ cần Gaussian nhỏ.}
+\end{center}
+\end{frame}

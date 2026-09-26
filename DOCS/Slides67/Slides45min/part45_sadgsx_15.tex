@@ -1,0 +1,26 @@
+% ===== BOT 15: Tổng hợp đầu-cuối SADGS (bản 45 phút — 1 frame) =====
+\begin{frame}{Tổng hợp đầu-cuối: pipeline SADGS, chi phí, và phần chưa bật}
+\scriptsize
+\begin{columns}[T]
+\begin{column}{0.52\textwidth}
+\includegraphics[width=0.99\linewidth]{sadgsx/15_pipeline_blocks.png}\\[0.5mm]
+\captionof{figure}{\tiny 13 bước của một iteration SADGS (\texttt{train.py:202--440}); khối xám nét đứt = mặc định TẮT.}
+\end{column}
+\begin{column}{0.46\textwidth}
+\textbf{Chi phí mỗi vòng:}
+\begin{equation*}
+t_{\text{iter}} = a N + b P + c + \tfrac{a_\eta N}{10} + \tfrac{a_D N}{100}
+\end{equation*}
+Freq stats chỉ chạy khi \texttt{iter\%10==0} (\texttt{train.py:275}); densify chỉ khi \texttt{iter\%100==0}. Vì $t$ tuyến tính theo $N$, \textbf{prune đa view} (\texttt{low\_ratio}$>0.8$) là đòn bẩy mạnh nhất.
+\vspace{1mm}
+
+\textbf{Khác biệt cốt lõi so với 3DGS gốc} (\texttt{densify\_and\_clone}/\texttt{densify\_and\_split}, \texttt{scene/gaussian\_model.py})\textbf{:} tín hiệu densify là AND của gradient và \texttt{high\_ratio}$>0.8$; split \emph{dị hướng} $k_{\text{axis}}{=}\lceil\sqrt{\eta_{\text{axis}}}\rceil$; prune thêm tiêu chí đa view. Nền rasterization (compact box \texttt{mult}$=0.7$, Sparse Adam) giữ nguyên.
+\vspace{1mm}
+
+\alert{\textbf{Đã cài nhưng KHÔNG chạy:}} \texttt{expand\_undersized\_gs} (\texttt{train.py:356--359}), \texttt{final\_prune\_structgs} (\texttt{418--419}), prune warmup (\texttt{393--400}), \texttt{training\_report} (\texttt{306}), \texttt{scene.save} (\texttt{442}) --- đều bị comment; cộng 10 cờ mặc định \texttt{False} và 6 tham số dead code.
+\vspace{1mm}
+
+\textbf{Rủi ro đo đạc:} \texttt{render.py:40--44} đo FPS không \texttt{cuda.synchronize()}; \texttt{metrics.py:74} dùng SSIM khác hàm với lúc train; \texttt{full\_eval.py:90,95,121} truyền \texttt{--budget/--mode/--sh\_lower} \emph{chưa được khai báo} trong \texttt{arguments}.
+\end{column}
+\end{columns}
+\end{frame}

@@ -1,0 +1,778 @@
+This is XeTeX, Version 3.141592653-2.6-0.999997 (MiKTeX 25.12) (preloaded format=xelatex.fmt)
+ restricted \write18 enabled.
+entering extended mode
+(main.tex
+LaTeX2e <2025-11-01>
+L3 programming layer <2025-12-24>
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/beamer\beamer.cls
+Document Class: beamer 2026/08/20 v3.78 A class for typesetting presentations
+
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/beamer\beamerbasemodes.
+sty
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/etoolbox\etoolbox.sty)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/beamer\beamerbasedecode
+.sty))
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/iftex\iftex.sty)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/beamer\beamerbaseoption
+s.sty
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/graphics\keyval.sty))
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/geometry\geometry.sty
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/iftex\ifvtex.sty)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/geometry\geometry.cfg))
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/pgf/math\pgfmath.sty
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/pgf/utilities\pgfrcs.st
+y
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pgf/utilities\pgfutil
+-common.tex)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pgf/utilities\pgfutil
+-latex.def)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pgf/utilities\pgfrcs.
+code.tex
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pgf\pgf.revision.tex)
+))
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/pgf/utilities\pgfkeys.s
+ty
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pgf/utilities\pgfkeys
+.code.tex
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pgf/utilities\pgfkeys
+libraryfiltered.code.tex)))
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pgf/math\pgfmath.code
+.tex
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pgf/math\pgfmathutil.
+code.tex)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pgf/math\pgfmathparse
+r.code.tex)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pgf/math\pgfmathfunct
+ions.code.tex)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pgf/math\pgfmathfunct
+ions.basic.code.tex)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pgf/math\pgfmathfunct
+ions.trigonometric.code.tex)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pgf/math\pgfmathfunct
+ions.random.code.tex)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pgf/math\pgfmathfunct
+ions.comparison.code.tex)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pgf/math\pgfmathfunct
+ions.base.code.tex)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pgf/math\pgfmathfunct
+ions.round.code.tex)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pgf/math\pgfmathfunct
+ions.misc.code.tex)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pgf/math\pgfmathfunct
+ions.integerarithmetics.code.tex)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pgf/math\pgfmathcalc.
+code.tex)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pgf/math\pgfmathfloat
+.code.tex)))
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/extsizes\size9.clo)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/pgf/basiclayer\pgfcore.
+sty
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/graphics\graphicx.sty
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/graphics\graphics.sty
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/graphics\trig.sty)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/graphics-cfg\graphics.c
+fg)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/graphics-def\xetex.def)
+))
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/pgf/systemlayer\pgfsys.
+sty
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pgf/systemlayer\pgfsy
+s.code.tex
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pgf/systemlayer\pgf.c
+fg)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pgf/systemlayer\pgfsy
+s-xetex.def
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pgf/systemlayer\pgfsy
+s-dvipdfmx.def
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pgf/systemlayer\pgfsy
+s-common-pdf.def))))
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pgf/systemlayer\pgfsy
+ssoftpath.code.tex)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pgf/systemlayer\pgfsy
+sprotocol.code.tex))
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/xcolor\xcolor.sty
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/graphics-cfg\color.cfg)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/graphics\mathcolor.ltx)
+)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pgf/basiclayer\pgfcor
+e.code.tex
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pgf/math\pgfint.code.
+tex)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pgf/basiclayer\pgfcor
+epoints.code.tex)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pgf/basiclayer\pgfcor
+epathconstruct.code.tex)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pgf/basiclayer\pgfcor
+epathusage.code.tex)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pgf/basiclayer\pgfcor
+escopes.code.tex)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pgf/basiclayer\pgfcor
+egraphicstate.code.tex)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pgf/basiclayer\pgfcor
+etransformations.code.tex)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pgf/basiclayer\pgfcor
+equick.code.tex)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pgf/basiclayer\pgfcor
+eobjects.code.tex)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pgf/basiclayer\pgfcor
+epathprocessing.code.tex)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pgf/basiclayer\pgfcor
+earrows.code.tex)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pgf/basiclayer\pgfcor
+eshade.code.tex)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pgf/basiclayer\pgfcor
+eimage.code.tex)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pgf/basiclayer\pgfcor
+eexternal.code.tex)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pgf/basiclayer\pgfcor
+elayers.code.tex)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pgf/basiclayer\pgfcor
+etransparency.code.tex)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pgf/basiclayer\pgfcor
+epatterns.code.tex)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pgf/basiclayer\pgfcor
+erdf.code.tex)))
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/pgf/utilities\xxcolor.s
+ty)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/base\atbegshi-ltx.sty)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/hyperref\hyperref.sty
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/kvsetkeys\kvsetkeys.sty
+)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/kvdefinekeys\kvdefine
+keys.sty)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pdfescape\pdfescape.s
+ty
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/ltxcmds\ltxcmds.sty)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pdftexcmds\pdftexcmds
+.sty
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/infwarerr\infwarerr.s
+ty)))
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/hycolor\hycolor.sty)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/hyperref\nameref.sty
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/refcount\refcount.sty)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/gettitlestring\gettit
+lestring.sty
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/kvoptions\kvoptions.sty
+)))
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/stringenc\stringenc.s
+ty) (C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/hyperref\pd1enc.def
+) (C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/intcalc\intcalc.sty
+) (C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/hyperref\puenc.def)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/url\url.sty)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/bitset\bitset.sty
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/bigintcalc\bigintcalc
+.sty))
+
+Package hyperref Message: Stopped early.
+
+) (C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/hyperref\hxetex.def
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/rerunfilecheck\rerunfil
+echeck.sty
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/uniquecounter\uniquec
+ounter.sty)))
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/beamer\beamerbaserequir
+es.sty
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/beamer\beamerbasecompat
+ibility.sty)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/beamer\beamerbasefont.s
+ty (C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/amsfonts\amssymb.sty
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/amsfonts\amsfonts.sty))
+
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/sansmathaccent\sansmath
+accent.sty
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/koma-script\scrlfile.st
+y
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/koma-script\scrlfile-ho
+ok.sty
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/koma-script\scrlogo.sty
+)))))
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/beamer\beamerbasetransl
+ator.sty
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/translator\translator.s
+ty))
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/beamer\beamerbasemisc.s
+ty)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/beamer\beamerbasetwoscr
+eens.sty)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/beamer\beamerbaseoverla
+y.sty)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/beamer\beamerbasetitle.
+sty)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/beamer\beamerbasesectio
+n.sty)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/beamer\beamerbaseframe.
+sty)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/beamer\beamerbaseverbat
+im.sty)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/beamer\beamerbaseframes
+ize.sty)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/beamer\beamerbaseframec
+omponents.sty)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/beamer\beamerbasecolor.
+sty)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/beamer\beamerbasenotes.
+sty)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/beamer\beamerbasetoc.st
+y)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/beamer\beamerbasetempla
+tes.sty
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/beamer\beamerbaseauxtem
+plates.sty
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/beamer\beamerbaseboxes.
+sty)))
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/beamer\beamerbaselocals
+tructure.sty
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/tools\enumerate.sty))
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/beamer\beamerbasenaviga
+tion.sty
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/beamer\beamerbasenaviga
+tionsymbols.tex))
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/beamer\beamerbasetheore
+ms.sty
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/amsmath\amsmath.sty
+For additional information on amsmath, use the `?' option.
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/amsmath\amstext.sty
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/amsmath\amsgen.sty))
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/amsmath\amsbsy.sty)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/amsmath\amsopn.sty))
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/amscls\amsthm.sty))
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/beamer\beamerbasethemes
+.sty))
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/beamer\beamerthemedefau
+lt.sty
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/beamer\beamerfontthemed
+efault.sty)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/beamer\beamercolortheme
+default.sty)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/beamer\beamerinnertheme
+default.sty)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/beamer\beameroutertheme
+default.sty)))
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/fontspec\fontspec.sty
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/l3packages/xparse\xpars
+e.sty
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/l3kernel\expl3.sty
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/l3backend\l3backend-xet
+ex.def)))
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/fontspec\fontspec-xetex
+.sty (C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/base\fontenc.sty)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/fontspec\fontspec.cfg))
+)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/polyglossia\polyglossia
+.sty
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/polyglossia\gloss-latex
+.ldf))
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/polyglossia\gloss-vietn
+amese.ldf)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/booktabs\booktabs.sty)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/pgf/frontendlayer\tikz.
+sty
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/pgf/basiclayer\pgf.sty
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pgf/modules\pgfmodule
+shapes.code.tex)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pgf/modules\pgfmodule
+plot.code.tex)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/pgf/compatibility\pgfco
+mp-version-0-65.sty)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/pgf/compatibility\pgfco
+mp-version-1-18.sty))
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/pgf/utilities\pgffor.st
+y
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pgf/utilities\pgffor.
+code.tex))
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pgf/frontendlayer/tik
+z\tikz.code.tex
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pgf/libraries\pgflibr
+aryplothandlers.code.tex)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pgf/modules\pgfmodule
+matrix.code.tex)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pgf/frontendlayer/tik
+z/libraries\tikzlibrarytopaths.code.tex)))
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pgf/libraries\pgflibr
+aryarrows.meta.code.tex)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pgf/frontendlayer/tik
+z/libraries\tikzlibrarypositioning.code.tex)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pgf/frontendlayer/tik
+z/libraries\tikzlibraryshapes.code.tex
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pgf/frontendlayer/tik
+z/libraries\tikzlibraryshapes.geometric.code.tex
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pgf/libraries/shapes\
+pgflibraryshapes.geometric.code.tex))
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pgf/frontendlayer/tik
+z/libraries\tikzlibraryshapes.misc.code.tex
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pgf/libraries/shapes\
+pgflibraryshapes.misc.code.tex))
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pgf/frontendlayer/tik
+z/libraries\tikzlibraryshapes.symbols.code.tex
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pgf/libraries/shapes\
+pgflibraryshapes.symbols.code.tex))
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pgf/frontendlayer/tik
+z/libraries\tikzlibraryshapes.arrows.code.tex
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pgf/libraries/shapes\
+pgflibraryshapes.arrows.code.tex))
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pgf/frontendlayer/tik
+z/libraries\tikzlibraryshapes.callouts.code.tex
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pgf/libraries/shapes\
+pgflibraryshapes.callouts.code.tex))
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pgf/frontendlayer/tik
+z/libraries\tikzlibraryshapes.multipart.code.tex
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pgf/libraries/shapes\
+pgflibraryshapes.multipart.code.tex)))
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pgf/frontendlayer/tik
+z/libraries\tikzlibraryfit.code.tex)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/caption\caption.sty
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/caption\caption3.sty
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/caption\caption-beamer.
+sto)))
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/beamer\beamerthemeMadri
+d.sty
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/beamer\beamercolortheme
+whale.sty)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/beamer\beamercolortheme
+orchid.sty)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/beamer\beamerinnertheme
+rounded.sty)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/beamer\beameroutertheme
+infolines.sty))
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/beamer\beamercolortheme
+seahorse.sty) (main.aux)
+*geometry* driver: auto-detecting
+*geometry* detected driver: xetex
+(main.out) (main.out)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/translator\translator-b
+asic-dictionary-English.dict)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/translator\translator-b
+ibliography-dictionary-English.dict)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/translator\translator-e
+nvironment-dictionary-English.dict)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/translator\translator-m
+onths-dictionary-English.dict)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/translator\translator-n
+umbers-dictionary-English.dict)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/translator\translator-t
+heorem-dictionary-English.dict) (main.nav) [1] (main.toc
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/amsfonts\umsa.fd)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/amsfonts\umsb.fd))
+Overfull \vbox (109.81335pt too high) detected at line 50
+[2] (part1.tex [3] [4] [5] [6] [7] [8] [9] [10]
+Overfull \vbox (7.30072pt too high) detected at line 171
+[11] [12]) (partSH_A.tex
+Overfull \hbox (18.11717pt too wide) detected at line 28
+\OMS/cmsy/m/n/7 r[]\OT1/cmr/m/n/7 ^^H = [][]  [] + [][]  [] + [][] = 0
+[13] [14] [15]
+Overfull \vbox (36.81876pt too high) detected at line 101
+[16] [17] [18]
+Overfull \vbox (24.06042pt too high) detected at line 168
+[19] [20] [21]) (partSH_B.tex [22] [23] [24] [25]
+Overfull \vbox (21.52724pt too high) detected at line 106
+[26] [27] [28] [29]) (part2.tex [30] [31]
+Overfull \vbox (8.42033pt too high) detected at line 54
+[32]
+Overfull \vbox (20.81544pt too high) detected at line 74
+[33] [34] [35] [36]
+Overfull \vbox (7.81902pt too high) detected at line 145
+[37] [38] [39]) (part3.tex [40] [41] [42]
+Overfull \hbox (3.8386pt too wide) detected at line 105
+[] \OT1/cmr/m/n/7 = 0\OML/cmm/m/it/7 :\OT1/cmr/m/n/7 4(1 \OMS/cmsy/m/n/7 ^^@ []
+\OT1/cmr/m/n/7 ) + 0\OML/cmm/m/it/7 :\OT1/cmr/m/n/7 3 [] + 0\OML/cmm/m/it/7 :\O
+T1/cmr/m/n/7 3 []  []
+[43] [44] [45] [46] [47] [48]
+
+Package pgf Warning: Returning node center instead of a point on node border. D
+id you specify a point identical to the center of node ``render''? on input lin
+e 242.
+
+[49]) (part4.tex [50] [51] [52]
+Overfull \vbox (3.44637pt too high) detected at line 77
+[53] [54]
+Overfull \vbox (4.49615pt too high) detected at line 117
+[55] [56]
+Overfull \vbox (2.06674pt too high) detected at line 152
+[57] [58] [59]) (partADC_1a.tex
+Overfull \vbox (32.85182pt too high) detected at line 22
+[60] [61] [62] [63] [64] [65]) (partADC_1b.tex [66] [67] [68] [69] [70]
+[71]) (partADC_2a.tex [72] [73]
+Overfull \vbox (6.16953pt too high) detected at line 66
+[74]
+Overfull \vbox (19.10265pt too high) detected at line 84
+[75]
+Overfull \vbox (8.68335pt too high) detected at line 103
+[76] [77]) (partADC_2b.tex [78] [79]
+Overfull \vbox (23.494pt too high) detected at line 64
+[80] [81] [82] [83]) (partADC_3a.tex [84] [85] [86]
+Overfull \vbox (8.51166pt too high) detected at line 82
+[87] [88]
+Overfull \vbox (29.41873pt too high) detected at line 118
+[89]) (partADC_3b.tex [90] [91] [92] [93]
+Overfull \vbox (3.86946pt too high) detected at line 98
+[94]
+Overfull \vbox (8.97853pt too high) detected at line 114
+[95]) (partADC_4a.tex [96] [97] [98]
+Overfull \hbox (8.20529pt too wide) detected at line 114
+[][] \OT1/cmr/m/n/7 = [] \OMS/cmsy/m/n/7 ^ []\OML/cmm/m/it/7 ;  [][] \OT1/cmr/m
+/n/7 = [][] \OMS/cmsy/m/n/7 ^ []
+[99] [100] [101] [102]) (partADC_4b.tex [103] [104] [105] [106] [107] [108])
+(partADC_5a.tex [109] [110] [111] [112]
+Overfull \vbox (5.63791pt too high) detected at line 111
+[113]
+Overfull \vbox (19.33038pt too high) detected at line 126
+[114] [115]
+Overfull \vbox (41.35583pt too high) detected at line 159
+[116]) (partADC_5b.tex
+Overfull \vbox (2.66335pt too high) detected at line 20
+[117] [118] [119]
+Overfull \vbox (22.35533pt too high) detected at line 80
+[120] [121] [122] [123] [124]) (partADC_6.tex [125] [126] [127] [128] [129]
+[130] [131] [132] [133] [134] [135]) (partADC_7.tex [136]
+Overfull \hbox (10.31657pt too wide) detected at line 54
+[] \OT1/cmr/m/n/7 = [\OMS/cmsy/m/n/7 k[]k ^^U \OML/cmm/m/it/7 ^^\[]\OT1/cmr/m/n
+/7 ] \OMS/cmsy/m/n/7 ^ \OT1/cmr/m/n/7 [[] [] \OML/cmm/m/it/7 > [][]\OT1/cmr/m/n
+/7 ] \OMS/cmsy/m/n/7 ^ \OT1/cmr/m/n/7 [[] \OML/cmm/m/it/7 > []\OT1/cmr/m/n/7 ]
+[137] [138] [139]
+Overfull \vbox (15.43213pt too high) detected at line 96
+[140]
+No file TS1NotoSans(0).fd.
+
+LaTeX Font Warning: Font shape `OMS/NotoSans(0)/m/n' undefined
+(Font)              using `OMS/cmsy/m/n' instead on input line 116.
+
+[141] [142] [143] [144] [145]) (partADC_TLa.tex [146]
+Overfull \vbox (36.27086pt too high) detected at line 47
+[147]
+Overfull \vbox (14.64598pt too high) detected at line 63
+[148] [149] [150]
+Overfull \vbox (34.33347pt too high) detected at line 124
+[151] [152] [153] [154]) (partADC_TLb.tex [155]
+Overfull \vbox (18.28276pt too high) detected at line 40
+[156] [157]
+Overfull \vbox (27.36308pt too high) detected at line 75
+[158]
+Overfull \vbox (36.98872pt too high) detected at line 89
+[159]
+Overfull \vbox (31.54399pt too high) detected at line 107
+[160] [161]
+Overfull \vbox (37.76672pt too high) detected at line 144
+[162] [163]) (part5.tex [164] [165] [166] [167] [168] [169] [170]
+Overfull \vbox (23.01228pt too high) detected at line 188
+[171] [172] [173]) (part6.tex [174] [175] [176] [177] [178] [179] [180]
+[181] [182] [183]) (part_sadgs_01.tex
+Overfull \vbox (69.48563pt too high) detected at line 34
+[184] [185] [186] [187] [188]) (part_sadgs_02.tex [189] [190] [191] [192]
+[193]) (part_sadgs_03.tex [194] [195] [196] [197] [198]) (part_sadgs_04.tex
+[199] [200] [201] [202] [203]) (part_sadgs_05.tex [204] [205] [206] [207]
+[208]) (part_sadgs_06.tex [209] [210]
+Overfull \hbox (69.383pt too wide) detected at line 71
+[] \OT1/cmr/m/n/7 = ([] \OML/cmm/m/it/7 > [][]\OT1/cmr/m/n/7 0\OML/cmm/m/it/7 :
+\OT1/cmr/m/n/7 8)  \OMS/NotoSans(0)/m/n/7 ^  []\OML/cmm/m/it/7 ;  [][] \OT1/cmr
+/m/n/7 = ([] \OML/cmm/m/it/7 > [][]\OT1/cmr/m/n/7 0\OML/cmm/m/it/7 :\OT1/cmr/m/
+n/7 8)  \OMS/NotoSans(0)/m/n/7 ^  []
+[211]
+Overfull \vbox (19.11143pt too high) detected at line 106
+[212] [213]) (part_sadgs_07.tex [214] [215] [216] [217]
+Overfull \vbox (3.94154pt too high) detected at line 94
+[218]) (part_sadgs_08.tex [219]
+Underfull \hbox (badness 10000) in paragraph at lines 43--43
+[]\TU/NotoSans(0)/m/n/7 Nhân bản Gaussian dựa
+
+Underfull \hbox (badness 10000) in paragraph at lines 43--43
+[]\TU/NotoSans(0)/m/n/7 Gộp 1 vòng:
+
+Underfull \hbox (badness 10000) in paragraph at lines 43--43
+\TU/NotoSans(0)/m/n/7 clone+split+prune mỗi
+
+Underfull \hbox (badness 10000) in paragraph at lines 43--43
+[]\TU/NotoSans(0)/m/n/7 Tỉa cuối theo multi-view
+
+Overfull \vbox (37.5808pt too high) detected at line 43
+[220]
+Underfull \hbox (badness 10000) in paragraph at lines 79--79
+[]\TU/NotoSans(0)/m/n/6 Ngưỡng gradient lọc điểm ”active” trong
+[221]
+Overfull \vbox (16.22713pt too high) detected at line 108
+[222] [223] [224] [225]) (part_sadgsx_01.tex
+Overfull \vbox (33.33041pt too high) detected at line 22
+[226]
+Overfull \vbox (15.05005pt too high) detected at line 46
+[227]
+Overfull \vbox (35.71835pt too high) detected at line 71
+[228]
+Overfull \vbox (74.01323pt too high) detected at line 92
+[229]
+Overfull \vbox (142.88156pt too high) detected at line 123
+[230]
+Underfull \hbox (badness 2326) in paragraph at lines 151--151
+[]\TU/NotoSans(0)/m/n/6 Mỗi level: \TU/NotoSans(0)/m/it/6 tính lại toàn bộ $[]$
+ \TU/NotoSans(0)/m/n/6 trên ảnh đã mờ
+
+Underfull \hbox (badness 10000) in paragraph at lines 151--151
+[]\TU/NotoSans(0)/m/n/6 Đắt: levels lần gọi đầy đủ
+
+Overfull \vbox (56.23611pt too high) detected at line 151
+[231]
+Overfull \vbox (66.14635pt too high) detected at line 180
+[232]
+Overfull \vbox (3.99934pt too high) detected at line 202
+[233])
+
+Package hyperref Warning: Token not allowed in a PDF string (Unicode):
+(hyperref)                removing `math shift' on input line 127.
+
+
+Package hyperref Warning: Token not allowed in a PDF string (Unicode):
+(hyperref)                removing `\eta' on input line 127.
+
+
+Package hyperref Warning: Token not allowed in a PDF string (Unicode):
+(hyperref)                removing `math shift' on input line 127.
+
+(part_sadgsx_02.tex [234] [235] [236] [237] [238] [239]
+Overfull \vbox (8.8945pt too high) detected at line 159
+[240] [241])
+
+Package hyperref Warning: Token not allowed in a PDF string (Unicode):
+(hyperref)                removing `math shift' on input line 129.
+
+
+Package hyperref Warning: Token not allowed in a PDF string (Unicode):
+(hyperref)                removing `\eta' on input line 129.
+
+
+Package hyperref Warning: Token not allowed in a PDF string (Unicode):
+(hyperref)                removing `math shift' on input line 129.
+
+(part_sadgsx_03.tex [242] (main.vrb) [243] [244]
+Overfull \vbox (46.05531pt too high) detected at line 100
+[245] (main.vrb) [246] [247] [248] (main.vrb) [249] [250]) (part_sadgsx_04.tex
+[251]
+Overfull \vbox (12.98718pt too high) detected at line 61
+[252]
+Overfull \vbox (19.94118pt too high) detected at line 88
+[253]
+Overfull \vbox (17.25691pt too high) detected at line 117
+[254] [255] [256]
+Overfull \vbox (22.87247pt too high) detected at line 175
+[257] [258]) (part_sadgsx_05.tex [259]
+Overfull \vbox (10.32727pt too high) detected at line 38
+[260]
+Overfull \vbox (40.11057pt too high) detected at line 59
+[261] [262] [263]
+Overfull \vbox (38.52106pt too high) detected at line 125
+[264] [265]
+Overfull \vbox (2.96727pt too high) detected at line 162
+[266] [267]) (part_sadgsx_06.tex [268]
+Overfull \vbox (48.01074pt too high) detected at line 45
+[269]
+Overfull \vbox (58.32709pt too high) detected at line 66
+[270] [271]
+Overfull \vbox (18.44531pt too high) detected at line 106
+[272] [273]
+Overfull \vbox (15.69753pt too high) detected at line 140
+[274] [275]) (part_sadgsx_07.tex [276] [277] [278]
+Overfull \vbox (16.4752pt too high) detected at line 96
+[279] [280] [281]
+Overfull \vbox (5.8615pt too high) detected at line 148
+[282] [283]
+Underfull \hbox (badness 10000) in paragraph at lines 179--179
+[]\TU/NotoSans(0)/m/n/6 có nhánh multinomial $\OT1/cmr/m/n/6 50[]$ \TU/NotoSans
+(0)/m/n/6 (hiện tắt vì
+
+Overfull \hbox (1.01965pt too wide) in paragraph at lines 179--179
+ [] 
+[284]) (part_sadgsx_08.tex [285] (main.vrb) [286] [287] [288]
+Underfull \hbox (badness 6016) in paragraph at lines 103--103
+[]\TU/NotoSans(0)/m/n/6 mỗi \TU/lmtt/m/n/6 densification_interval\TU/NotoSans(0
+)/m/n/6 , trong 500–
+
+Underfull \hbox (badness 2818) in paragraph at lines 103--103
+[]\TU/lmtt/m/n/6 low_ratio$\OML/cmm/m/it/6 >$\TU/lmtt/m/n/6 prune_ratio_thresho
+ld$\OT1/cmr/m/n/6 = 0[]8$
+
+Underfull \hbox (badness 10000) in paragraph at lines 103--103
+[]\TU/NotoSans(0)/m/n/6 ngẫu nhiên hoá[]: \TU/lmtt/m/n/6 remove_budget
+
+Underfull \hbox (badness 10000) in paragraph at lines 103--103
+\TU/lmtt/m/n/6 = int(0.5*to_remove)\TU/NotoSans(0)/m/n/6 , lấy mẫu
+[289] (main.vrb) [290] [291] [292] [293]) (part_sadgsx_09.tex [294] [295]
+Overfull \vbox (67.15288pt too high) detected at line 70
+[296]
+Overfull \vbox (26.31407pt too high) detected at line 84
+[297] [298]
+Overfull \vbox (83.70139pt too high) detected at line 131
+[299]
+Overfull \vbox (52.93623pt too high) detected at line 146
+[300]
+Overfull \vbox (50.85602pt too high) detected at line 167
+[301] [302]) (part_sadgsx_10.tex
+Overfull \vbox (42.81502pt too high) detected at line 20
+[303] [304]
+Overfull \vbox (74.14917pt too high) detected at line 63
+[305]
+Overfull \vbox (71.41545pt too high) detected at line 83
+[306]
+Overfull \vbox (69.03409pt too high) detected at line 105
+[307] [308] [309] [310]) (part_sadgsx_11.tex
+Overfull \vbox (15.2956pt too high) detected at line 26
+[311] [312] [313] [314]
+Overfull \vbox (20.51169pt too high) detected at line 150
+[315] [316] [317] [318]) (part_sadgsx_12.tex [319]
+Overfull \vbox (8.84169pt too high) detected at line 48
+[320] [321] [322] [323] [324] [325] [326]) (part_sadgsx_13.tex [327]
+Underfull \hbox (badness 10000) in paragraph at lines 43--43
+[]\TU/NotoSans(0)/m/n/6 Giảm số tile/splat $\OMS/cmsy/m/n/6 )$ \TU/NotoSans(0)/
+m/n/6 render
+
+Underfull \hbox (badness 4013) in paragraph at lines 43--43
+\TU/NotoSans(0)/m/n/6 nhanh; quá nhỏ gây cắt đuôi
+
+Underfull \hbox (badness 2426) in paragraph at lines 43--43
+[]\TU/NotoSans(0)/m/n/6 Cách tính $\OML/cmm/m/it/6 ^^Q$\TU/NotoSans(0)/m/n/6 : 
+\TU/NotoSans(0)/m/it/6 wavelength $\OML/cmm/m/it/6 ^^Q \OT1/cmr/m/n/6 = \OML/cm
+m/m/it/6 `[][]$\TU/NotoSans(0)/m/n/6 ,
+
+Underfull \hbox (badness 10000) in paragraph at lines 43--43
+\TU/NotoSans(0)/m/n/6 hoặc \TU/NotoSans(0)/m/it/6 projection $\OML/cmm/m/it/6 ^
+^Q \OT1/cmr/m/n/6 = []$
+
+Underfull \hbox (badness 1389) in paragraph at lines 43--43
+[]\TU/NotoSans(0)/m/n/6 Lọc nhiễu; tăng $\OMS/cmsy/m/n/6 )$ \TU/NotoSans(0)/m/n
+/6 ít GS được
+
+Overfull \hbox (2.87717pt too wide) in paragraph at lines 43--43
+[]\TU/NotoSans(0)/m/n/6 Chọn \TU/lmtt/m/n/6 get_multiscale_structure_tensor_v1/
+v2
+[328]
+Underfull \hbox (badness 10000) in paragraph at lines 69--69
+[]\TU/NotoSans(0)/m/n/6 Cũng là mốc bật
+
+Underfull \hbox (badness 10000) in paragraph at lines 69--69
+[]\TU/NotoSans(0)/m/n/6 Reset \TU/NotoSans(0)/b/n/6 nhân $\OML/cmm/m/it/6 ^^K \
+OMS/cmsy/m/n/6   \OT1/cmr/m/n/6 0\OML/cmm/m/it/6 :\OT1/cmr/m/n/6 1\OML/cmm/m/it
+/6 ^^K$
+
+Underfull \hbox (badness 10000) in paragraph at lines 69--69
+[]\TU/NotoSans(0)/m/n/6 Khác 3DGS: 3DGS dùng
+
+Underfull \hbox (badness 10000) in paragraph at lines 69--69
+[]\TU/NotoSans(0)/m/n/6 Chỉ khi bật mới dùng
+[329]
+Underfull \hbox (badness 10000) in paragraph at lines 102--102
+[]\TU/NotoSans(0)/m/n/6 Adam(amsgrad)
+
+Underfull \hbox (badness 10000) in paragraph at lines 102--102
+\TU/NotoSans(0)/m/n/6 cho hình học +
+
+Underfull \hbox (badness 10000) in paragraph at lines 102--102
+[]\TU/NotoSans(0)/m/n/6 Chia 20 khi gán:
+
+Underfull \hbox (badness 10000) in paragraph at lines 102--102
+[]\TU/NotoSans(0)/m/n/6 Nếu bật: $\OT1/cmr/m/n/6 3\OMS/cmsy/m/n/6 ^^B$\TU/NotoS
+ans(0)/m/n/6 lr
+
+Underfull \hbox (badness 3895) in paragraph at lines 102--102
+[]\TU/NotoSans(0)/m/n/6 Thêm hạng L2 vào
+[330] [331] [332] [333] [334]) (part_sadgsx_14.tex [335] (main.vrb) [336]
+[337] [338] [339]
+Overfull \vbox (22.11024pt too high) detected at line 163
+[340] (main.vrb) [341] (main.vrb) [342]
+Underfull \hbox (badness 3333) in paragraph at lines 258--258
+[] \OMS/cmsy/m/n/6 ^^A \OT1/cmr/m/n/6 2 [](255\OML/cmm/m/it/6 ^^[[]\OT1/cmr/m/n
+/6 )$ \TU/NotoSans(0)/m/n/6 + AccuTile cắt theo slice
+
+Underfull \hbox (badness 10000) in paragraph at lines 258--258
+[]\TU/lmtt/m/n/6 cov2Ds[7i+0..2] \TU/NotoSans(0)/m/n/6 + tâm pixel + depth
+
+Underfull \hbox (badness 10000) in paragraph at lines 258--258
+[]\TU/NotoSans(0)/m/n/6 thêm $[][]$ \TU/NotoSans(0)/b/n/6 theo Gaussian \TU/Not
+oSans(0)/m/n/6 qua \TU/lmtt/m/n/6 atomicMax
+
+Underfull \hbox (badness 10000) in paragraph at lines 258--258
+[]\TU/lmtt/m/n/6 depth_map\TU/NotoSans(0)/m/n/6 , \TU/lmtt/m/n/6 opacity_map\TU
+/NotoSans(0)/m/n/6 , \TU/lmtt/m/n/6 normal_map \TU/NotoSans(0)/m/n/6 khi
+
+Underfull \hbox (badness 10000) in paragraph at lines 258--258
+\TU/lmtt/m/n/6 compute_extra \TU/NotoSans(0)/m/n/6 (normal suy từ trục $[]$ của
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 258--258
+[]\TU/NotoSans(0)/m/n/6 chia \TU/NotoSans(0)/b/n/6 bucket 32 Gaussian\TU/NotoSa
+ns(0)/m/n/6 , lưu
+
+Underfull \hbox (badness 10000) in paragraph at lines 258--258
+\TU/lmtt/m/n/6 sampled_T\TU/NotoSans(0)/m/n/6 /\TU/lmtt/m/n/6 sampled_ar\TU/Not
+oSans(0)/m/n/6 , trả thêm \TU/lmtt/m/n/6 num_buckets\TU/NotoSans(0)/m/n/6 ,
+[343]) (part_sadgsx_15.tex [344]
+Overfull \vbox (78.95139pt too high) detected at line 57
+[345]
+Underfull \hbox (badness 10000) in paragraph at lines 93--93
+[]\TU/NotoSans(0)/m/n/6 thêm \TU/lmtt/m/n/6 grad_abs_thresh
+
+Underfull \hbox (badness 4479) in paragraph at lines 93--93
+\OT1/cmr/m/n/6 2[]10[]$ \TU/NotoSans(0)/m/n/6 trên kênh 3–5 của
+
+Underfull \hbox (badness 10000) in paragraph at lines 93--93
+[]\TU/NotoSans(0)/b/n/6 AND \TU/NotoSans(0)/m/n/6 của grad ($\OMS/cmsy/m/n/6 ^^
+U \OT1/cmr/m/n/6 10[]$\TU/NotoSans(0)/m/n/6 ) với
+
+Overfull \hbox (7.7247pt too wide) in paragraph at lines 93--93
+\TU/lmtt/m/n/6 high_ratio$\OML/cmm/m/it/6 >$\TU/lmtt/m/n/6 split_ratio_threshol
+d$\OT1/cmr/m/n/6 =
+
+Underfull \hbox (badness 2961) in paragraph at lines 93--93
+[]$[][]\OT1/cmr/m/n/6 2$ \TU/NotoSans(0)/m/n/6 bản sao, lấy mẫu từ
+
+Underfull \hbox (badness 10000) in paragraph at lines 93--93
+[]\TU/NotoSans(0)/m/n/6 như 3DGS, chọn theo
+
+Underfull \hbox (badness 10000) in paragraph at lines 93--93
+[]$\OML/cmm/m/it/6 ^^K < \OT1/cmr/m/n/6 0\OML/cmm/m/it/6 :\OT1/cmr/m/n/6 005$\T
+U/NotoSans(0)/m/n/6 ; $[][][]\OT1/cmr/m/n/6 20$\TU/NotoSans(0)/m/n/6 ;
+
+Underfull \hbox (badness 10000) in paragraph at lines 93--93
+[]\TU/lmtt/m/n/6 st_levels\TU/NotoSans(0)/m/n/6 , \TU/lmtt/m/n/6 st_mode\TU/Not
+oSans(0)/m/n/6 ,
+
+Underfull \hbox (badness 10000) in paragraph at lines 93--93
+\TU/lmtt/m/n/6 eta_compute_mode\TU/NotoSans(0)/m/n/6 ,
+
+Underfull \hbox (badness 10000) in paragraph at lines 93--93
+\TU/lmtt/m/n/6 split/prune_ratio_threshold\TU/NotoSans(0)/m/n/6 ,
+
+Underfull \hbox (badness 1867) in paragraph at lines 93--93
+\TU/lmtt/m/n/6 freq_*_threshold\TU/NotoSans(0)/m/n/6 , \TU/lmtt/m/n/6 ks_scale_
+power\TU/NotoSans(0)/m/n/6 ,
+
+Underfull \hbox (badness 4024) in paragraph at lines 93--93
+[]$\OT1/cmr/m/n/6 +$ \TU/NotoSans(0)/m/n/6 cache structure tensor (1 lần,
+[346] [347]
+Overfull \vbox (43.69188pt too high) detected at line 141
+[348]
+Overfull \vbox (67.84077pt too high) detected at line 165
+[349]
+Underfull \hbox (badness 10000) in paragraph at lines 187--187
+[]\TU/lmtt/m/n/6 gaussians.expand_undersized_gs(tau_expand,
+
+Underfull \hbox (badness 10000) in paragraph at lines 187--187
+[]\TU/lmtt/m/n/6 compute_gaussian_score_structgs \TU/NotoSans(0)/m/n/6 +
+
+Underfull \hbox (badness 2302) in paragraph at lines 187--187
+[]\TU/NotoSans(0)/m/n/6 Không tự lưu ở vòng cuối — chỉ lưu tại
+[350]
+Overfull \vbox (48.69199pt too high) detected at line 210
+[351] [352]) (part7.tex [353] [354] [355] [356]
+Overfull \vbox (8.6591pt too high) detected at line 122
+[357]
+Underfull \hbox (badness 10000) in paragraph at lines 142--142
+[]\TU/lmtt/m/n/7 DOCS/structgs-acceleration-
+
+Underfull \hbox (badness 1270) in paragraph at lines 142--142
+\TU/NotoSans(0)/m/n/7 Densification (eta, split dị hướng, expand, multiview-
+[358] [359]) (main.aux)miktex-dvipdfmx: major issue: So far, you have not checked for MiKTeX updates.
+
+
+LaTeX Font Warning: Some font shapes were not available, defaults substituted.
+
+ )
+(see the transcript file for additional information)
+Output written on main.pdf (359 pages).
+Transcript written on main.log.
+xelatex: major issue: So far, you have not checked for MiKTeX updates.

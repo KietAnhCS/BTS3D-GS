@@ -1,0 +1,181 @@
+% ===== BOT 08: final_prune_structgs — prune cuối theo pruning score & multi-view consistency =====
+
+% --- Frame 1: Vị trí trong pipeline ---
+\begin{frame}{\texttt{final\_prune\_structgs}: tỉa cuối cùng nằm ở đâu?}
+\scriptsize
+\begin{itemize}
+    \item SADGS có \textbf{hai tầng tỉa} tách biệt: (1) tỉa \emph{trong} vòng mật độ hoá, gọi mỗi \texttt{densification\_interval} từ \texttt{densify\_and\_prune\_structgs} (\texttt{gaussian\_model.py:1012--1046}); (2) tỉa \emph{cuối giai đoạn} bằng \texttt{final\_prune\_structgs} (\texttt{gaussian\_model.py:1059--1066}).
+    \item Tầng (2) được thiết kế để chạy tại các mốc \texttt{prune\_iterations}, mặc định \texttt{[4000, 8000]} (\texttt{train.py:529}), được truyền thẳng vào \texttt{training(...)} như tham số cuối (\texttt{train.py:38}, \texttt{train.py:555}).
+    \item Mốc kiểm tra: \texttt{if iteration in prune\_iterations:} (\texttt{train.py:412}). Tại đó code lấy toàn bộ camera huấn luyện rồi lọc qua \texttt{sampling\_cameras} (\texttt{train.py:413--414}, \texttt{utils/freq\_utils.py:12}, mặc định \texttt{mode="fps", num\_cams=60}) -- tức đã chuẩn bị sẵn tập view để đánh giá nhất quán đa góc nhìn.
+    \item \alert{Nhưng} hai dòng dùng tập view đó lại đang bị comment (\texttt{train.py:418--419}) -- xem Frame 5.
+\end{itemize}
+\centering
+\includegraphics[width=0.62\linewidth]{sadgsx/08_timeline.png}
+\captionof{figure}{\footnotesize Dòng thời gian huấn luyện 30k iteration: vùng mật độ hoá 500--15\,000, hai mốc \texttt{prune\_iterations} 4000 và 8000 (\texttt{train.py:412, 529}; \texttt{arguments/\_\_init\_\_.py:75, 91--92}).}
+\end{frame}
+
+% --- Frame 2: Đọc code từng dòng ---
+\begin{frame}[fragile]{Đọc từng dòng: công thức tỉa là một phép OR hai điều kiện}
+\scriptsize
+\begin{block}{\texttt{scene/gaussian\_model.py:1059--1066}}
+\begin{semiverbatim}
+def final_prune_structgs(self, min_opacity, pruning_score = None):   # :1059
+    prune_mask  = (self.get_opacity < min_opacity).squeeze()         # :1063
+    scores_mask = pruning_score > 0.9                                # :1064
+    final_prune = torch.logical_or(prune_mask, scores_mask)          # :1065
+    self.prune_points(final_prune)                                   # :1066
+\end{semiverbatim}
+\end{block}
+\footnotesize
+Toàn bộ hàm chỉ gồm một công thức mặt nạ, với $\alpha_i$ là opacity sau sigmoid và $s_i$ là \texttt{pruning\_score}:
+\[
+\text{prune}_i \;=\; \underbrace{\big[\alpha_i < \tau_\alpha\big]}_{\text{opacity yếu}} \;\vee\; \underbrace{\big[s_i > \tau_s\big]}_{\text{bất nhất đa view}},\qquad \tau_\alpha = \texttt{min\_opacity},\quad \tau_s = 0{,}9 \text{ (hằng số cứng)}
+\]
+\begin{itemize}\scriptsize
+    \item $\tau_s = 0{,}9$ \textbf{hard-code} ngay trong thân hàm (\texttt{:1064}) -- không có tham số dòng lệnh nào chỉnh được, khác hẳn \texttt{prune\_ratio\_threshold} $=0{,}8$ vốn khai báo trong \texttt{arguments/\_\_init\_\_.py:149}.
+    \item $\tau_\alpha$ do lời gọi quyết định; lời gọi duy nhất trong repo dùng \texttt{min\_opacity = 0.1} (\texttt{train.py:419}).
+    \item Mặt nạ đi thẳng vào \texttt{prune\_points} (\texttt{gaussian\_model.py:528}), hàm này cắt đồng bộ \emph{cả} tensor tham số lẫn mọi bộ tích luỹ: \texttt{xyz\_gradient\_accum}, \texttt{max\_radii2D}, \texttt{filter\_3D}, \texttt{accum\_eta}, \texttt{accum\_view\_count}, \texttt{eta\_high/mid/low\_count} (\texttt{:540--560}).
+\end{itemize}
+\end{frame}
+
+% --- Frame 3: Ngưỡng cắt, minh hoạ phân bố ---
+\begin{frame}{Ngưỡng cắt $\tau_s=0{,}9$ và $\tau_\alpha=0{,}1$ trên phân bố thực tế}
+\footnotesize
+\begin{columns}[T]
+\begin{column}{0.56\textwidth}
+\centering
+\includegraphics[width=\linewidth]{sadgsx/08_score_hist.png}
+\end{column}
+\begin{column}{0.42\textwidth}
+\scriptsize
+\begin{itemize}
+    \item Vế trái: $[s_i > 0{,}9]$ chỉ bắt \emph{đuôi phải} của phân bố -- đây là thiết kế \textbf{bảo thủ}: chỉ Gaussian bất nhất ở gần như mọi view mới bị loại.
+    \item Vế phải: $[\alpha_i < 0{,}1]$ là ngưỡng \textbf{rất mạnh} so với 3DGS gốc. Code ghi rõ trong comment \texttt{train.py:364}: \texttt{min\_opacity=0.1, \# 0.005 is a good default} -- tức SADGS chủ động dùng ngưỡng cao gấp 20 lần mặc định.
+    \item Vì là phép \textbf{OR}, tổng số Gaussian bị loại $\ge$ số bị loại bởi từng vế. Trên phân bố minh hoạ ($N=20\,000$): $\approx 5{,}6\%$ bị loại, trong đó nhánh opacity $\approx 1{,}0\%$ và nhánh nhất quán $\approx 4{,}7\%$.
+    \item Ước lượng: ở quy mô $\sim 1$--$3$ triệu Gaussian điển hình, mỗi mốc prune loại bậc $10^4$--$10^5$ điểm.
+\end{itemize}
+\end{column}
+\end{columns}
+\captionof{figure}{\footnotesize Hai nhánh của $\text{prune}_i=[\alpha_i<0{,}1]\vee[s_i>0{,}9]$ (\texttt{gaussian\_model.py:1063--1066}).}
+\end{frame}
+
+% --- Frame 4: pruning_score đến từ đâu ---
+\begin{frame}{\texttt{pruning\_score} được truyền từ đâu? -- và điều gì xảy ra nếu \texttt{None}}
+\footnotesize
+\begin{columns}[T]
+\begin{column}{0.52\textwidth}
+\scriptsize
+\begin{itemize}
+    \item Nguồn dự kiến duy nhất là dòng đã bị comment: \\ \texttt{\_, pruning\_score, \_, \_, \_, \_ = compute\_gaussian\_score\_structgs(camlist, gaussians, pipe, bg, opt)} (\texttt{train.py:418}) -- một hàm trả về 6 giá trị, tính trên \texttt{camlist} gồm 60 camera lấy bằng FPS.
+    \item \alert{Phát hiện quan trọng:} \texttt{grep -rn "compute\_gaussian\_score\_structgs"} trên toàn bộ repo chỉ trả về \textbf{đúng 1 kết quả} -- chính dòng comment đó. Hàm \textbf{không được định nghĩa và không được import} ở bất kỳ đâu. Bỏ comment ngay sẽ lỗi \texttt{NameError}.
+    \item Chữ ký hàm khai báo \texttt{pruning\_score = None} (\texttt{:1059}), nhưng thân hàm \textbf{không kiểm tra None}: dòng \texttt{:1064} thực hiện \texttt{None > 0.9} $\Rightarrow$ \texttt{TypeError}. Tức giá trị mặc định là một cái bẫy, hàm bắt buộc phải nhận tensor thật.
+    \item Tín hiệu nhất quán đa view \emph{đang} được đo ở nơi khác: \texttt{low\_ratio}$_i=$\texttt{eta\_low\_count}$_i/$\texttt{accum\_view\_count}$_i$ (\texttt{train.py:341--342}), dùng cho prune trong vòng densify.
+\end{itemize}
+\end{column}
+\begin{column}{0.46\textwidth}
+\centering
+\includegraphics[width=\linewidth]{sadgsx/08_mvconsistency.png}
+\end{column}
+\end{columns}
+\captionof{figure}{\footnotesize Ý nghĩa $s_i$: gộp bất nhất tái dựng trên 60 view (\texttt{sampling\_cameras}, \texttt{freq\_utils.py:12}) thành 1 điểm số; chỉ hàng vượt $\tau_s=0{,}9$ mới bị cắt.}
+\end{frame}
+
+% --- Frame 5: So sánh với prune trong vòng densify ---
+\begin{frame}{Khác biệt với phép prune trong vòng mật độ hoá}
+\scriptsize
+\begin{table}
+\centering
+\begin{tabular}{p{2.4cm}p{4.4cm}p{4.4cm}}
+\toprule
+ & \textbf{Prune trong vòng densify} \newline \texttt{densify\_and\_prune\_structgs} & \textbf{Prune cuối} \newline \texttt{final\_prune\_structgs} \\
+\midrule
+Vị trí code & \texttt{gaussian\_model.py:1012--1046} & \texttt{gaussian\_model.py:1059--1066} \\
+Tần suất & mỗi \texttt{densification\_interval}, trong 500--15\,000 & chỉ tại \texttt{prune\_iterations} $=[4000,8000]$ \\
+Điều kiện & $[\alpha<0{,}1]\vee[r_{2D}>\texttt{max\_screen}]\vee[\max s>0{,}1\cdot\text{extent}]\vee$ \texttt{custom\_prune\_mask} & $[\alpha<0{,}1]\vee[s>0{,}9]$ -- \emph{chỉ} opacity và điểm số đa view \\
+Tín hiệu đa view & \texttt{low\_ratio}$>$\texttt{prune\_ratio\_threshold}$=0{,}8$ (\texttt{train.py:354}, \texttt{arguments:149}), reset bộ đếm sau mỗi vòng & \texttt{pruning\_score} tính lại \emph{một lần} trên 60 view FPS, không phụ thuộc bộ đếm đang tích luỹ \\
+Khi có score & \alert{ngẫu nhiên hoá}: \texttt{remove\_budget = int(0.5*to\_remove)}, lấy mẫu \texttt{torch.multinomial} theo $1/(10^{-6}+1-s)$ rồi AND với \texttt{prune\_mask} (\texttt{:1029--1042}) $\Rightarrow$ chỉ bỏ \textbf{một nửa} ứng viên & \textbf{tất định}: OR rồi cắt hết, không có budget, không lấy mẫu \\
+Hậu xử lý & ép $\alpha \leftarrow \min(\alpha, 0{,}8)$ qua \texttt{inverse\_sigmoid} (\texttt{:1048--1050}) & không có -- chỉ \texttt{prune\_points} \\
+\bottomrule
+\end{tabular}
+\end{table}
+\footnotesize
+$\Rightarrow$ Tầng trong vòng densify là \emph{tỉa tăng dần, có phanh} (giữ lại 50\% ứng viên); tầng cuối là \emph{tỉa dứt khoát} nhằm dọn floater còn sót.
+\end{frame}
+
+% --- Frame 6: Trạng thái comment out ---
+\begin{frame}[fragile]{Trạng thái thực tế: lời gọi \textbf{đang bị comment}}
+\scriptsize
+\begin{block}{\texttt{train.py:412--419} -- nguyên văn}
+\begin{semiverbatim}
+if iteration in prune_iterations:                                          # :412
+    my_viewpoint_stack = scene.getTrainCameras().copy()                    # :413
+    camlist = sampling_cameras(my_viewpoint_stack)                         # :414
+    prune_mask = (gaussians.get_opacity < 0.1).squeeze()                   # :416
+    gaussians.prune_points(prune_mask)                                     # :417
+    # _, pruning_score, ... = compute_gaussian_score_structgs(...)         # :418
+    # gaussians.final_prune_structgs(min_opacity=0.1, pruning_score=...)   # :419
+\end{semiverbatim}
+\end{block}
+\footnotesize
+\begin{itemize}\scriptsize
+    \item Cái \emph{đang chạy} tại iteration 4000 và 8000 chỉ là nhánh opacity thuần: $\text{prune}_i=[\alpha_i<0{,}1]$. Toàn bộ vế $[s_i>0{,}9]$ biến mất.
+    \item \texttt{camlist} ở dòng \texttt{:414} vẫn được tính nhưng \textbf{không ai dùng} -- dấu vết rõ ràng rằng nhánh multi-view đã bị tắt chứ không phải chưa từng có.
+    \item Đây không phải trường hợp cá biệt: nhánh \texttt{pruning\_score} trong vòng densify cũng bị vô hiệu vì lời gọi truyền \texttt{pruning\_score=None} (\texttt{train.py:369}) $\Rightarrow$ khối \texttt{multinomial} \texttt{:1029--1042} không bao giờ chạy, code rơi vào \texttt{else: self.prune\_points(prune\_mask)} (\texttt{:1044}).
+    \item Hệ quả: \textbf{cả hai} đường dùng \texttt{pruning\_score} trong repo đều đang chết. Tín hiệu nhất quán đa view duy nhất còn sống là \texttt{low\_ratio} qua \texttt{custom\_prune\_mask}.
+\end{itemize}
+\end{frame}
+
+% --- Frame 7: Hệ quả về kích thước mô hình ---
+\begin{frame}{Hệ quả: mô hình cuối to hơn mức cần thiết}
+\footnotesize
+\begin{columns}[T]
+\begin{column}{0.54\textwidth}
+\centering
+\includegraphics[width=\linewidth]{sadgsx/08_modelsize.png}
+\end{column}
+\begin{column}{0.44\textwidth}
+\scriptsize
+\begin{itemize}
+    \item Mỗi Gaussian lưu 62 float32 trong \texttt{.ply} kiểu 3DGS (xyz, normal, 3 hệ số SH bậc 0, 45 hệ số SH bậc cao, opacity, 3 scale, 4 quaternion) $\Rightarrow$ $\approx 248$ byte/điểm.
+    \item Bỏ mất vế $[s_i>0{,}9]$ nghĩa là các \textbf{floater} -- Gaussian có opacity cao nhưng chỉ đúng ở một vài góc nhìn -- \emph{không bị vế nào bắt}: chúng vượt qua $\tau_\alpha=0{,}1$ một cách thoải mái.
+    \item Floater gây hại kép: (i) phình dung lượng \texttt{.ply} và giảm FPS render; (ii) tạo vệt sương/đốm khi camera rời khỏi quỹ đạo train -- đúng lỗi mà tỉa theo nhất quán đa view sinh ra để khử.
+    \item Với mô hình digital twin cần xem tự do quanh vật thể, đây là mất mát chất lượng \emph{chỉ thấy ở view mới}, không thấy trên PSNR tập train.
+\end{itemize}
+\end{column}
+\end{columns}
+\captionof{figure}{\footnotesize So sánh kích thước mô hình: không tỉa cuối / chỉ $\alpha<0{,}1$ (code hiện tại) / đủ $[\alpha<0{,}1]\vee[s>0{,}9]$.}
+\end{frame}
+
+% --- Frame 8: Đánh đổi ngưỡng ---
+\begin{frame}{Đánh đổi: hạ $\tau_s$ tỉa mạnh hơn -- đổi lấy gì?}
+\footnotesize
+\begin{columns}[T]
+\begin{column}{0.52\textwidth}
+\centering
+\includegraphics[width=\linewidth]{sadgsx/08_tradeoff.png}
+\end{column}
+\begin{column}{0.46\textwidth}
+\scriptsize
+Quét $\tau_s$ trong công thức $\text{prune}_i=[\alpha_i<\tau_\alpha]\vee[s_i>\tau_s]$:
+\begin{itemize}
+    \item $\tau_s\to 1$: gần như không tỉa theo đa view -- tương đương trạng thái hiện tại của code.
+    \item $\tau_s=0{,}9$ (giá trị hard-code): giữ $\approx 94\%$ Gaussian, cắt gọn đuôi bất nhất mà gần như không đụng phần thân phân bố $\Rightarrow$ chất lượng bão hoà, dung lượng giảm.
+    \item $\tau_s<0{,}7$: bắt đầu ăn vào vùng Gaussian hợp lệ; số điểm giữ lại rơi nhanh và chất lượng tụt -- vùng tỉa quá tay.
+    \item Đường PSNR trong hình là \textbf{mô phỏng dạng bão hoà} để minh hoạ hình dạng đánh đổi, không phải số đo từ repo (repo không chứa log benchmark cho nhánh này).
+\end{itemize}
+\end{column}
+\end{columns}
+\captionof{figure}{\footnotesize Tỉ lệ Gaussian giữ lại (trục trái) và chất lượng mô phỏng (trục phải) theo $\tau_s$; vạch chấm là $\tau_s=0{,}9$ trong \texttt{gaussian\_model.py:1064}.}
+\end{frame}
+
+% --- Frame 9: Tổng kết & khuyến nghị ---
+\begin{frame}{Tổng kết \texttt{final\_prune\_structgs}}
+\footnotesize
+\begin{enumerate}
+    \item \textbf{Công thức:} $\text{prune}_i=[\alpha_i<\texttt{min\_opacity}]\vee[s_i>0{,}9]$ -- một phép OR tất định, không budget, không lấy mẫu ngẫu nhiên (\texttt{gaussian\_model.py:1063--1066}).
+    \item \textbf{Tham số:} $\tau_\alpha$ truyền vào ($=0{,}1$ tại lời gọi), $\tau_s=0{,}9$ hard-code; mốc chạy \texttt{prune\_iterations} mặc định \texttt{[4000, 8000]} (\texttt{train.py:529}).
+    \item \textbf{Trạng thái:} lời gọi bị comment (\texttt{train.py:419}); nguồn điểm số \texttt{compute\_gaussian\_score\_structgs} \alert{không tồn tại trong repo}; \texttt{pruning\_score=None} mặc định sẽ gây \texttt{TypeError} vì hàm không kiểm tra None.
+    \item \textbf{Đang chạy thay thế:} \texttt{prune\_points}$([\alpha<0{,}1])$ tại cùng hai mốc (\texttt{train.py:416--417}) -- giữ nhánh opacity, mất nhánh nhất quán đa view.
+    \item \textbf{Để khôi phục an toàn:} (a) cài đặt \texttt{compute\_gaussian\_score\_structgs} trả về $s\in[0,1]$ theo \emph{độ bất nhất} (giá trị lớn = xấu, khớp hướng so sánh \texttt{>} ở \texttt{:1064}); (b) thêm \texttt{if pruning\_score is None: scores\_mask = torch.zeros\_like(prune\_mask)}; (c) đưa $0{,}9$ ra \texttt{arguments/\_\_init\_\_.py} cạnh \texttt{prune\_ratio\_threshold}.
+\end{enumerate}
+\end{frame}

@@ -1,0 +1,29 @@
+% ===== BOT 06: expand_undersized_gs — giãn giải tích Gaussian dưới cỡ (bản 45 phút) =====
+
+\begin{frame}{Giãn giải tích Gaussian dưới cỡ (\texttt{expand\_undersized\_gs}) --- và trạng thái \emph{bị tắt}}
+\scriptsize
+\begin{columns}[T]
+\begin{column}{0.47\textwidth}
+Gaussian có $\eta=\ell_{\text{truc}}/\lambda_{\min}<\tau_{expand}$ là \textbf{nhỏ hơn} chi tiết texture $\Rightarrow$ lãng phí điểm. SADGS sửa \textbf{trực tiếp} tham số thay vì sinh thêm Gaussian:
+\[
+\texttt{mask}=(\eta<\tau_{expand})\wedge(\eta>0),\quad \tau_{expand}=1.0
+\]
+\[
+\Delta_{\log}=-\tfrac12\ln\!\big(\max(\eta,10^{-6})\big)
+\ \Rightarrow\ \frac{s_{\text{mới}}}{s_{\text{cũ}}}=\eta^{-1/2}
+\]
+\begin{itemize}\itemsep1pt
+    \item Cộng thẳng vào log-scale vì $\sigma=\exp(\texttt{\_scaling})$; $N$ \textbf{không đổi} $\Rightarrow$ $0$ byte thêm (so với split cần $k^3$ Gaussian, $k=\lceil\eta^{-1/2}\rceil$).
+    \item Ghi qua \texttt{replace\_tensor\_to\_optimizer(\dots,"scaling")} $\Rightarrow$ \textbf{xoá moment Adam của toàn bộ} param group.
+    \item $\eta$ trong code là \textbf{tuyến tính} theo scale, nên một bước chỉ đưa $\eta\to\sqrt{\eta}$, không phải $1$ như docstring khẳng định.
+    \item \alert{Lời gọi trong \texttt{train.py:356--359} đang bị COMMENT OUT} --- mặc định SADGS chỉ SPLIT/PRUNE.
+\end{itemize}
+\tiny \texttt{gaussian\_model.py:833--864}, \texttt{train.py:355--359}, \texttt{arguments/\_\_init\_\_.py:135}, \texttt{freq\_utils.py:348}
+\end{column}
+\begin{column}{0.53\textwidth}
+\centering
+\includegraphics[width=0.99\linewidth]{sadgsx/06_scale_ratio_eta.png}\\
+\captionof{figure}{\footnotesize Hệ số giãn $\eta^{-1/2}$ theo $\eta$ (log--log): chỉ vùng $\eta<\tau_{expand}$ bị tác động; clamp $10^{-6}$ giới hạn giãn ở $\approx 1000\times$.}
+\end{column}
+\end{columns}
+\end{frame}

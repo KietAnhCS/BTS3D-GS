@@ -1,0 +1,38 @@
+% ===== BOT 00: Bản đồ toàn tuyến Structure Tensor -> ADC (bản 45 phút) =====
+% Đặt TRƯỚC part45_sadgsx_01 để dẫn đường cho 15 slide chuyên sâu.
+% Hình: ../figures/sadgsx/scripts/bot16_figs.py
+
+\begin{frame}{Bản đồ 15 slide tới: từ \emph{structure tensor} đến \emph{ADC}}
+\scriptsize
+\vspace{-3mm}
+\begin{center}
+\includegraphics[width=0.80\linewidth]{sadgsx/16_flow_tensor_to_adc.png}
+\end{center}
+\vspace{-2mm}
+\captionof{figure}{\scriptsize Nhánh \textbf{ảnh} (xanh dương) chạy một lần trước vòng lặp $\to$ $\lambda_{\min}$; nhánh \textbf{Gaussian} (xanh lá) chạy mỗi view $\to$ $\|a_j\|$. Hai nhánh gặp nhau đúng một chỗ: $\eta_j=\|a_j\|/\lambda_{\min}$ (ô cam). Tím = bỏ phiếu đa view, hồng = ADC, xám nét đứt = mặc định TẮT.}
+\end{frame}
+
+\begin{frame}{Ba điều cần nhớ trước khi đi vào chi tiết}
+\scriptsize
+\vspace{-3mm}
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+\begin{enumerate}
+    \item \textbf{$\eta$ là tỉ số không thứ nguyên} (pixel/pixel) --- nhờ vậy hai ngưỡng hằng $\tau_{high}{=}1.0$, $\tau_{low}{=}0.1$ mới dùng được xuyên cảnh.
+    \item \textbf{Giữ ba $\eta$, không phải một} --- ba trục chính của ellipsoid, nhờ đó mới chia \emph{dị hướng} được: $k_j=\lceil\sqrt{\max(\eta_j,1)}\rceil$.
+    \item \textbf{Đo tách khỏi quyết định} --- đo mỗi 10 iteration, quyết định mỗi 100 iteration bằng \texttt{high\_ratio}/\texttt{low\_ratio} so với $0.8$.
+\end{enumerate}
+\vspace{1mm}
+\alert{Cổng AND} (\texttt{train.py:345}) là chốt chặn chống bùng nổ $N$:
+\[
+\texttt{split} = (\texttt{high\_ratio}{>}0.8) \wedge (\|\nabla_{\mathbf{x}_{2D}}\mathcal{L}\|{\ge}10^{-5})
+\]
+\end{column}
+\begin{column}{0.48\textwidth}
+\begin{center}
+\includegraphics[width=\linewidth]{sadgsx/16_adc_actions.png}\\[3pt]
+\captionof{figure}{\scriptsize 3DGS chia đều mọi trục cho 1.6; SADGS chia riêng từng trục theo $\eta_j$ rồi thu scale $s_j/k_j^{\,p}$.}
+\end{center}
+\end{column}
+\end{columns}
+\end{frame}

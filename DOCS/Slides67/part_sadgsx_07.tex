@@ -1,0 +1,179 @@
+% ===== BOT 07: densify_and_prune_structgs — vòng densify+prune hợp nhất =====
+
+\begin{frame}{Một hàm, một vòng: vì sao SADGS gộp densify và prune?}
+\footnotesize
+\begin{itemize}
+    \item Trong \texttt{train.py}, cứ mỗi \texttt{densification\_interval}$=100$ vòng (kể từ \texttt{densify\_from\_iter}$=500$, \texttt{arguments/\_\_init\_\_.py:87,91}) SADGS gọi \textbf{đúng một} hàm điều phối toàn bộ việc thay đổi số lượng Gaussian:
+\end{itemize}
+\begin{center}\scriptsize
+\begin{tabular}{ll}
+\hline
+\textbf{Tham số truyền thật} (\texttt{train.py:362--374}) & \textbf{Giá trị} \\
+\hline
+\texttt{max\_screen\_size} & \texttt{20 if iteration > opt.opacity\_reset\_interval else None} ($3000$) \\
+\texttt{min\_opacity} & \textbf{0.1} \quad (comment trong code ghi ``0.005 is a good default'') \\
+\texttt{extent} & \texttt{scene.cameras\_extent} \\
+\texttt{radii} & bán kính 2D trả về từ rasterizer của iteration hiện tại \\
+\texttt{args} & \texttt{opt} (chứa \texttt{grad\_thresh}, \texttt{grad\_abs\_thresh}, \texttt{dense}, \texttt{ks\_scale\_power}\dots) \\
+\texttt{importance\_score} & \texttt{gaussians.accum\_view\_count} \\
+\texttt{pruning\_score} & \texttt{None} $\Rightarrow$ nhánh lấy mẫu multinomial \textbf{không chạy} \\
+\texttt{custom\_split\_mask} & \texttt{high\_ratio} $>0.8$ \ và \ $\|\bar g\| \ge 10^{-5}$ \\
+\texttt{custom\_prune\_mask} & \texttt{low\_ratio} $>0.8$ \ và \ \texttt{accum\_view\_count} $>0$ \\
+\texttt{viewspace\_points\_indices} & \texttt{None} $\Rightarrow$ mask gán trực tiếp, không cần scatter theo chỉ số \\
+\texttt{max\_eta\_3ch} & \texttt{gaussians.max\_eta\_3ch} (dẫn hướng chia tách theo tần số) \\
+\hline
+\end{tabular}
+\end{center}
+\begin{itemize}
+    \item Gộp lại giúp \textbf{một mask duy nhất} quyết định số phận mỗi Gaussian trong cùng một lần: sinh thêm ở chỗ thiếu, xoá bớt ở chỗ thừa, rồi đồng bộ lại toàn bộ tensor và trạng thái Adam \textbf{một lần duy nhất}.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Thứ tự thực thi thật trong code: CLONE $\rightarrow$ SPLIT $\rightarrow$ PRUNE}
+\footnotesize
+\begin{center}
+\includegraphics[width=0.52\linewidth]{sadgsx/07_so_do_khoi_luong.png}
+\captionof{figure}{\footnotesize Sơ đồ khối \texttt{densify\_and\_prune\_structgs} (\texttt{gaussian\_model.py:957--1053}). Prune luôn chạy \textbf{sau} khi $N$ đã tăng.}
+\end{center}
+\begin{itemize}\scriptsize
+    \item Hệ quả quan trọng: mọi mask prune được tính trên \textbf{tập Gaussian đã mở rộng}, nên Gaussian con vừa sinh ra cũng nằm trong tầm ngắm của các tiêu chí opacity/bán kính/scale.
+    \item Bước cuối cùng không phải prune mà là \textbf{áp trần opacity} $0.8$, rồi trả \texttt{tmp\_radii} về \texttt{None} và giải phóng cache GPU.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Giai đoạn sinh: mặt nạ clone và split loại trừ nhau theo kích thước}
+\footnotesize
+Hai chỉ báo gradient (\texttt{gaussian\_model.py:964--972}):
+\[
+\bar g = \frac{\texttt{xyz\_gradient\_accum}}{\texttt{denom}},\qquad
+\bar g_{abs} = \frac{\texttt{xyz\_gradient\_accum\_abs}}{\texttt{denom}}
+\]
+\[
+Q = \big[\;\|\bar g\|\ \ge\ \texttt{grad\_thresh}=2\!\times\!10^{-4}\;\big],\qquad
+Q_{abs} = \big[\;\|\bar g_{abs}\|\ \ge\ \texttt{grad\_abs\_thresh}=2\!\times\!10^{-4}\;\big]
+\]
+Phân vùng theo kích thước với \texttt{args.dense}$=0.001$ (\texttt{gaussian\_model.py:990--1002}):
+\[
+\texttt{clone\_qual} = \big[s_{\max} \le \texttt{dense}\cdot\texttt{extent}\big],\qquad
+\texttt{split\_qual} = \big[s_{\max} > \texttt{dense}\cdot\texttt{extent}\big]
+\]
+\[
+\boxed{\;\texttt{final\_clone} = (S \vee Q)\wedge \texttt{clone\_qual},\qquad
+\texttt{final\_split} = (S \vee Q_{abs})\wedge \texttt{split\_qual}\;}
+\]
+với $S=$ \texttt{full\_split\_mask} lấy từ \texttt{custom\_split\_mask}. Cuối cùng nhân thêm điều kiện quan sát:
+\[
+\texttt{metric\_mask} = \big[\texttt{importance\_score} > \texttt{args.importance\_score\_threshold}=0.5\big]
+\]
+\begin{itemize}\scriptsize
+    \item \texttt{clone\_qual} và \texttt{split\_qual} là \textbf{phân hoạch} (bù nhau) $\Rightarrow$ một Gaussian không bao giờ vừa clone vừa split trong cùng một vòng.
+    \item Điểm cần lưu ý: tín hiệu multi-view $S$ được OR vào \textbf{cả hai} nhánh, nên một Gaussian có \texttt{high\_ratio}$>0.8$ vẫn được nhân bản ngay cả khi gradient của nó chưa vượt ngưỡng.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Giai đoạn xoá: \texttt{prune\_mask} là hợp (OR) của bốn tiêu chí}
+\footnotesize
+\[
+\boxed{\;
+\texttt{prune\_mask} \;=\;
+\underbrace{\big[\alpha < \texttt{min\_opacity}\big]}_{\text{mờ}}
+\;\vee\;
+\underbrace{\big[\texttt{max\_radii2D} > \texttt{max\_screen\_size}\big]}_{\text{to trên màn hình}}
+\;\vee\;
+\underbrace{\big[s_{\max} > 0.1\cdot\texttt{extent}\big]}_{\text{to trong không gian}}
+\;\vee\;
+\underbrace{P}_{\text{multi-view}}
+\;}
+\]
+với $P=$ \texttt{full\_prune\_mask}, tức \texttt{low\_ratio} $>$ \texttt{prune\_ratio\_threshold} $=0.8$ \ và \ \texttt{accum\_view\_count} $>0$ (\texttt{train.py:353}).
+\begin{center}
+\includegraphics[width=0.66\linewidth]{sadgsx/07_mat_na_prune_or.png}
+\captionof{figure}{\footnotesize OR nới lỏng dần tập bị xoá; vì các tiêu chí chồng lấn, $|{\cup}|$ luôn nhỏ hơn tổng các phần riêng lẻ (mô phỏng $N=4000$).}
+\end{center}
+\begin{itemize}\scriptsize
+    \item Hai tiêu chí kích thước chỉ bật khi \texttt{max\_screen\_size} \textbf{truthy}; trước iteration $3000$ nó là \texttt{None} $\Rightarrow$ cả \texttt{big\_points\_vs} lẫn \texttt{big\_points\_ws} đều bị bỏ qua (\texttt{gaussian\_model.py:1015}).
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Ngưỡng thật: \texttt{min\_opacity}$=0.1$ chứ không phải $0.005$}
+\footnotesize
+\begin{center}
+\includegraphics[width=0.50\linewidth]{sadgsx/07_scatter_opacity_radius.png}
+\captionof{figure}{\footnotesize Mặt phẳng $(\alpha,\ \texttt{max\_radii2D})$: hai đường đứt là hai siêu phẳng quyết định; màu thể hiện tiêu chí OR nào kích hoạt.}
+\end{center}
+\begin{itemize}\scriptsize
+    \item \texttt{train.py:364} truyền \texttt{min\_opacity=0.1} -- \textbf{gấp 20 lần} giá trị $0.005$ của 3DGS gốc (cũng là giá trị dùng ở nhánh warm-up, \texttt{train.py:390}). Đây là lựa chọn \textbf{tỉa mạnh tay}: mọi Gaussian có $\alpha<0.1$ bị loại mỗi 100 vòng.
+    \item Nó bắt tay với trần opacity $0.8$ ở cuối hàm: opacity bị ép nằm trong dải hữu ích $[0.1,\ 0.8]$, ngoài dải là bị xoá hoặc bị cắt.
+    \item \texttt{max\_screen\_size}$=20$ px chỉ bật sau \texttt{opacity\_reset\_interval}$=3000$, tránh xoá nhầm trong giai đoạn hình học còn thô.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Hai chi tiết dễ bỏ sót: padding mask và nhánh multinomial không chạy}
+\footnotesize
+\textbf{(1) Padding \texttt{full\_prune\_mask}} (\texttt{gaussian\_model.py:1021--1027}). Sau clone+split, $N$ đã tăng từ $N_{old}$ lên $N_{new}$, trong khi $P$ vẫn dài $N_{old}$:
+\[
+P' = \big[\,P\ ;\ \mathbf{0}_{N_{new}-N_{old}}\,\big] \quad (\text{nối thêm } N_{new}-N_{old} \text{ giá trị } 0),\qquad
+\texttt{prune\_mask} \leftarrow \texttt{prune\_mask} \vee P'
+\]
+\begin{itemize}\scriptsize
+    \item Ý nghĩa: các Gaussian \textbf{vừa được sinh ra} được gán $0$ $\Rightarrow$ \textbf{miễn nhiễm} với tiêu chí multi-view ở chính vòng này (chúng chưa được camera nào quan sát nên \texttt{low\_ratio} vô nghĩa). Nhưng chúng \textbf{vẫn} chịu ba tiêu chí còn lại vì các tiêu chí đó được tính lại trên tensor đã mở rộng.
+\end{itemize}
+\vspace{0.4em}
+\textbf{(2) Nhánh \texttt{pruning\_score}} (\texttt{gaussian\_model.py:1029--1044}) -- code có, nhưng \texttt{train.py:369} truyền \texttt{None} nên \textbf{không bao giờ chạy} trong cấu hình hiện tại:
+\[
+w_i = \frac{1}{10^{-6} + (1-\texttt{pruning\_score}_i)},\qquad
+B = \Big\lfloor 0.5\sum_i \texttt{prune\_mask}_i \Big\rfloor,\qquad
+\texttt{final\_prune} = \texttt{prune\_mask} \wedge \texttt{sampled}(w, B)
+\]
+\begin{itemize}\scriptsize
+    \item Nếu bật, nó chỉ xoá \textbf{một nửa} số ứng viên, chọn ngẫu nhiên có trọng số. Vì đang là \texttt{None}, đường đi thực tế là \texttt{prune\_points(prune\_mask)} -- \textbf{xoá cứng 100\%} ứng viên.
+\end{itemize}
+\vspace{0.3em}
+\textbf{(3) Trần opacity} (\texttt{gaussian\_model.py:1046--1048}):
+$\ \texttt{\_opacity} \leftarrow \sigma^{-1}\!\big(\min(\alpha,\ 0.8)\big)$, ghi đè qua \texttt{replace\_tensor\_to\_optimizer} (reset state Adam của riêng nhóm \texttt{opacity}).
+\end{frame}
+
+\begin{frame}{\texttt{prune\_points}: cắt đồng bộ tensor tham số và state Adam}
+\footnotesize
+\begin{center}
+\includegraphics[width=0.54\linewidth]{sadgsx/07_cat_tensor_adam.png}
+\captionof{figure}{\footnotesize \texttt{valid} $= \lnot$\texttt{prune\_mask} được dùng lại cho mọi tensor có chiều đầu $=N$, kể cả moment của Adam.}
+\end{center}
+\begin{itemize}\scriptsize
+    \item \texttt{\_prune\_optimizer} (\texttt{gaussian\_model.py:503--527}) duyệt \textbf{cả} \texttt{self.optimizer} \textbf{và} \texttt{self.shoptimizer}; với mỗi nhóm: cắt \texttt{exp\_avg}, \texttt{exp\_avg\_sq} (và \texttt{max\_exp\_avg\_sq} nếu amsgrad), \texttt{del opt.state[p]}, tạo \texttt{nn.Parameter(p[valid])} rồi gắn state đã cắt vào \textbf{đối tượng tham số mới}.
+    \item Bước \texttt{del} là bắt buộc: khoá của \texttt{opt.state} là chính tensor tham số, nếu không xoá thì state cũ (dài $N$) sẽ lệch chiều với tham số mới (dài $N'$) ngay ở bước Adam kế tiếp.
+    \item \texttt{prune\_points} (\texttt{:528--565}) cắt tiếp bộ đếm: \texttt{xyz\_gradient\_accum(\_abs)}, \texttt{denom}, \texttt{max\_radii2D}, \texttt{tmp\_radii}, \texttt{filter\_3D}, \texttt{accum\_eta}, \texttt{accum\_view\_count}, \texttt{max\_eta\_3ch}, \texttt{accum\_weights\_valid}, \texttt{densify\_count}, \texttt{eta\_high/mid/low\_count}, \texttt{eta\_high/mid\_sum\_3ch}.
+    \item Thống kê được nạp lại bởi \texttt{add\_densification\_stats} (\texttt{:1054--1058}): $\bar g$ từ 2 kênh đầu của \texttt{viewspace\_point\_tensor.grad}, $\bar g_{abs}$ từ 2 kênh sau, \texttt{denom} $+{=}1$.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Quỹ đạo $N(t)$: sinh và xoá cân bằng trong cùng một lời gọi}
+\footnotesize
+\begin{center}
+\includegraphics[width=0.72\linewidth]{sadgsx/07_duong_cong_N_t.png}
+\captionof{figure}{\footnotesize Mỗi $100$ iteration một vòng; $\Delta N = N_{clone} + N_{split} - N_{prune}$ giảm dần $\Rightarrow$ $N$ bão hoà thay vì bùng nổ.}
+\end{center}
+\begin{itemize}
+    \item Vì prune chạy \textbf{ngay sau} split trong cùng lời gọi, các Gaussian con quá mờ hoặc quá to bị loại lập tức -- đây chính là cơ chế tự hãm giữ $N$ không tăng theo cấp số nhân.
+    \item Sau khi trả về, \texttt{train.py:377--386} \textbf{reset toàn bộ} bộ tích luỹ $\eta$ về $0$ (\texttt{accum\_eta}, \texttt{accum\_view\_count}, \texttt{max\_eta\_3ch}, \texttt{eta\_high/mid/low\_*}) -- mỗi chu kỳ 100 vòng là một cửa sổ quan sát độc lập.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{So sánh với \texttt{densify\_and\_prune} gốc (\texttt{gaussian\_model.py:911--933})}
+\footnotesize
+\begin{center}\scriptsize
+\begin{tabular}{p{0.22\linewidth}p{0.34\linewidth}p{0.36\linewidth}}
+\hline
+ & \textbf{\texttt{densify\_and\_prune}} (gốc, dùng ở warm-up) & \textbf{\texttt{densify\_and\_prune\_structgs}} (SADGS) \\
+\hline
+Chọn clone/split & chỉ gradient: \texttt{clone} nếu $\|\bar g\|\ge$ ngưỡng \textbf{và} nhỏ; \texttt{split} theo $\bar g_{abs}$ & gradient \textbf{OR} tín hiệu multi-view $\eta$; thêm \texttt{metric\_mask} theo số view quan sát \\
+Định hướng split & tách $N{=}2$ đồng nhất & tách theo $k_x,k_y,k_z \sim \lceil\sqrt{\eta}\rceil$, có \texttt{ks\_scale\_power} \\
+\texttt{min\_opacity} & $0.005$ (\texttt{train.py:390}) & $\mathbf{0.1}$ (\texttt{train.py:364}) \\
+Tiêu chí prune & 3 tiêu chí: $\alpha$, \texttt{radii2D}, scale & \textbf{4} tiêu chí: thêm \texttt{low\_ratio}$>0.8$ (multi-view) \\
+Ngân sách xoá & xoá hết ứng viên & có nhánh multinomial $50\%$ (hiện tắt vì \texttt{pruning\_score=None}) \\
+Sau prune & không đụng opacity & áp trần $\min(\alpha, 0.8)$ + \texttt{replace\_tensor\_to\_optimizer} \\
+\hline
+\end{tabular}
+\end{center}
+\textbf{Tóm lại.} \texttt{densify\_and\_prune\_structgs} giữ nguyên khung ADC của 3DGS nhưng thay ``ai được nhân bản / ai bị xoá'' từ tiêu chí \textbf{gradient thuần tuý} sang tiêu chí \textbf{nhất quán tần số qua nhiều view}, đồng thời siết opacity vào dải $[0.1,\ 0.8]$ và luôn đảm bảo tính toàn vẹn chỉ số bằng một \texttt{valid} mask dùng chung cho tham số lẫn moment của Adam.
+\end{frame}

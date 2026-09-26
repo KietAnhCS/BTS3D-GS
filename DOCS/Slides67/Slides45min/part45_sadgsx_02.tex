@@ -1,0 +1,43 @@
+% ===== BOT 02: Chiếu trục Gaussian lên màn hình & tỉ số cấu trúc eta =====
+
+\begin{frame}{SADGS --- Tỉ số cấu trúc $\eta$: Gaussian có "quá to" so với texture?}
+\scriptsize
+\begin{columns}[T]
+\begin{column}{0.46\textwidth}
+\textbf{1. Chiếu 3 trục xuống màn hình}\\
+(\texttt{freq\_utils.py:116--178})
+\[
+A_{cam}=R_{view}R(r)\,\mathrm{diag}(s),\quad
+\begin{aligned}
+u_j&=J_{00}A^x_j+J_{02}A^z_j\\
+v_j&=J_{11}A^y_j+J_{12}A^z_j
+\end{aligned}
+\]
+với $J$ có hàng $u=(f_x/z,0,-f_xx/z^2)$, hàng $v=(0,f_y/z,-f_yy/z^2)$; depth $z$, tâm
+\texttt{means2D} lấy từ \texttt{cov2D} của rasterizer.
+\[
+\|a_j\|=\sqrt{u_j^2+v_j^2+10^{-8}}\ \ [\text{pixel}]\ \propto f s_j/z
+\]
+
+\textbf{2. Bước sóng cục bộ} (fu:325--334)
+\[
+\lambda_1=\tfrac{\mathrm{tr}}{2}+\sqrt{(\tfrac{\mathrm{tr}}{2})^2-\det},\quad
+\lambda_{\min}=\tfrac{1}{\sqrt{\lambda_1}+10^{-5}}
+\]
+
+\textbf{3. Tỉ số} (\texttt{eta\_compute\_mode="wavelength"}, fu:348)
+\[
+\boxed{\ \eta_j=\|a_j\|/\lambda_{\min}\ }\quad j=1,2,3\ \text{(3 trục chính)}
+\]
+$\eta_{\max}>\tau_{high}=1.0\Rightarrow$ \textbf{SPLIT};
+$\eta_{\max}\le\tau_{low}=0.1\Rightarrow$ \textbf{PRUNE} (fu:395--409),
+chốt khi tỉ lệ đa view $>0.8$ (\texttt{train.py:345,353}).
+\end{column}
+\begin{column}{0.52\textwidth}
+\begin{center}
+\includegraphics[width=0.92\linewidth]{sadgsx/02_eta_heatmap.png}\\
+\captionof{figure}{\tiny $\eta$ trên lưới (độ dài trục chiếu) $\times$ (bước sóng texture): 3 vùng SPLIT / GIỮ / PRUNE. Trực giác Nyquist --- Gaussian rộng hơn chu kỳ texture thì xoá mất chi tiết.}
+\end{center}
+\end{column}
+\end{columns}
+\end{frame}

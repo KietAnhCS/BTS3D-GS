@@ -1,0 +1,202 @@
+% ===== BOT 04: densify_and_split_structgs — split dị hướng theo từng trục =====
+
+\begin{frame}{SADGS --- \texttt{densify\_and\_split\_structgs}: tách dị hướng theo từng trục}
+\footnotesize
+Hàm dài nhất của SADGS (\texttt{scene/gaussian\_model.py:638--832}, $\approx$195 dòng) --- thay thế
+\texttt{densify\_and\_split} gốc của 3DGS (\texttt{:866--892}, chỉ 27 dòng).
+\vspace{0.2cm}
+\begin{columns}[T]
+\begin{column}{0.48\linewidth}
+\textbf{3DGS gốc --- ``đoán mò''}
+\begin{itemize}
+  \item Luôn sinh \textbf{đúng $N=2$} con (tham số mặc định \texttt{N=2}, dòng 866).
+  \item Vị trí con: \textbf{lấy mẫu ngẫu nhiên} $\Delta\sim\mathcal{N}(0,\Sigma)$ (dòng 877).
+  \item Thu nhỏ \textbf{đồng loạt cả 3 trục}: $\sigma'=\sigma/(0.8N)=\sigma/1.6$ (dòng 880).
+  \item Tiêu chí chọn: chỉ gradient $\ge$ \texttt{grad\_threshold} (dòng 871).
+\end{itemize}
+\end{column}
+\begin{column}{0.48\linewidth}
+\textbf{SADGS --- ``đo rồi cắt''}
+\begin{itemize}
+  \item Số con $N=k_xk_yk_z$ \textbf{thay đổi theo từng Gaussian} (dòng 714).
+  \item $k$ suy ra từ $\eta$ --- tỉ lệ năng lượng tần số vượt Nyquist, \textbf{riêng cho từng trục} (dòng 699).
+  \item Vị trí con: \textbf{lưới đều tất định} trong hệ toạ độ local, rồi xoay bằng $R(q)$ (dòng 763--788).
+  \item Thu nhỏ \textbf{khác nhau theo trục}: $\sigma'_a=\sigma_a/k_a^{p}$ (dòng 722).
+\end{itemize}
+\end{column}
+\end{columns}
+\vspace{0.25cm}
+\centering
+\emph{Ý tưởng: trục nào vi phạm lấy mẫu (aliasing) nhiều thì cắt nhiều, trục nào đã đủ mịn thì giữ nguyên.}
+\end{frame}
+
+
+\begin{frame}{Công thức 1: $k$ suy ra từ $\eta$ theo lý thuyết lấy mẫu}
+\footnotesize
+Gọi $\eta_a$ là năng lượng tần số vượt Nyquist trên trục $a$, xấp xỉ $\eta\sim(\sigma\omega_{\max})^2$.
+Muốn $\sigma'\omega_{\max}\le 1$ với $\sigma'=\sigma/k$:
+\[
+\frac{\eta}{k^2}\le 1 \;\Longrightarrow\; k \ge \sqrt{\eta}
+\qquad\Longrightarrow\qquad
+\boxed{\,k_a=\max\Big(1,\;\big\lceil \sqrt{\max(\eta_a,1)}\,\big\rceil\Big)\,}
+\]
+\texttt{gaussian\_model.py:699--701}:
+\texttt{ks = torch.sqrt(torch.clamp(etavals,min=1.0)).ceil().int()} rồi \texttt{ks = torch.clamp(ks,min=1)}.
+\vspace{0.15cm}
+\begin{columns}[T]
+\begin{column}{0.52\linewidth}
+\centering
+\includegraphics[width=0.99\linewidth]{sadgsx/04_k_eta_stair.png}
+\captionof{figure}{\footnotesize Hàm bậc thang $k=f(\eta)$: nhảy bậc tại $\eta=(k-1)^2$ ($\eta=1,4,9,16,25$).}
+\end{column}
+\begin{column}{0.46\linewidth}
+\begin{itemize}
+  \item $\eta\le 1$ $\Rightarrow$ $k=1$: trục đã thoả Nyquist, \textbf{không cắt}.
+  \item $1<\eta\le 4 \Rightarrow k=2$;\; $4<\eta\le 9 \Rightarrow k=3$; \dots
+  \item \alert{Lưu ý đọc code:} docstring/chú thích dòng 698 ghi ``\emph{Clamp min=2 và max=8}'' nhưng \textbf{code thật chỉ clamp \texttt{min=1}} --- \textbf{không có trần trên}. $k$ có thể rất lớn nếu $\eta$ lớn.
+  \item Nhánh dự phòng (dòng 707--709): nếu \texttt{max\_eta\_3ch=None} thì $k=2$ trên trục dài nhất, $k=1$ hai trục còn lại $\Rightarrow$ $N=2$ (mô phỏng 3DGS).
+\end{itemize}
+\end{column}
+\end{columns}
+\end{frame}
+
+
+\begin{frame}{Công thức 2: tổng số con $N=k_xk_yk_z$}
+\footnotesize
+\[
+N_p = k_x^{(p)}\,k_y^{(p)}\,k_z^{(p)}
+\qquad\text{(\texttt{gaussian\_model.py:714}: \texttt{N\_per\_point = ks.prod(dim=1)})}
+\]
+Mọi thuộc tính cha được nhân bản bằng \texttt{repeat\_interleave(repeats)} với \texttt{repeats}$=N_p$ --- \textbf{số lần lặp khác nhau cho từng Gaussian}, nên toàn bộ hàm vẫn \textbf{vector hoá} (không có vòng lặp Python trên điểm).
+\vspace{0.1cm}
+\begin{columns}[T]
+\begin{column}{0.47\linewidth}
+\centering
+\includegraphics[width=0.92\linewidth]{sadgsx/04_N_heatmap.png}
+\captionof{figure}{\footnotesize $N$ theo $(k_x,k_y)$ với $k_z=1$. 3DGS gốc bị khoá ở ô $N=2$.}
+\end{column}
+\begin{column}{0.51\linewidth}
+\textbf{Hệ quả về chi phí}
+\begin{itemize}
+  \item Gaussian đẳng hướng vi phạm cả 3 trục với $\eta=4$: $k=2$ mỗi trục $\Rightarrow N=8$.
+  \item Gaussian dẹt (mặt phẳng) chỉ vi phạm 2 trục: $N=k_xk_y$, \textbf{không phí Gaussian theo phương pháp tuyến}.
+  \item Vì không có trần $k$, $N$ tăng theo $\eta^{3/2}$ $\Rightarrow$ đây là điểm nhạy cảm nhất về VRAM.
+  \item \texttt{starts = cumsum(repeats) - repeats} (dòng 739) cho chỉ số cục bộ của con: \texttt{child\_indices = arange(total) - starts\_expanded} (dòng 746).
+\end{itemize}
+\end{column}
+\end{columns}
+\end{frame}
+
+
+\begin{frame}{Công thức 3: vị trí con --- lưới đều trong hệ toạ độ local}
+\footnotesize
+Giải mã chỉ số con $j$ thành $(i_x,i_y,i_z)$ theo thứ tự \texttt{meshgrid(indexing='ij')}, $z$ chạy nhanh nhất (dòng 757--759):
+\[
+i_z=j \bmod k_z,\quad i_y=\Big\lfloor \tfrac{j}{k_z}\Big\rfloor \bmod k_y,\quad i_x=\Big\lfloor \tfrac{j}{k_yk_z}\Big\rfloor
+\]
+Toạ độ lưới \textbf{căn giữa} (dòng 763--765), bước lưới và độ lệch (dòng 775--788):
+\[
+g_a=i_a-\frac{k_a-1}{2},\qquad
+s_a=\underbrace{\frac{\sigma_a}{k_a}}_{\sigma'_a\ \text{(std mới)}}\!\cdot\sqrt{12},\qquad
+\boxed{\;\mathbf{x}_{\text{con}}=\mathbf{x}_{\text{cha}}+R(q)\,\big(\mathbf{s}\odot\mathbf{g}\big)\;}
+\]
+\begin{columns}[T]
+\begin{column}{0.55\linewidth}
+\centering
+\includegraphics[width=0.99\linewidth]{sadgsx/04_split_grid_2d.png}
+\end{column}
+\begin{column}{0.43\linewidth}
+\begin{itemize}
+  \item $\sqrt{12}$ đến từ phương sai phân bố đều: đoạn dài $L$ có $\mathrm{std}=L/\sqrt{12}$ $\Rightarrow$ đặt các con cách nhau $L=\sqrt{12}\,\sigma'$ để \textbf{tổng các con tái tạo lại phương sai của cha}.
+  \item Lưới căn giữa $\Rightarrow$ trọng tâm tập con \textbf{trùng} tâm cha (bảo toàn vị trí).
+  \item $k=1$ trên một trục $\Rightarrow$ $g=0$ $\Rightarrow$ \textbf{không lệch} theo trục đó.
+  \item Nhân $R(q)$ (\texttt{build\_rotation}, dòng 782--786) đưa lưới local về world $\Rightarrow$ lưới \textbf{bám theo hướng} của ellipsoid.
+\end{itemize}
+\end{column}
+\end{columns}
+\end{frame}
+
+
+\begin{frame}{Công thức 4: scale con và tham số \texttt{scale\_power}}
+\footnotesize
+\[
+\sigma'_a=\frac{\sigma_a}{k_a^{\,p}},\qquad p=\texttt{scale\_power}=\texttt{args.ks\_scale\_power}\ \ (\text{mặc định } 1.0)
+\]
+\texttt{gaussian\_model.py:722}: \texttt{scaling\_inverse\_activation(current\_scales / ks.float()**scale\_power)} --- lưu ở \textbf{log-space} vì \texttt{scaling\_activation=exp}. Giá trị mặc định đặt tại \texttt{arguments/\_\_init\_\_.py:138}, truyền vào ở \texttt{gaussian\_model.py:1011}.
+\vspace{0.1cm}
+\begin{center}
+\includegraphics[width=0.78\linewidth]{sadgsx/04_scale_power.png}
+\captionof{figure}{\footnotesize $p$ chỉ đổi \emph{kích thước} con; \emph{khoảng cách} vẫn tính bằng $\sqrt{12}\,\sigma/k$ (dòng 775) nên $p>1$ tạo khe hở giữa các con.}
+\end{center}
+\alert{Điểm cần lưu ý:} scale dùng $k^{p}$ (dòng 722) nhưng offset dùng $\sigma/k$ (dòng 775) --- hai công thức \textbf{tách rời}. Với $p=1$ chúng nhất quán; với $p=2$ con nhỏ đi $k$ lần nữa mà lưới không co lại $\Rightarrow$ thủng bề mặt. Ngay cả ở $p=1$, khoảng cách $\sqrt{12}\,\sigma'\approx 3.46\sigma'$ đã lớn hơn bề rộng $1\sigma$ của con.
+\end{frame}
+
+
+\begin{frame}{Kế thừa thuộc tính, xoá cha, và các tensor phụ}
+\scriptsize
+\begin{columns}[T]
+\begin{column}{0.5\linewidth}
+\textbf{Kế thừa nguyên vẹn (dòng 723--729)} --- tất cả bằng \texttt{repeat\_interleave(repeats)}:
+\begin{itemize}
+  \item \texttt{new\_rotation} $\leftarrow$ \texttt{\_rotation} (quaternion): con \textbf{cùng hướng} với cha.
+  \item \texttt{new\_features\_dc}, \texttt{new\_features\_rest}: \textbf{toàn bộ SH} sao chép y nguyên $\Rightarrow$ màu con ban đầu giống cha, để optimizer tự tách sau.
+  \item \texttt{new\_opacity} $\leftarrow$ \texttt{\_opacity} \textbf{không giảm} (khác một số biến thể 3DGS có hiệu chỉnh $\alpha$) $\Rightarrow$ vùng vừa tách \textbf{đậm hơn} tạm thời.
+  \item \texttt{new\_radii} $\leftarrow$ \texttt{tmp\_radii} (bán kính màn hình của vòng render trước).
+  \item \texttt{new\_filter\_3D} $\leftarrow$ \texttt{filter\_3D} (bán kính lọc chống alias 3D).
+  \item \texttt{new\_densify\_count} $=$ \texttt{densify\_count[cha]} $+\,1$ --- đếm số lần một nhánh đã bị tách.
+\end{itemize}
+\end{column}
+\begin{column}{0.48\linewidth}
+\textbf{Ghi vào model --- \texttt{densification\_postfix} (dòng 595--636, gọi ở 812)}
+\begin{itemize}
+  \item \texttt{cat\_tensors\_to\_optimizer}: nối tensor mới vào \textbf{param\_group} và \textbf{đệm Adam} (\texttt{exp\_avg}, \texttt{exp\_avg\_sq}, kể cả \texttt{max\_exp\_avg\_sq} nếu amsgrad) bằng \textbf{zeros} $\Rightarrow$ con khởi động với momentum sạch (dòng 578--586).
+  \item \texttt{tmp\_radii} nối thêm; nếu đang \texttt{None} thì khởi tạo zeros đúng kích thước cũ (dòng 611--613).
+  \item \texttt{filter\_3D} \textbf{chỉ nối khi} \texttt{filter\_3D is not None and numel()>0} (dòng 619--620).
+  \item \texttt{xyz\_gradient\_accum}, \texttt{\_abs}, \texttt{denom}, \texttt{max\_radii2D} bị \textbf{reset về 0 toàn bộ} (dòng 614--617).
+  \item Bộ tích luỹ tần số (\texttt{accum\_eta}, \texttt{max\_eta\_3ch}, \texttt{eta\_high/mid/low\_*}) nối zeros (dòng 625--636).
+\end{itemize}
+\textbf{Xoá cha (dòng 807--831)}: dựng \texttt{total\_prune\_mask} $=$ True tại \texttt{split\_indices}, nối thêm \texttt{zeros(n\_added)} rồi gọi \texttt{prune\_points} \textbf{sau} khi đã thêm con $\Rightarrow$ cha bị xoá hẳn, không chồng lên con.
+\end{column}
+\end{columns}
+\end{frame}
+
+
+\begin{frame}{So sánh trực tiếp trên cùng một Gaussian dị hướng}
+\footnotesize
+\begin{center}
+\includegraphics[width=0.86\linewidth]{sadgsx/04_3dgs_vs_sadgs.png}
+\captionof{figure}{\footnotesize Trái: \texttt{densify\_and\_split} (dòng 866--892) --- 2 con, tâm lấy mẫu ngẫu nhiên, $\sigma'=\sigma/1.6$ cho cả hai trục. Phải: \texttt{densify\_and\_split\_structgs} --- $k_x{=}4,k_y{=}2$, 8 con trên lưới tất định, $\sigma'_x=\sigma_x/4$, $\sigma'_y=\sigma_y/2$.}
+\end{center}
+\begin{itemize}
+  \item 3DGS: hai con vẫn \textbf{dài theo trục vi phạm} ($\sigma'_x=0.625\sigma_x$) $\Rightarrow$ phải tách lại nhiều vòng mới hết aliasing.
+  \item SADGS: \textbf{một lần} đưa mọi trục về ngưỡng Nyquist, và \textbf{không cắt} trục đã đủ mịn.
+  \item Tính tất định cũng loại bỏ phương sai do lấy mẫu $\mathcal{N}(0,\Sigma)$ --- kết quả tái lập được.
+\end{itemize}
+\end{frame}
+
+
+\begin{frame}{Động lực tăng trưởng \& rủi ro thực tế}
+\footnotesize
+\[
+n_{t+1}=n_t\Big[(1-f)+f\cdot N\Big],\qquad N=k_xk_yk_z,\ \ f=\text{tỉ lệ Gaussian được chọn tách}
+\]
+\begin{columns}[T]
+\begin{column}{0.54\linewidth}
+\centering
+\includegraphics[width=0.99\linewidth]{sadgsx/04_growth.png}
+\end{column}
+\begin{column}{0.44\linewidth}
+\textbf{Mặt nạ chọn tách (dòng 993--1011)}
+\begin{itemize}
+  \item \texttt{final\_split\_mask} $=$ (\texttt{custom\_split\_mask} $\lor$ grad-abs $\ge$ \texttt{grad\_abs\_thresh}) $\land$ ($\max\sigma >$ \texttt{args.dense}$\cdot$\texttt{extent}).
+  \item Giao thêm với \texttt{metric\_mask} $=$ \texttt{importance\_score} $>$ \texttt{importance\_score\_threshold} ($0.5$, \texttt{arguments:124}) $\Rightarrow$ \textbf{hai tầng lọc} kìm hãm bùng nổ.
+\end{itemize}
+\textbf{Rủi ro}
+\begin{itemize}
+  \item Không có trần $k$ $\Rightarrow$ một vùng $\eta$ cao có thể sinh $N$ rất lớn trong một vòng.
+  \item Opacity không giảm + khoảng cách $\sqrt{12}\sigma'$ $\Rightarrow$ vùng mới vừa đậm vừa rỗ, phụ thuộc vào vài trăm bước tối ưu tiếp theo.
+  \item \texttt{return} sớm nếu \texttt{split\_indices} rỗng (dòng 679--680) --- rẻ khi không có gì để tách.
+\end{itemize}
+\end{column}
+\end{columns}
+\end{frame}

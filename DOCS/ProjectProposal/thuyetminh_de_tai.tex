@@ -1,0 +1,295 @@
+% !TeX program = xelatex
+% Compile: xelatex thuyetminh_de_tai.tex && xelatex thuyetminh_de_tai.tex
+% Mau: THUYET MINH DE TAI NGHIEN CUU KHOA HOC SINH VIEN (theo cau truc file
+% _NCKH_THUYETMINH_DETAI cua Truong Dai hoc Cong nghe Thong tin, DHQG TP.HCM)
+\documentclass[a4paper,12pt]{article}
+
+\usepackage{fontspec}
+\setmainfont{Noto Serif}
+\setsansfont{Noto Sans}
+\usepackage{polyglossia}
+\setmainlanguage{vietnamese}
+
+\usepackage[a4paper,margin=2.3cm]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue!45!black,
+    urlcolor=blue!45!black,
+    citecolor=blue!45!black,
+    pdftitle={Thuyet minh de tai NCKH -- SADGS Digital Twin},
+    pdfauthor={Digital Twin GS}
+}
+\usepackage{titlesec}
+
+\definecolor{hdblue}{RGB}{31,73,125}
+\titleformat{\section}{\normalfont\large\bfseries\color{hdblue}}{\thesection.}{0.5em}{}
+\titleformat{\subsection}{\normalfont\normalsize\bfseries\color{hdblue}}{\thesubsection}{0.5em}{}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{5pt}
+
+\begin{document}
+
+% ---------------------------------------------------------------------
+% Trang bia / header hanh chinh
+% ---------------------------------------------------------------------
+\begin{minipage}[t]{0.68\textwidth}
+\centering
+\textsc{ĐẠI HỌC QUỐC GIA TP.HCM}\\
+\textbf{TRƯỜNG ĐẠI HỌC QUỐC TẾ}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.28\textwidth}
+\small
+\begin{tabular}{|p{3.4cm}|}
+\hline
+Ngày nhận hồ sơ \\
+\hline
+\rule{0pt}{1.1cm} \\
+\hline
+\multicolumn{1}{c}{\footnotesize\textit{(Do CQ quản lý ghi)}} \\
+\end{tabular}
+\end{minipage}
+
+\vspace{0.6cm}
+\begin{center}
+{\LARGE\bfseries THUYẾT MINH}\\[2pt]
+{\Large\bfseries ĐỀ TÀI NGHIÊN CỨU KHOA HỌC SINH VIÊN}
+\end{center}
+
+\vspace{0.4cm}
+\section*{A. THÔNG TIN CHUNG}
+\vspace{-0.3cm}
+
+\subsection*{A1. Tên đề tài}
+\begin{itemize}[leftmargin=1.2em]
+\item Tên tiếng Việt (IN HOA):\\
+\textbf{XÂY DỰNG TÀI LIỆU DIGITAL TWIN VÀ KIỂM CHỨNG THỰC NGHIỆM CƠ CHẾ PHÂN BỔ MẬT ĐỘ NHẬN THỨC CẤU TRÚC (STRUCTURE-AWARE DENSIFICATION) TRONG 3D GAUSSIAN SPLATTING}
+\item Tên tiếng Anh (IN HOA):\\
+\textbf{A VERIFIED DIGITAL-TWIN DOCUMENTATION AND BENCHMARKING FRAMEWORK FOR STRUCTURE-AWARE DENSIFICATION IN 3D GAUSSIAN SPLATTING (SADGS)}
+\end{itemize}
+
+\subsection*{A2. Thời gian thực hiện}
+6 tháng (kể từ khi được duyệt).
+
+\subsection*{A3. Tổng kinh phí}
+Tổng kinh phí: \textit{[điền theo mức tài trợ thực tế]}, gồm:
+\begin{itemize}[leftmargin=1.2em]
+\item Kinh phí từ \textit{[đơn vị tài trợ]}: \textit{[số tiền]}
+\end{itemize}
+
+\subsection*{A4. Chủ nhiệm}
+\begin{tabular}{@{}ll@{}}
+Họ và tên: & Lê Anh Kiệt \\
+Ngày, tháng, năm sinh: & \textit{[điền]} \hspace{1.5cm} Giới tính (Nam/Nữ): \textit{[điền]} \\
+Số CCCD: & \textit{[điền]} \quad ; Ngày cấp: \textit{[điền]} ; Nơi cấp: \textit{[điền]} \\
+Mã số sinh viên: & ITCSIU24047 \\
+Số điện thoại liên lạc: & \textit{[điền]} \\
+Trường: & Đại học Quốc tế -- Đại học Quốc gia TP.HCM \\
+Khoa: & \textit{[điền]} \\
+Số tài khoản: & \textit{[điền]} \hspace{1.5cm} Ngân hàng: \textit{[điền]} \\
+\end{tabular}
+
+\subsection*{A5. Thành viên đề tài (kể cả CNĐT)}
+\begin{longtable}{@{}p{0.6cm} p{4.2cm} p{3cm} p{5cm}@{}}
+\toprule
+\textbf{TT} & \textbf{Họ tên} & \textbf{MSSV} & \textbf{Trường / Khoa} \\
+\midrule
+\endhead
+1 & Lê Anh Kiệt & ITCSIU24047 & Đại học Quốc tế -- ĐHQG TP.HCM \\
+\bottomrule
+\end{longtable}
+
+\newpage
+\section*{B. MÔ TẢ NGHIÊN CỨU}
+
+\subsection*{B1. Giới thiệu về đề tài}
+
+\textbf{Giới thiệu bài toán:} 3D Gaussian Splatting (3DGS) biểu diễn một cảnh 3D bằng một tập
+hợp Gaussian dị hướng (vị trí, hiệp phương sai, độ mờ đục, hệ số màu theo bậc cầu hài -- spherical
+harmonics), khởi tạo từ point cloud SfM (COLMAP) và tối ưu bằng render khả vi (differentiable
+rasterization) so khớp với ảnh chụp thật. 3DGS đạt chất lượng tương đương NeRF nhưng render
+thời gian thực, nên có nhiều ứng dụng:
+\begin{itemize}[leftmargin=1.2em]
+\item \textbf{Digital twin \& thực tại ảo/tăng cường (VR/AR):} tái tạo nhanh không gian thật
+thành mô hình 3D tương tác được theo thời gian thực.
+\item \textbf{Robot học \& SLAM thị giác:} biểu diễn bản đồ 3D dày đặc, khả vi, dùng cho định
+vị và lập kế hoạch đường đi.
+\item \textbf{Số hoá di sản văn hoá \& khảo sát công trình:} tái tạo hiện trạng 3D độ phân giải
+cao từ ảnh chụp thông thường, chi phí thấp hơn quét LiDAR.
+\end{itemize}
+
+Một khâu quan trọng của pipeline 3DGS là \emph{Adaptive Density Control} (ADC): quyết định khi
+nào một Gaussian cần được nhân đôi (clone), tách (split), hay loại bỏ (prune) trong quá trình
+huấn luyện, dựa trên gradient vị trí tích luỹ qua các bước. Đây là yếu tố quyết định cả chất
+lượng tái tạo lẫn số lượng Gaussian cuối cùng (ảnh hưởng trực tiếp tới bộ nhớ và tốc độ render).
+
+\textbf{Lý do chọn đề tài:} ADC nguyên bản chỉ dùng độ lớn gradient vị trí trung bình -- một tín
+hiệu gián tiếp, dễ bị nhiễu bởi hiện tượng \emph{gradient cancellation} khi nhiều góc nhìn (view)
+``triệt tiêu'' lẫn nhau, và tách Gaussian theo kiểu đẳng hướng (isotropic) dù cấu trúc ảnh xung
+quanh có thể dị hướng rõ rệt (cạnh, đường thẳng, viền vật thể). Hướng nghiên cứu gần đây --
+\emph{Structure-Aware Densification for Gaussian Splatting} (SADGS, Lyu et al., SIGGRAPH 2026)
+-- đề xuất thay tín hiệu gradient bằng một tín hiệu trực tiếp hơn: so khớp \emph{screen-space
+extent} của mỗi Gaussian với \emph{cấu trúc texture đa tỉ lệ} (multiscale structure tensor) của
+ảnh mục tiêu, suy ra tỉ số $\eta$, từ đó thực hiện \emph{split dị hướng} (anisotropic split) theo
+đúng hướng cấu trúc ảnh, cộng thêm bước \emph{multiview-consistency} để tránh quyết định dựa
+trên một view nhiễu đơn lẻ.
+
+Tuy nhiên, khi khảo sát trực tiếp mã nguồn công khai của SADGS đối chiếu với tài liệu/bài báo đi
+kèm, nhóm nghiên cứu nhận thấy một khoảng cách đáng kể giữa những gì \emph{được mô tả} và những
+gì \emph{thực sự chạy} trong pipeline huấn luyện mặc định: một số hàm được cài đặt đầy đủ trong
+mã nguồn (ví dụ \texttt{final\_prune\_structgs}, \texttt{expand\_undersized\_gs}) nhưng lời gọi
+của chúng lại bị vô hiệu hoá (comment out) trong \texttt{train.py}; một số tín hiệu ``importance''
+được mô tả như điểm số chất lượng render đa view nhưng thực chất chỉ là bộ đếm số lần nhìn thấy
+(\texttt{accum\_view\_count}). Đây chính là động lực cho hướng tiếp cận \textbf{digital twin}
+của đề tài: thay vì chỉ diễn giải lại bài báo, mọi công thức/tham số/tên hàm trình bày trong tài
+liệu phải được \textbf{đối chiếu trực tiếp (grep/read) với mã nguồn thật}, phân biệt rõ ràng cơ
+chế đang thực sự chạy (\emph{live path}) với phần đã cài đặt nhưng không được kích hoạt
+(\emph{dead code}) -- và nội dung không truy vết được tới code/dữ liệu thật sẽ bị loại bỏ thay vì
+giữ lại như một giả định chưa kiểm chứng.
+
+\subsection*{B2. Mục tiêu, nội dung, kế hoạch nghiên cứu}
+
+\subsubsection*{B2.1 Mục tiêu}
+\begin{itemize}[leftmargin=1.2em]
+\item Khảo sát pipeline 3D Gaussian Splatting gốc (khởi tạo, rasterizer khả vi, loss, backprop,
+Adaptive Density Control) làm nền tảng đối chiếu.
+\item Nghiên cứu và \textbf{xác minh trực tiếp với mã nguồn} cơ chế Structure-Aware Densification
+của SADGS: structure tensor đa tỉ lệ, tỉ số $\eta$, split dị hướng, multiview-consistency pruning
+-- xác định rõ phần nào đang chạy thật trong \texttt{train.py} và phần nào là dead code.
+\item Xây dựng bộ tài liệu digital twin (sách kỹ thuật + slide + hình minh hoạ) mà mọi hình vẽ
+được sinh từ dữ liệu/ảnh/checkpoint thật thay vì số liệu giả định, và mọi khẳng định kỹ thuật đều
+truy vết được tới file:dòng cụ thể trong mã nguồn.
+\item Thực nghiệm, chạy lại benchmark chính thức cho cơ chế densify/prune thật của SADGS (khác
+với số liệu tham khảo hiện có của pipeline trước khi tích hợp), so sánh định lượng với 3DGS gốc
+trên cùng bộ dữ liệu, dùng các độ đo PSNR, SSIM, LPIPS, số Gaussian cuối, thời gian huấn luyện,
+VRAM đỉnh.
+\end{itemize}
+
+\subsubsection*{B2.2 Nội dung và phương pháp nghiên cứu}
+
+\textbf{Nội dung 1: Khảo sát pipeline 3D Gaussian Splatting gốc và cơ chế Adaptive Density
+Control}
+
+\textit{Phương pháp thực hiện:}
+\begin{itemize}[leftmargin=1.2em]
+\item Đọc và tái hiện (bằng Python/NumPy, đối chiếu với mã CUDA thật) các khâu: khởi tạo Gaussian
+từ SfM point cloud, rasterizer khả vi (tile-based, alpha blending), hàm loss ($L_1$ + D-SSIM),
+lan truyền ngược, và ADC nguyên bản (\texttt{densify\_and\_clone}, \texttt{densify\_and\_split}).
+\item Xác định hạn chế cụ thể của ADC gốc: gradient cancellation đa view, split đẳng hướng không
+tính tới cấu trúc ảnh cục bộ.
+\end{itemize}
+
+\textit{Kết quả dự kiến:} tài liệu nền tảng toán học và kiến trúc 3DGS, có kiểm chứng công thức
+qua mã nguồn, làm cơ sở đối chiếu cho SADGS ở Nội dung 2.
+
+\medskip
+\textbf{Nội dung 2: Nghiên cứu, xác minh và tài liệu hoá cơ chế Structure-Aware Densification
+(SADGS)}
+
+\textit{Phương pháp thực hiện:}
+\begin{itemize}[leftmargin=1.2em]
+\item Đọc mã nguồn SADGS (\texttt{scene/gaussian\_model.py}, \texttt{utils/freq\_utils.py},
+\texttt{train.py}) để xác định chính xác: công thức structure tensor đa tỉ lệ (Laplacian scale
+space, Di Zenzo), cách tính tỉ số $\eta = \lambda_{\max}/\lambda_{\min}$, quy tắc split dị hướng
+theo trục ($k_{\text{axis}} = \lceil\sqrt{\eta_{\text{axis}}}\rceil$), và cơ chế
+multiview-consistency.
+\item Với mỗi cơ chế, xác minh bằng \texttt{grep}/đọc trực tiếp \texttt{train.py} xem lời gọi có
+thực sự nằm trên đường thực thi mặc định hay không (ví dụ: \texttt{final\_prune\_structgs} và
+\texttt{expand\_undersized\_gs} bị comment out; \texttt{importance\_score} truyền vào thực chất
+là \texttt{accum\_view\_count}, không phải điểm lỗi pixel).
+\item Sinh hình minh hoạ từ dữ liệu thật: tái hiện công thức bằng NumPy thuần, chạy trên ảnh huấn
+luyện thật và checkpoint Gaussian thật (không dùng số liệu ngẫu nhiên/giả định để minh hoạ một
+phép đo).
+\item Biên soạn thành sách kỹ thuật (dạng chương/mục có đánh số) và hai bộ slide LaTeX/Beamer
+(bản đầy đủ tra cứu và bản báo cáo rút gọn), mỗi khẳng định kỹ thuật kèm trích dẫn
+\texttt{file:dòng} trong mã nguồn.
+\end{itemize}
+
+\textit{Kết quả dự kiến:} bộ tài liệu digital twin hoàn chỉnh cho cơ chế SADGS, phân biệt rõ cơ
+chế đang chạy thật và phần dead code, làm cơ sở cho thực nghiệm định lượng ở Nội dung 3.
+
+\medskip
+\textbf{Nội dung 3: Thực nghiệm và đánh giá định lượng SADGS so với 3DGS gốc}
+
+\textit{Phương pháp thực hiện:}
+\begin{itemize}[leftmargin=1.2em]
+\item Chạy huấn luyện đầy đủ (30\,000 iteration) cho cả hai cấu hình -- ADC 3DGS gốc và
+Structure-Aware Densification của SADGS -- trên cùng (các) scene chuẩn, cùng hạ tầng tính toán.
+\item Ghi lại số liệu theo checkpoint: PSNR, SSIM, LPIPS, số Gaussian, thời gian huấn luyện, VRAM
+đỉnh (tương tự định dạng \texttt{history.csv}/\texttt{leaderboard.csv} đã dùng cho pipeline hiện
+tại).
+\item So sánh định lượng (bảng số liệu) và định tính (ảnh render cạnh nhau) giữa hai cấu hình;
+phân tích ảnh hưởng của densify dị hướng lên vùng biên/chi tiết nhỏ.
+\end{itemize}
+
+\textit{Kết quả dự kiến:} bảng số liệu benchmark SADGS \emph{chính thức} (thay thế số liệu tham
+khảo hiện có của pipeline trước khi tích hợp cơ chế densify/prune thật), cùng phân tích định
+lượng/định tính về hiệu quả của structure-aware densification.
+
+\subsubsection*{B2.3 Kế hoạch nghiên cứu}
+
+\begin{longtable}{@{}p{1.3cm} p{3.4cm} p{9.3cm}@{}}
+\toprule
+\textbf{Nội dung} & \textbf{Thời gian dự kiến} & \textbf{Kết quả mong muốn} \\
+\midrule
+\endhead
+1 & Tháng 1 -- 2 & Tài liệu khảo sát pipeline 3DGS gốc và ADC, có kiểm chứng công thức qua mã
+nguồn. \\
+2 & Tháng 3 -- 4 & Bộ tài liệu digital twin cho SADGS (sách + 2 bộ slide + hình minh hoạ từ dữ
+liệu thật), mọi khẳng định kỹ thuật kèm trích dẫn file:dòng. \\
+3 & Tháng 5 -- 6 & Bảng số liệu benchmark SADGS chính thức so với 3DGS gốc, kèm phân tích định
+lượng/định tính. \\
+\bottomrule
+\end{longtable}
+
+\subsection*{B3. Kết quả dự kiến}
+\begin{itemize}[leftmargin=1.2em]
+\item Bộ tài liệu digital twin hoàn chỉnh cho SADGS: sách kỹ thuật (dạng chương/mục), hai bộ
+slide LaTeX/Beamer, và tập hình minh hoạ được sinh từ dữ liệu/ảnh/checkpoint thật -- mọi công
+thức, tên hàm, tham số mặc định đều kiểm chứng được trực tiếp với mã nguồn.
+\item Báo cáo so sánh định lượng và định tính giữa 3DGS gốc và SADGS (PSNR, SSIM, LPIPS, số
+Gaussian, thời gian huấn luyện, VRAM), dựa trên một lượt chạy benchmark thật cho cơ chế
+densify/prune của SADGS.
+\item Quy trình/checklist xác minh tài liệu đối chiếu mã nguồn, có thể tái sử dụng cho các dự án
+tài liệu hoá phần mềm nghiên cứu khác.
+\end{itemize}
+
+\section*{Tài liệu tham khảo}
+\begin{enumerate}[leftmargin=1.4em]
+\item Kerbl, B., Kopanas, G., Leimkühler, T., \& Drettakis, G. (2023). 3D Gaussian Splatting for
+Real-Time Radiance Field Rendering. \textit{ACM Transactions on Graphics}, 42(4).
+\item Lyu, L., Tewari, A., Chen, J., Leimkühler, T., \& Theobalt, C. (2026). Faster 3D Gaussian
+Splatting Convergence via Structure-Aware Densification. \textit{SIGGRAPH 2026 Conference
+Track}. \url{https://vcai.mpi-inf.mpg.de/projects/SAD-GS/}
+\item FastGS -- dẫn nguồn theo \texttt{SADGS/README.md} (mục Acknowledgements) như công trình
+liên quan mà SADGS kế thừa một phần tham số cấu hình; \textbf{không} phải mã nguồn được triển
+khai trong repo SADGS đang khảo sát.
+\end{enumerate}
+
+\vspace{1.2cm}
+\begin{minipage}{0.48\textwidth}
+\centering
+\textit{Ngày \phantom{00} tháng \phantom{00} năm \phantom{0000}}\\
+\textbf{Giảng viên hướng dẫn}\\
+\textit{(Ký và ghi rõ họ tên)}
+\vspace{1.6cm}
+\end{minipage}
+\hfill
+\begin{minipage}{0.48\textwidth}
+\centering
+\textit{Ngày \phantom{00} tháng \phantom{00} năm \phantom{0000}}\\
+\textbf{Chủ nhiệm đề tài}\\
+\textit{(Ký và ghi rõ họ tên)}
+\vspace{1.6cm}
+\end{minipage}
+
+\end{document}

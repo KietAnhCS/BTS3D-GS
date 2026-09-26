@@ -1,0 +1,155 @@
+% ===== BOT 06: expand_undersized_gs — giãn giải tích Gaussian dưới cỡ =====
+
+% --- Frame 1: Tổng quan + trạng thái thật ---
+\begin{frame}{\texttt{expand\_undersized\_gs}: nhánh "giãn giải tích" --- và sự thật là nó \emph{không chạy}}
+\footnotesize
+\begin{columns}[T]
+\begin{column}{0.46\textwidth}
+\begin{itemize}
+    \item SADGS có \textbf{ba} thao tác thích nghi theo tần số: \textbf{split} (Gaussian quá to so với texture), \textbf{prune} (đóng góp thấp), và \textbf{expand} (Gaussian \emph{quá nhỏ} so với texture $\Rightarrow$ lãng phí, nhiều điểm thừa).
+    \item Hàm \texttt{expand\_undersized\_gs} nằm ở \texttt{scene/gaussian\_model.py:833--864}, hoàn chỉnh và có thể chạy.
+    \item \textbf{Nhưng} lời gọi duy nhất trong \texttt{train.py:356--359} \textbf{đã bị comment out}. Mặc định SADGS \textbf{chỉ} SPLIT/PRUNE.
+    \item Tham số \texttt{tau\_expand} vẫn được khai báo (\texttt{arguments/\_\_init\_\_.py:135}, giá trị $1.0$) nhưng \textbf{không ảnh hưởng} tới kết quả huấn luyện hiện tại.
+\end{itemize}
+\end{column}
+\begin{column}{0.54\textwidth}
+\centering
+\includegraphics[width=0.99\linewidth]{sadgsx/06_timeline_commented.png}
+\captionof{figure}{\footnotesize Vị trí nhánh bị vô hiệu hoá trong khối densification của \texttt{train.py}.}
+\end{column}
+\end{columns}
+\end{frame}
+
+% --- Frame 2: eta là gì + điều kiện "dưới cỡ" ---
+\begin{frame}{Điều kiện chọn Gaussian "dưới cỡ": $\eta < \tau_{expand}$}
+\scriptsize
+Chỉ báo tần số $\eta$ (chế độ \texttt{wavelength}, \texttt{utils/freq\_utils.py:335--348}) là \textbf{tỉ số không thứ nguyên} giữa kích thước Gaussian chiếu lên ảnh và bước sóng texture cục bộ:
+\[
+\lambda_{\min}=\frac{1}{\sqrt{\lambda_1(S)}+10^{-5}},\qquad
+\eta_{3ch}=\frac{\ell_{\text{truc}}}{\lambda_{\min}},\qquad \ell_{\text{truc}}=\sqrt{u^2+v^2}
+\]
+với $\lambda_1(S)$ là trị riêng lớn nhất của structure tensor 2D tại điểm chiếu. $\eta>1\Rightarrow$ Gaussian \emph{to hơn} chi tiết (aliasing, cần split); $\eta<1\Rightarrow$ Gaussian \emph{nhỏ hơn} chi tiết (dư điểm, đáng giãn).
+\[
+\texttt{undersized\_mask}=(\texttt{max\_eta\_3ch}<\tau_{expand})\ \wedge\ (\texttt{max\_eta\_3ch}>0)
+\qquad \text{(\texttt{gaussian\_model.py:846})}
+\]
+\begin{itemize}\itemsep1pt
+    \item Mask là \textbf{per-axis} trên tensor $[N,3]$: mỗi trục chính của một Gaussian được xét độc lập.
+    \item Điều kiện $>0$ loại các Gaussian chưa từng được quan sát (accumulator còn $0$) --- nếu không chúng sẽ bị giãn vô hạn.
+    \item $\tau_{expand}=1.0$ chính là ngưỡng Nyquist, trùng với \texttt{TAU\_HIGH}$=1.0$ dùng để phân loại high-$\eta$ (\texttt{freq\_utils.py:395}).
+\end{itemize}
+\begin{center}
+\includegraphics[width=0.78\linewidth]{sadgsx/06_tau_expand_region.png}\\
+\captionof{figure}{\footnotesize Vùng $\eta$ bị tác động ứng với vài giá trị $\tau_{expand}$; ngoài vùng đó hệ số giãn $=1$ (không đổi).}
+\end{center}
+\end{frame}
+
+% --- Frame 3: công thức cập nhật log-scale ---
+\begin{frame}{Công thức cập nhật: cộng thẳng vào \emph{log-scale}}
+\scriptsize
+Vì $\sigma=\exp(\texttt{\_scaling})$ (\texttt{gaussian\_model.py:39}, \texttt{scaling\_activation = torch.exp}), việc nhân scale trở thành phép \textbf{cộng} trong không gian log:
+\[
+\boxed{\ \Delta_{\log} = -\tfrac{1}{2}\,\ln\!\big(\max(\eta,10^{-6})\big)\ }
+\qquad\Longrightarrow\qquad
+\frac{s_{\text{mới}}}{s_{\text{cũ}}}=e^{\Delta_{\log}}=\eta^{-1/2}
+\]
+\begin{itemize}\itemsep1pt
+    \item Hệ số là \textbf{$-0.5$} và \textbf{dấu âm}: \texttt{delta\_log\_scale = -0.5 * torch.log(eta\_vals)} (\texttt{gaussian\_model.py:855}).
+    \item Với $\eta<1$ thì $\ln\eta<0\Rightarrow\Delta_{\log}>0\Rightarrow$ \textbf{scale tăng} (giãn). Đúng chiều mong muốn.
+    \item \texttt{torch.clamp(...,\,min=1e-6)} (\texttt{:854}) chặn trên biên độ: $\Delta_{\log}\le -0.5\ln 10^{-6}\approx 6.91$, tức hệ số giãn tối đa $\approx\!1000\times$ --- vẫn là một con số rất lớn.
+    \item Cập nhật viết vào tensor thưa: \texttt{delta = zeros\_like(\_scaling)}; \texttt{delta[undersized\_mask] = delta\_log\_scale}; \texttt{new\_scaling = \_scaling + delta} (\texttt{:857--860}) --- các trục không thoả mask giữ nguyên tuyệt đối.
+\end{itemize}
+\begin{center}
+\includegraphics[width=0.52\linewidth]{sadgsx/06_scale_ratio_eta.png}\\
+\captionof{figure}{\footnotesize Hệ số giãn $s_{\text{mới}}/s_{\text{cũ}}=\eta^{-1/2}$ (log--log), kèm ngưỡng $\tau_{expand}$ và biên clamp $10^{-6}$.}
+\end{center}
+\end{frame}
+
+% --- Frame 4: vì sao gọi là "giải tích" ---
+\begin{frame}{Vì sao gọi là "giải tích" (analytic) --- và vì sao nó \emph{miễn phí} bộ nhớ}
+\scriptsize
+\begin{columns}[T]
+\begin{column}{0.44\textwidth}
+\begin{itemize}\itemsep2pt
+    \item Không lấy mẫu, không sinh con, không đợi gradient hội tụ: từ $\eta$ đo được, \textbf{nghiệm đóng} $\sigma^\ast=\sigma\,\eta^{-1/2}$ được áp \textbf{một lần}.
+    \item Không gọi \texttt{densification\_postfix}, không \texttt{cat} tensor $\Rightarrow$ $N$ \textbf{không đổi}; toàn bộ accumulator (\texttt{max\_eta\_3ch}, \texttt{densify\_count}, \dots) giữ nguyên chỉ số.
+    \item Đối lập với \texttt{densify\_and\_split\_structgs} (\texttt{:698}): $k=\lceil\sqrt{\eta}\rceil$ mỗi trục, sinh $N_{\text{con}}=k_xk_yk_z$ Gaussian mới.
+    \item Chi phí duy nhất: một lần ghi đè tensor \texttt{\_scaling} $[N,3]$.
+\end{itemize}
+\end{column}
+\begin{column}{0.56\textwidth}
+\centering
+\includegraphics[width=0.99\linewidth]{sadgsx/06_ellipse_expand.png}\\
+\captionof{figure}{\footnotesize Ellipse chiếu trước/sau khi giãn trên nền texture bước sóng $\lambda$: chỉ tham số đổi, số Gaussian không đổi.}
+\end{column}
+\end{columns}
+\end{frame}
+
+% --- Frame 5: bất nhất docstring vs code ---
+\begin{frame}{Phát hiện: docstring giả định $\eta\propto(\sigma\omega)^2$, code thực tế đo $\eta$ \emph{tuyến tính}}
+\scriptsize
+Docstring (\texttt{gaussian\_model.py:837--840}) viết: \emph{"eta = (sigma * omega)$^2$ \dots\ log(sigma\_target) = log(sigma\_old) - 0.5 * log(eta)"}, tức giả định $\eta$ \textbf{bậc hai} theo scale, khi đó một bước đưa $\eta\to 1$ \emph{chính xác}.
+Nhưng \texttt{freq\_utils.py:348} tính $\eta=\ell_{\text{truc}}/\lambda_{\min}$ --- \textbf{bậc nhất} theo scale. Thay vào:
+\[
+\eta_{\text{mới}}=\frac{\ell\cdot \eta^{-1/2}}{\lambda_{\min}}=\eta\cdot\eta^{-1/2}=\sqrt{\eta}\ \ne\ 1
+\qquad\Longrightarrow\qquad \eta_k=\eta_0^{(1/2)^k}
+\]
+\begin{itemize}\itemsep1pt
+    \item Hệ quả: một lần gọi \textbf{không} đạt Nyquist như comment "\texttt{This makes eta\_new = 1.0 exactly}" (\texttt{:853}) tuyên bố --- chỉ \textbf{rút căn} khoảng cách log tới $1$.
+    \item Hội tụ vẫn rất nhanh (bậc hai trong không gian $\ln\eta$): $\eta_0=10^{-4}$ cần $\approx 4$ lần gọi để lên $>0.5$.
+    \item Lưu ý chế độ \texttt{projection} (\texttt{freq\_utils.py:371--373}) cũng lấy \texttt{sqrt} nên cũng tuyến tính theo scale $\Rightarrow$ kết luận không đổi.
+\end{itemize}
+\begin{center}
+\includegraphics[width=0.76\linewidth]{sadgsx/06_eta_convergence.png}\\
+\captionof{figure}{\footnotesize Trái: $\eta$ sau 1 lần gọi (giả định docstring vs code thật). Phải: dãy $\eta_k=\eta_0^{(1/2)^k}$.}
+\end{center}
+\end{frame}
+
+% --- Frame 6: ghi vào _scaling qua optimizer ---
+\begin{frame}{Ghi kết quả vào \texttt{\_scaling}: đi \emph{qua} optimizer, không gán trực tiếp}
+\footnotesize
+\begin{itemize}\itemsep2pt
+    \item Toàn bộ phép giãn nằm trong \texttt{with torch.no\_grad():} (\texttt{:851}) --- đây là can thiệp ngoài đồ thị tính đạo hàm.
+    \item Không gán \texttt{self.\_scaling.data = \dots}, mà gọi
+    \texttt{optimizable\_tensors = self.replace\_tensor\_to\_optimizer(new\_scaling, "scaling")} rồi
+    \texttt{self.\_scaling = optimizable\_tensors["scaling"]} (\texttt{:863--864}).
+    \item Trong \texttt{replace\_tensor\_to\_optimizer} (\texttt{:485--501}): tìm \texttt{param\_group} tên \texttt{"scaling"}, \textbf{đặt lại} \texttt{exp\_avg} và \texttt{exp\_avg\_sq} (và \texttt{max\_exp\_avg\_sq} nếu có, do \texttt{optimizer\_type="hybrid"} bật \texttt{amsgrad=True} tại \texttt{:323}) về $0$, xoá state cũ, bọc tensor mới thành \texttt{nn.Parameter} và gắn lại state.
+    \item \textbf{Điểm đau}: moment Adam bị xoá cho \textbf{toàn bộ} $N$ Gaussian, kể cả các Gaussian không hề bị giãn --- một cú sốc động lượng toàn cục mỗi \texttt{densification\_interval}.
+    \item \textbf{Rủi ro kỹ thuật}: \texttt{stored\_state} được dùng ngay mà \emph{không} kiểm tra \texttt{None} (\texttt{:489--490}) $\Rightarrow$ nếu gọi trước bước \texttt{optimizer.step()} đầu tiên sẽ \texttt{AttributeError}.
+\end{itemize}
+\end{frame}
+
+% --- Frame 7: chi phí bộ nhớ ---
+\begin{frame}{Expand vs.\ clone/split: cùng độ phủ, chênh lệch bộ nhớ bậc ba}
+\scriptsize
+Để phủ một chi tiết lớn gấp $\eta^{-1/2}$ lần Gaussian hiện tại, có hai đường:
+\[
+\text{expand: } N\mapsto N \quad(\Delta=0)
+\qquad\text{vs.}\qquad
+\text{split: } N\mapsto N\cdot k_xk_yk_z,\quad k=\lceil \eta^{-1/2}\rceil
+\]
+\begin{itemize}\itemsep1pt
+    \item Mỗi Gaussian chiếm $59$ float32 $=236$\,B (\texttt{xyz}\,3 $+$ \texttt{scaling}\,3 $+$ \texttt{rotation}\,4 $+$ \texttt{opacity}\,1 $+$ \texttt{f\_dc}\,3 $+$ \texttt{f\_rest}\,45), chưa kể trạng thái Adam.
+    \item $\eta=0.01\Rightarrow k=10\Rightarrow$ gấp $1000\times$ số Gaussian; expand đạt cùng bề rộng phủ với $0$ byte thêm.
+    \item Đây chính là lý do thiết kế: nhánh expand là \textbf{van giảm áp VRAM} của SADGS --- và nó đang bị tắt.
+\end{itemize}
+\begin{center}
+\includegraphics[width=0.82\linewidth]{sadgsx/06_memory_expand_vs_clone.png}\\
+\captionof{figure}{\footnotesize Bộ nhớ tham số để đạt cùng độ phủ ($N=10^6$): expand phẳng, clone/split tăng theo $k^3$.}
+\end{center}
+\end{frame}
+
+% --- Frame 8: rủi ro nếu bật lại ---
+\begin{frame}{Rủi ro nếu bật lại nhánh expand}
+\footnotesize
+\begin{enumerate}\itemsep2pt
+    \item \textbf{Sai đầu vào}: \texttt{train.py:358} truyền \texttt{avg\_high\_eta\_3ch}, mà tensor này \emph{chỉ} khác $0$ ở các Gaussian có \texttt{eta\_high\_count}$>0$ (\texttt{train.py:349--350}), tức các Gaussian \textbf{đã} vi phạm Nyquist. Kết hợp với điều kiện $>0$, expand sẽ chỉ chạm đúng nhóm đang chờ \textbf{split} --- giãn và chia cùng một lúc, mâu thuẫn trực tiếp.
+    \item \textbf{Nổ scale}: clamp $10^{-6}$ cho phép nhân scale tới $\approx\!1000\times$ trong một lần; Gaussian khổng lồ làm hỏng tile-sorting, tăng thời gian raster và nuốt gradient của hàng xóm.
+    \item \textbf{Reset Adam toàn cục} cho param group \texttt{scaling} mỗi lần gọi (xem frame trước) $\Rightarrow$ dao động loss quanh mốc densify.
+    \item \textbf{Chống lại prune}: Gaussian $\eta$ thấp cũng là ứng viên prune (\texttt{low\_ratio > prune\_ratio\_threshold}$=0.8$, \texttt{train.py:353}); giãn chúng ngay trước \texttt{densify\_and\_prune\_structgs} là làm việc thừa.
+    \item \textbf{Crash sớm}: \texttt{stored\_state} \texttt{None} nếu gọi trước bước optimizer đầu tiên.
+    \item \textbf{Chưa hiệu chỉnh}: do $\eta$ tuyến tính, một bước chỉ đạt $\sqrt{\eta}$ --- muốn đúng Nyquist phải dùng $\Delta_{\log}=-\ln\eta$ (hệ số $-1.0$), hoặc lặp nhiều chu kỳ.
+\end{enumerate}
+\vspace{0.1cm}
+\textbf{Kết luận trạng thái:} \texttt{expand\_undersized\_gs} là code \emph{có mặt nhưng chết} --- \textbf{KHÔNG chạy mặc định}. Mọi kết quả SADGS báo cáo hiện tại đều \textbf{không} bao gồm cơ chế giãn giải tích; \texttt{tau\_expand}, \texttt{expansion\_speed}, \texttt{adaptive\_clone} (\texttt{arguments/\_\_init\_\_.py:135--137}) là tham số ngủ đông.
+\end{frame}

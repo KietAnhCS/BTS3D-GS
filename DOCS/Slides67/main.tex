@@ -1,0 +1,44 @@
+% !TeX program = xelatex
+% Compile với XeLaTeX (Overleaf: Menu > Compiler > XeLaTeX)
+\documentclass[aspectratio=169,9pt]{beamer}
+
+\usepackage{fontspec}
+\setmainfont{Noto Serif}
+\setsansfont{Noto Sans}
+\usepackage{polyglossia}
+\setmainlanguage{vietnamese}
+
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,shapes,fit}
+\usepackage{caption}
+\captionsetup{font=scriptsize,labelfont=bf}
+\usepackage{etoolbox}
+\AtBeginEnvironment{itemize}{\setlength{\itemsep}{1pt}\setlength{\parskip}{0pt}\setlength{\topsep}{1pt}}
+\AtBeginEnvironment{enumerate}{\setlength{\itemsep}{1pt}\setlength{\parskip}{0pt}\setlength{\topsep}{1pt}}
+\setlength{\abovedisplayskip}{4pt}
+\setlength{\belowdisplayskip}{4pt}
+\setlength{\abovedisplayshortskip}{2pt}
+\setlength{\belowdisplayshortskip}{2pt}
+
+\usetheme{Madrid}
+\usecolortheme{seahorse}
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{footline}[frame number]
+\setbeamerfont{footnote}{size=\tiny}
+\setbeamerfont{section in toc}{size=\tiny}
+\setbeamerfont{subsection in toc}{size=\tiny}
+
+\title[SADGS: 3DGS \& Structure-Aware Densification]{Quy trình Render 3D Gaussian Splatting\\và Structure-Aware Densification (SADGS)}
+\subtitle{Từ toán học nền tảng đến Adaptive Density Control chuyên sâu}
+\author{Digital Twin GS}
+\date{\today}
+
+\graphicspath{{figures/}{../BOOK/fastergs_merge_figures/}{../BOOK/adc_figures/}}
+
+\begin{document}
+
+\input{body}
+\end{document}

@@ -1,0 +1,184 @@
+% ===== BOT 12: Chọn mẫu camera (FPS sampling) & lấy mẫu Gaussian dị hướng 2D =====
+
+\begin{frame}{SADGS --- Hai bộ lấy mẫu: camera \& Gaussian 2D}
+\footnotesize
+Hai tiện ích lấy mẫu độc lập trong SADGS, phục vụ hai mục đích khác nhau:
+\begin{columns}[T]
+\column{0.5\linewidth}
+\textbf{(1) \texttt{sampling\_cameras}} --- \texttt{utils/freq\_utils.py:12--87}
+\begin{itemize}\scriptsize
+  \item Chữ ký: \texttt{sampling\_cameras(my\_viewpoint\_stack, mode="fps", num\_cams=60, weights=None)}
+  \item Hai chế độ: \texttt{"random"} (dòng 26--32) và \texttt{"fps"} (dòng 34--83); mọi giá trị khác $\Rightarrow$ \texttt{ValueError} (dòng 86--87).
+  \item Tham số \texttt{weights} \emph{khai báo nhưng không dùng} trong thân hàm --- chỗ để cắm lấy mẫu có trọng số về sau.
+  \item Cả hai chế độ đều \texttt{pop()} camera ra khỏi stack gốc $\Rightarrow$ hàm có \emph{side effect}.
+\end{itemize}
+
+\column{0.5\linewidth}
+\textbf{(2) \texttt{sample\_anisotropic\_gaussians\_2d}} --- \texttt{utils/gaussian\_sampling.py:11--128}
+\begin{itemize}\scriptsize
+  \item Chữ ký: \texttt{(image\_tensor, num\_samples=2000, sigma=1.0, rho=1.5, seed=42)}
+  \item Đặt mẫu Gaussian 2D theo \emph{structure tensor} của ảnh: vị trí theo năng lượng gradient, hướng/độ dẹt theo trị riêng.
+  \item Docstring dòng 1--3: \emph{``Extracted from \texttt{fit\_2d\_image.py} for reusability''}.
+\end{itemize}
+\end{columns}
+\vspace{0.3em}
+\scriptsize Cả hai đều dựa trên cùng một nền tảng: \texttt{get\_structure\_tensor\_torch} (\texttt{utils/loss\_utils.py:170}), phương pháp Di Zenzo cộng năng lượng qua 3 kênh RGB.
+\end{frame}
+
+
+\begin{frame}{FPS trên tập camera --- thuật toán \& metric khoảng cách}
+\footnotesize
+\begin{columns}[T]
+\column{0.46\linewidth}
+\textbf{Bước 1 --- trích vị trí camera} (\texttt{freq\_utils.py:40--50}). Từ \texttt{world\_view\_transform} (chuyển vị để lấy $W2C$), tách $R\in\mathbb{R}^{3\times3}$, $t\in\mathbb{R}^{3}$:
+\[ c_i \;=\; -R^{\top} t \quad\in\mathbb{R}^{3} \]
+\textbf{Bước 2 --- vòng lặp FPS} (dòng 52--72), khởi tạo $d_i=+\infty$, hạt giống $i_1$ \emph{ngẫu nhiên} (\texttt{random.randint}, dòng 58):
+\[ d_i \leftarrow \min\big(d_i,\ \lVert c_i - c_{i_{k-1}}\rVert_2\big),\qquad
+   i_k = \arg\max_i d_i \]
+với $d_i \leftarrow -1$ cho mọi $i$ đã chọn (dòng 68) để không chọn lại.
+
+\vspace{0.4em}
+\alert{Metric chỉ là VỊ TRÍ camera}, hoàn toàn không dùng hướng nhìn/trục quang: $R$ chỉ xuất hiện để \emph{giải ra} $c_i$, sau đó bị bỏ. Hai camera cùng chỗ nhưng nhìn ngược nhau $\Rightarrow$ khoảng cách $0$.
+
+\column{0.52\linewidth}
+\centering
+\includegraphics[width=0.92\linewidth]{sadgsx/12_fps_selection.png}
+\captionof{figure}{\footnotesize FPS trên tập vị trí camera: số/màu là thứ tự được chọn. Mẫu trải đều dù mật độ camera gốc rất lệch.}
+\end{columns}
+\end{frame}
+
+
+\begin{frame}{Vì sao FPS? Độ phủ so với lấy mẫu ngẫu nhiên}
+\footnotesize
+\begin{columns}[T]
+\column{0.48\linewidth}
+Chất lượng tập con $S$ đo bằng \textbf{bán kính phủ} (covering radius):
+\[ r(S) \;=\; \max_{i}\ \min_{j\in S}\ \lVert c_i - c_j\rVert_2 \]
+FPS là thuật toán tham lam xấp xỉ $2$ của bài toán $k$-center, nên $r(S)$ giảm nhanh và \emph{ổn định} theo \texttt{num\_cams}.
+
+\vspace{0.4em}
+Ý nghĩa cho SADGS: thống kê tần số $\eta$ tích lũy theo từng view (\texttt{update\_freq\_stats\_online}). Nếu tập camera bị dồn vào một cung quỹ đạo, các Gaussian ở phía đối diện gần như không bao giờ được cập nhật $\Rightarrow$ ước lượng vi phạm tần số bị thiên lệch. FPS ép mỗi vùng không gian đều có ít nhất một view đại diện.
+
+\vspace{0.3em}
+\scriptsize Random còn có phương sai lớn (vùng tô đỏ): một lần rút xấu có thể bỏ trống cả một phía cảnh.
+
+\column{0.50\linewidth}
+\centering
+\includegraphics[width=0.95\linewidth]{sadgsx/12_fps_vs_random_coverage.png}
+\captionof{figure}{\footnotesize $r(S)$ theo \texttt{num\_cams}: FPS (xanh) luôn nằm dưới trung bình của random (đỏ), càng ít camera càng chênh nhiều.}
+\end{columns}
+\end{frame}
+
+
+\begin{frame}{Chi phí tính toán \& cách SADGS thực sự gọi \texttt{sampling\_cameras}}
+\footnotesize
+\begin{columns}[T]
+\column{0.48\linewidth}
+Vòng lặp dòng 61--72 chạy \texttt{num\_cams}$-1$ lần, mỗi lần tính $N$ chuẩn L2:
+\[ \text{Cost}_{\text{FPS}} = O\!\big(N \cdot \texttt{num\_cams}\big),\qquad
+   \text{Cost}_{\text{rand}} = O(N) \]
+Đây chính là lý do cần \emph{tập con}: \texttt{num\_cams=60} (mặc định, dòng 12) thay vì toàn bộ $N$.
+
+\vspace{0.5em}
+\alert{Ba nơi gọi thật trong \texttt{train.py}:}
+\begin{itemize}\scriptsize
+  \item \texttt{train.py:224} và \texttt{240}: \texttt{sampling\_cameras(viewpoint\_stack, mode="fps", num\_cams=len(viewpoint\_stack))} --- lấy \emph{TOÀN BỘ}, chỉ khi \texttt{opt.camera\_sampling=="fps"}; mặc định là \texttt{"random"} (\texttt{arguments/\_\_init\_\_.py:131}).
+  \item \texttt{train.py:414}: \texttt{camlist = sampling\_cameras(my\_viewpoint\_stack)} --- dùng mặc định (fps, 60 cam) tại \texttt{prune\_iterations} $=[4000,8000]$ (\texttt{train.py:529}).
+\end{itemize}
+
+\column{0.50\linewidth}
+\centering
+\includegraphics[width=0.95\linewidth]{sadgsx/12_fps_cost.png}
+\captionof{figure}{\footnotesize Số phép tính khoảng cách (thang log). Lấy $k=60$ rẻ hơn hẳn $k=N$ khi $N$ lớn.}
+\end{columns}
+\end{frame}
+
+
+\begin{frame}{Hai điểm cần nói thẳng về cách dùng FPS trong code}
+\footnotesize
+\begin{block}{\footnotesize 1. Thứ tự FPS bị xoá ngay sau khi tính (\texttt{freq\_utils.py:74--81})}
+\scriptsize
+Code pop theo chỉ số \emph{giảm dần} để tránh lệch index, rồi \texttt{camlist.reverse()}:
+\begin{itemize}
+  \item Kết quả: \texttt{camlist} được sắp theo \textbf{chỉ số gốc tăng dần}, KHÔNG phải theo thứ tự FPS.
+  \item Do đó comment ``Pop from the start of the FPS-sorted list'' ở \texttt{train.py:234} không đúng với hành vi thực tế.
+\end{itemize}
+\end{block}
+\begin{block}{\footnotesize 2. Khi \texttt{num\_cams} $=N$, FPS trở thành phép hoán vị đồng nhất}
+\scriptsize
+Tại \texttt{train.py:224,240} ta chọn đủ $N$ camera. Kết hợp với điểm (1), tập trả về là toàn bộ stack \emph{theo đúng thứ tự ban đầu} --- khác hẳn nhánh \texttt{else} là \texttt{random.shuffle}. Nghĩa là:
+\begin{itemize}
+  \item \texttt{camera\_sampling="fps"} $\approx$ \emph{tắt xáo trộn} + trả thêm $O(N^2)$ phép tính khoảng cách;
+  \item lợi ích ``phủ đều'' của FPS chỉ thực sự phát huy ở lời gọi \texttt{train.py:414} với \texttt{num\_cams=60} --- nhưng ở đó \texttt{camlist} hiện \emph{không được dùng} (dòng gọi \texttt{compute\_gaussian\_score\_structgs} đã bị comment).
+\end{itemize}
+\end{block}
+\scriptsize Kết luận: FPS đã được cài đặt đúng thuật toán, nhưng trong cấu hình huấn luyện hiện tại nó là một \emph{hook} chưa được khai thác, không phải nguồn gốc chất lượng của SADGS.
+\end{frame}
+
+
+\begin{frame}{Structure tensor --- nền tảng của lấy mẫu dị hướng}
+\footnotesize
+\texttt{get\_structure\_tensor\_torch(image\_tensor, sigma, rho)} --- \texttt{utils/loss\_utils.py:170}
+\begin{enumerate}\scriptsize
+  \item Làm mượt trước bằng Gaussian $\sigma$, cỡ nhân $k=2\cdot4\sigma+1$ (dòng 179--183).
+  \item Đạo hàm Sobel $I_x, I_y$ cho từng kênh, \texttt{groups=C} (dòng 187--196).
+  \item Cộng năng lượng qua RGB (Di Zenzo, dòng 203--208) $\Rightarrow$ không bỏ sót biên đẳng sáng.
+  \item Tích phân cửa sổ bằng Gaussian $\rho$ (dòng 210--215).
+\end{enumerate}
+\[
+S(x,y)=
+\begin{bmatrix} S_{xx} & S_{xy}\\ S_{xy} & S_{yy}\end{bmatrix}
+= G_{\rho} * \sum_{c\in\{R,G,B\}}
+\begin{bmatrix} I_{x,c}^2 & I_{x,c}I_{y,c}\\ I_{x,c}I_{y,c} & I_{y,c}^2\end{bmatrix}
+\]
+Trị riêng (mã dùng \texttt{torch.linalg.eigh}, \texttt{gaussian\_sampling.py:90}, rồi sắp giảm dần dòng 99--104):
+\[
+\lambda_{1,2}=\frac{\mathrm{tr}\,S}{2}\pm\sqrt{\Big(\frac{\mathrm{tr}\,S}{2}\Big)^{2}-\det S},
+\qquad \lambda_1\ \text{(gradient)} \ \ge\ \lambda_2\ \text{(cạnh)}
+\]
+Vector riêng $v_2$ ứng với $\lambda_2$ là \textbf{hướng cạnh}; góc lưu theo độ: \texttt{angles = rad2deg(atan2(v2[:,1], v2[:,0]))} (dòng 113).
+\vspace{0.2em}
+\scriptsize Ba chế độ hình học của $S$: $\lambda_1\!\approx\!\lambda_2\!\approx\!0$ (phẳng) --- $\lambda_1\!\gg\!\lambda_2$ (cạnh, \emph{dị hướng}) --- $\lambda_1\!\approx\!\lambda_2\!\gg\!0$ (góc/nhiễu).
+\end{frame}
+
+
+\begin{frame}{\texttt{sample\_anisotropic\_gaussians\_2d}: đặt Gaussian theo hướng texture}
+\footnotesize
+\begin{columns}[T]
+\column{0.42\linewidth}
+\textbf{Vị trí} --- lấy mẫu quan trọng theo vết của $S$ (dòng 42--57):
+\[ p(x,y)=\frac{S_{xx}+S_{yy}}{\sum_{x',y'}\big(S_{xx}+S_{yy}\big)} \]
+\texttt{rng.choice(H*W, num\_samples, p=prob, replace=False)}, \texttt{rng=default\_rng(seed)} $\Rightarrow$ tái lập được. Nếu tổng năng lượng $=0$ thì rơi về phân bố đều (dòng 50--53).
+
+\vspace{0.4em}
+\textbf{Hình dạng} --- tại mỗi điểm, $S$ được làm sạch \texttt{nan\_to\_num} và cộng $\varepsilon=10^{-6}$ vào đường chéo (dòng 71--78) để đảm bảo nửa xác định dương, rồi \texttt{eigh}. Ellipse $1\sigma$ có trục $\propto 1/\sqrt{\lambda_{1,2}}$, trục \emph{dài} nằm dọc $v_2$:
+\[ \text{texture mạnh } (\lambda_1\!\uparrow) \Rightarrow \text{trục ngắn}\ \perp\ \text{cạnh} \]
+Đây đúng là hành vi mong muốn: Gaussian mỏng, dài, bám theo cạnh.
+
+\column{0.56\linewidth}
+\centering
+\includegraphics[width=\linewidth]{sadgsx/12_aniso_ellipses.png}
+\captionof{figure}{\footnotesize Ảnh test dị hướng (sọc dọc/ngang/xiên/phẳng) và các ellipse mẫu dựng đúng theo $\lambda_{1,2}, v_2$ với \texttt{sigma=1.0, rho=1.5, seed=42}. Ellipse tự xoay bám hướng sọc.}
+\end{columns}
+\end{frame}
+
+
+\begin{frame}{Lấy mẫu đều vs theo structure tensor --- và câu hỏi ``đây có phải khởi tạo point cloud?''}
+\footnotesize
+\begin{columns}[T]
+\column{0.56\linewidth}
+\centering
+\includegraphics[width=\linewidth]{sadgsx/12_uniform_vs_st.png}
+\captionof{figure}{\footnotesize Cùng 900 mẫu: lấy đều để $25{,}3\%$ số điểm rơi vào vùng phẳng vô ích, còn lấy theo $\mathrm{tr}(S)$ chỉ $0{,}3\%$.}
+
+\column{0.42\linewidth}
+\alert{\textbf{KHÔNG} --- đây không phải cách SADGS khởi tạo point cloud.} Kiểm tra thực tế:
+\begin{itemize}\scriptsize
+  \item \texttt{grep} toàn repo: \texttt{sample\_anisotropic\_gaussians\_2d} chỉ xuất hiện tại chỗ \emph{định nghĩa} (\texttt{utils/gaussian\_sampling.py:11}); không nơi nào import/gọi.
+  \item \texttt{scene/\_\_init\_\_.py:82--83}: khởi tạo thật vẫn là \texttt{gaussians.create\_from\_pcd(scene\_info.point\_cloud, self.cameras\_extent)} --- tức point cloud thưa từ COLMAP/Blender (dòng 43--49), y như 3DGS gốc.
+  \item File \texttt{fit\_2d\_image.py} mà docstring nhắc tới \emph{không tồn tại} trong repo.
+\end{itemize}
+\vspace{0.3em}
+\scriptsize Vai trò đúng của nó: tiện ích nghiên cứu cho bài toán khớp ảnh 2D, đồng thời là bản \emph{mẫu} cho ý tưởng cốt lõi của SADGS --- dùng structure tensor để quyết định kích thước/hướng Gaussian --- ý tưởng này được hiện thực hoá trong huấn luyện 3D qua $\eta$ của \texttt{update\_freq\_stats\_online}, chứ không qua hàm này.
+\end{columns}
+\end{frame}

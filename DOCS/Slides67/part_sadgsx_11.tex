@@ -1,0 +1,234 @@
+% ===== BOT 11: Hàm mất mát của SADGS — L1, SSIM, tone-curve, frequency loss =====
+
+% --- Frame 1: Loss tổng hợp THỰC TẾ trong train.py ---
+\begin{frame}{Hàm mất mát SADGS: cái gì thực sự được tối ưu?}
+\footnotesize
+\begin{itemize}
+    \item Toàn bộ tín hiệu huấn luyện của SADGS đi qua \textbf{đúng một dòng} --- \texttt{train.py:259}:
+\end{itemize}
+\[
+\mathcal{L} \;=\; (1-\lambda_{\text{dssim}})\,L_1 \;+\; \lambda_{\text{dssim}}\,\bigl(1-\mathrm{SSIM}\bigr) \;+\; \lambda_{L_2}\,L_2
+\]
+\begin{itemize}
+    \item Giá trị mặc định (\texttt{arguments/\_\_init\_\_.py}): $\lambda_{\text{dssim}}=0.2$ (dòng 86), $\lambda_{L_2}=\mathbf{2.0}$ (dòng 117). Thay số:
+\end{itemize}
+\[
+\mathcal{L} \;=\; 0.8\,L_1 \;+\; 0.2\,(1-\mathrm{SSIM}) \;+\; 2.0\,L_2
+\]
+\begin{itemize}
+    \item So với 3DGS gốc (chỉ $0.8L_1+0.2\,\mathrm{D\text{-}SSIM}$), SADGS \textbf{thêm một số hạng $L_2$ với trọng số rất lớn} ($2.0$) --- đây là khác biệt duy nhất ở tầng photometric. $L_2$ phạt mạnh các sai số lớn (outlier pixel), đẩy nhanh giai đoạn hội tụ đầu.
+    \item SSIM dùng \textbf{\texttt{fused\_ssim}} (kernel CUDA, \texttt{train.py:18}: \texttt{from fused\_ssim import fused\_ssim as fast\_ssim}), \emph{không} dùng hàm \texttt{ssim()} thuần PyTorch trong \texttt{loss\_utils.py:46}.
+    \item \alert{Quan trọng:} \texttt{tone\_curve\_loss} và \texttt{frequency\_loss} \textbf{không} có mặt trong $\mathcal{L}$. Trọng số của chúng tồn tại nhưng bằng 0 và \textbf{không được tham chiếu ở bất kỳ đâu}: \texttt{lambda\_tone=0.} (dòng 118), \texttt{lambda\_freq=0.} (dòng 119).
+\end{itemize}
+\centering
+\includegraphics[width=0.72\linewidth]{sadgsx/11_l1_vs_ssim.png}
+\captionof{figure}{\footnotesize Độ nhạy của $L_1$ và D-SSIM với ba loại lỗi khác nhau (mô phỏng theo đúng công thức \texttt{loss\_utils.py:56-76}).}
+\end{frame}
+
+% --- Frame 2: L1 và L2 ---
+\begin{frame}{$L_1$ và $L_2$: hai hàm cơ sở}
+\footnotesize
+\begin{columns}[T]
+\begin{column}{0.46\linewidth}
+\texttt{loss\_utils.py:22-26} --- hai hàm ngắn nhất file:
+\[
+L_1 = \frac{1}{N}\sum_i \bigl|p_i - g_i\bigr|,
+\qquad
+L_2 = \frac{1}{N}\sum_i \bigl(p_i - g_i\bigr)^2
+\]
+\begin{itemize}
+    \item $p$ = \texttt{network\_output} (ảnh render), $g$ = \texttt{gt} (ảnh gốc). Cả hai lấy \texttt{.mean()} trên \emph{toàn bộ} tensor (3 kênh $\times H \times W$).
+    \item \textbf{Đạo hàm}: $\partial L_1/\partial e = \mathrm{sign}(e)$ --- hằng số, không tắt dần khi $e\to 0$ $\Rightarrow$ bền với outlier nhưng "rung" quanh nghiệm.
+    \item $\partial L_2/\partial e = 2e$ --- tỉ lệ với sai số $\Rightarrow$ ép mạnh các pixel sai nhiều, nhưng mờ chi tiết (trung bình hoá).
+    \item SADGS chọn \textbf{cả hai}, với $\lambda_{L_2}=2.0$. Vì $L_2 \ll L_1$ về độ lớn khi $|e|<1$ (ví dụ $e=0.1$: $L_1=0.1$ còn $L_2=0.01$), hệ số $2.0$ đưa hai số hạng về cùng bậc độ lớn thay vì thực sự "ưu tiên" $L_2$.
+\end{itemize}
+\end{column}
+\begin{column}{0.52\linewidth}
+\centering
+\includegraphics[width=\linewidth]{sadgsx/11_l1_l2_tone.png}
+\captionof{figure}{\footnotesize Trái: giá trị mất mát theo sai số $e=p-g$. Phải: đạo hàm. $L_1$ cho gradient hằng, $L_2$ cho gradient tuyến tính, tone-curve khuếch đại gradient theo $1/\hat{p}^2$.}
+\end{column}
+\end{columns}
+\end{frame}
+
+% --- Frame 3: tone_curve_loss ---
+\begin{frame}{\texttt{tone\_curve\_loss}: chuẩn hoá sai số theo độ sáng}
+\footnotesize
+\texttt{loss\_utils.py:28-34}, chữ ký \texttt{tone\_curve\_loss(network\_output, gt, epsilon=1e-6, norm=2)}:
+\[
+\mathcal{L}_{\text{tone}} \;=\; \frac{1}{N}\sum_i
+\left(\frac{p_i - g_i}{\;\mathrm{sg}(p_i) + \varepsilon\;}\right)^{\!\text{norm}},
+\qquad \varepsilon = 10^{-6},\ \ \text{norm}=2
+\]
+\begin{itemize}
+    \item Trong code, $\mathrm{sg}(\cdot)$ hiện thực bằng \texttt{network\_output.detach()} --- \textbf{stop-gradient}: mẫu số chỉ đóng vai trò \emph{hệ số tỉ lệ}, không nhận gradient. Nhờ vậy đạo hàm còn lại rất gọn:
+    \[
+    \frac{\partial \mathcal{L}_{\text{tone}}}{\partial p_i} \;=\; \frac{2\,(p_i-g_i)}{(\hat{p}_i+\varepsilon)^2},
+    \qquad \hat{p}_i = \mathrm{sg}(p_i)
+    \]
+    \item \textbf{Vai trò của $\varepsilon=10^{-6}$}: chống chia 0 ở pixel đen ($p\approx 0$). Nó \emph{cũng} là trần khuếch đại: gradient bị chặn ở $2e/\varepsilon^2$.
+    \item \textbf{Vai trò của \texttt{norm}=2}: luỹ thừa áp lên \emph{sai số tương đối}. Với norm$=2$ đây là $L_2$ trên thang tương đối; đổi norm$=1$ sẽ thành $L_1$ tương đối. Lưu ý cài đặt hiện tại \textbf{không} lấy trị tuyệt đối, nên norm lẻ sẽ cho loss âm --- chỉ an toàn với norm chẵn.
+    \item \textbf{Có "nén dải sáng" không?} Không nén ảnh, mà \textbf{nén sai số}: chia cho độ sáng dự đoán biến sai số tuyệt đối thành sai số \emph{tương đối}. Hệ quả là vùng \textbf{tối} ($\hat{p}$ nhỏ) được khuếch đại gradient mạnh --- đúng tinh thần cảm nhận Weber--Fechner và tương đương học trên thang tone-curve/log, thay vì để vùng sáng thống trị gradient như $L_2$ thuần.
+    \item \alert{Trạng thái:} định nghĩa đầy đủ nhưng \textbf{chưa bao giờ được gọi}. \texttt{train.py} không import nó (\texttt{train.py:17} chỉ import \texttt{l1\_loss, l2\_loss} và 2 hàm structure tensor); \texttt{lambda\_tone} $=0$ và cũng không xuất hiện trong bất kỳ biểu thức loss nào.
+\end{itemize}
+\end{frame}
+
+% --- Frame 4: SSIM ---
+\begin{frame}{SSIM: cửa sổ Gaussian $11\times 11$ và bản đồ tương đồng}
+\footnotesize
+\begin{columns}[T]
+\begin{column}{0.44\linewidth}
+\texttt{loss\_utils.py:36-76}. Cửa sổ 1D (dòng 37), chuẩn hoá về tổng $1$, rồi nhân ngoài thành cửa sổ 2D (dòng 41-42) với $\sigma$ \textbf{cố định} $=1.5$:
+\[
+w_k \propto \exp\!\left(-\frac{(k-\lfloor W/2\rfloor)^2}{2\sigma^2}\right),\quad
+W=11,\ \sigma=1.5
+\]
+Các thống kê cục bộ là tích chập \emph{depthwise} (\texttt{groups=channel}, \texttt{padding}=5):
+\[
+\mu_1 = w * p,\quad \sigma_1^2 = w*p^2 - \mu_1^2,\quad \sigma_{12} = w*(pg) - \mu_1\mu_2
+\]
+\[
+\mathrm{SSIM} = \frac{(2\mu_1\mu_2 + C_1)(2\sigma_{12}+C_2)}{(\mu_1^2+\mu_2^2+C_1)(\sigma_1^2+\sigma_2^2+C_2)}
+\]
+với $C_1 = 0.01^2$, $C_2 = 0.03^2$ (dòng 68-69, lặp lại hằng số ở dòng 19-20).
+\end{column}
+\begin{column}{0.54\linewidth}
+\centering
+\includegraphics[width=\linewidth]{sadgsx/11_ssim_window.png}
+\captionof{figure}{\footnotesize Cửa sổ Gaussian $11\times11$ ($\sum w = 1$) và bản đồ SSIM tính đúng theo \texttt{\_ssim}. Vùng nhiễu cấu trúc rơi xuống SSIM $\approx 0$; vùng chỉ lệch độ sáng nhẹ vẫn gần $1$.}
+\end{column}
+\end{columns}
+\vspace{2pt}
+\begin{itemize}
+    \item Tử số tách thành 2 nhân tử: \emph{luminance} $(2\mu_1\mu_2+C_1)$ và \emph{contrast--structure} $(2\sigma_{12}+C_2)$. Chính nhân tử thứ hai khiến SSIM phạt \textbf{mất tương quan cục bộ} (mờ, nhiễu, sai texture) nặng hơn nhiều so với $L_1$.
+    \item \texttt{size\_average=True} $\Rightarrow$ trả về vô hướng \texttt{ssim\_map.mean()}; ngược lại trả về vector theo batch (dòng 73-76).
+    \item \alert{Trong huấn luyện thực tế} hàm này \textbf{không} chạy: \texttt{train.py:258} gọi \texttt{fast\_ssim} $=$ \texttt{fused\_ssim} (CUDA fused, \texttt{submodules/fused-ssim}). \texttt{ssim()} thuần PyTorch chỉ còn dùng cho đánh giá/so sánh.
+\end{itemize}
+\end{frame}
+
+% --- Frame 5: frequency_loss công thức ---
+\begin{frame}{\texttt{frequency\_loss}: phạt Gaussian lớn hơn bước sóng texture}
+\scriptsize
+\texttt{loss\_utils.py:80-110}, \texttt{frequency\_loss(means2D, cov2D, st\_map, H, W)} --- điểm riêng của SADGS: loss không tính trên \emph{pixel} mà tính trên \emph{từng Gaussian}.
+\begin{columns}[T]
+\begin{column}{0.48\linewidth}
+\textbf{Bước 1 --- lấy mẫu structure tensor tại tâm Gaussian} (dòng 82-87):
+\[
+n_x = \frac{2\,m_x}{W-1}-1,\qquad n_y = \frac{2\,m_y}{H-1}-1
+\]
+\[
+(S_{xx}, S_{xy}, S_{yy}) = \mathrm{grid\_sample}\bigl(\texttt{st\_map}, (n_x,n_y)\bigr)
+\]
+\textbf{Bước 2 --- kích thước tuyến tính của Gaussian trên màn hình} (dòng 90-98), từ $\Sigma_{2D}=\bigl(\begin{smallmatrix}a & b\\ b & c\end{smallmatrix}\bigr)$:
+\[
+\det = ac - b^2,\quad
+\sigma_{\text{area}} = \sqrt{\det + 10^{-6}},\quad
+\sigma_{\text{lin}} = \sqrt{\sigma_{\text{area}} + 10^{-6}}
+\]
+\end{column}
+\begin{column}{0.48\linewidth}
+\textbf{Bước 3 --- bước sóng cho phép} (dòng 102-104):
+\[
+f_{\text{target}} = \sqrt{S_{xx}+S_{yy}+10^{-6}},
+\qquad
+\lambda_{\text{lim}} = \frac{1}{f_{\text{target}} + 10^{-6}}
+\]
+\textbf{Bước 4 --- phạt một phía} (dòng 108):
+\[
+\boxed{\;\mathcal{L}_{\text{freq}} = \frac{1}{N}\sum_{i}\ \mathrm{ReLU}\!\bigl(\sigma_{\text{lin},i} - \lambda_{\text{lim},i}\bigr)\;}
+\]
+\begin{itemize}
+    \item $\mathrm{ReLU}$ $\Rightarrow$ chỉ phạt khi Gaussian \textbf{quá to}; Gaussian nhỏ hơn bước sóng thì loss $=0$ và gradient $=0$.
+    \item Hai lần căn: $\sqrt{\det}$ là \emph{diện tích} ($s^2$), căn lần nữa ra \emph{bán kính} ($s$) --- để so sánh pixel với pixel (chú thích ngay trong code, dòng 95-98).
+\end{itemize}
+\end{column}
+\end{columns}
+\vspace{-2pt}
+\centering
+\includegraphics[width=0.60\linewidth]{sadgsx/11_frequency_loss.png}
+\captionof{figure}{\scriptsize Trái: Gaussian trên texture chirp. Giữa: $\lambda_{\text{lim}}$ co lại khi texture rậm hơn, vùng tô đỏ là nơi $\sigma_{\text{lin}}>\lambda_{\text{lim}}$. Phải: dạng ReLU một phía.}
+\end{frame}
+
+% --- Frame 6: vai trò 3 đầu vào + đối chiếu với eta ---
+\begin{frame}{\texttt{frequency\_loss}: vai trò của \texttt{means2D}, \texttt{cov2D}, \texttt{st\_map}}
+\footnotesize
+\begin{table}
+\centering
+\begin{tabular}{lll}
+\toprule
+\textbf{Đầu vào} & \textbf{Nội dung} & \textbf{Dùng để làm gì} \\
+\midrule
+\texttt{means2D} $[N,2]$ & tâm Gaussian, toạ độ pixel & chọn \emph{ở đâu} trên ảnh để đọc tần số (dòng 82-84) \\
+\texttt{cov2D} $[N,3]$ & $(a,b,c)$ của $\Sigma_{2D}$ & suy ra \emph{cỡ} Gaussian $\sigma_{\text{lin}}$ (dòng 90-98) \\
+\texttt{st\_map} $[1,3,H,W]$ & $(S_{xx},S_{xy},S_{yy})$ đa tỉ lệ & suy ra \emph{bước sóng} cục bộ $\lambda_{\text{lim}}$ (dòng 87,102) \\
+\bottomrule
+\end{tabular}
+\end{table}
+\begin{itemize}
+    \item \texttt{st\_map} do \texttt{get\_multiscale\_structure\_tensor\_v1/v2} sinh (\texttt{loss\_utils.py:232}/\texttt{:315}), đã \textbf{chuẩn hoá theo max toàn ảnh} (dòng 222-227) nên $S_{xx}+S_{yy}\in[0,1]$ --- chính vì vậy $\lambda_{\text{lim}} = 1/\sqrt{\text{trace}} \ge 1$ pixel, đúng đơn vị pixel như comment dòng 101 yêu cầu.
+    \item \texttt{grid\_sample} dùng \texttt{align\_corners=True}, \texttt{padding\_mode='border'} $\Rightarrow$ Gaussian trôi ra ngoài khung vẫn lấy được giá trị biên thay vì 0.
+    \item \textbf{Đối chiếu:} cùng ý tưởng "cỡ Gaussian so với bước sóng" \emph{có} chạy trong SADGS, nhưng không phải ở dạng loss --- nó chạy ở dạng \textbf{thống kê không gradient} trong \texttt{freq\_utils.py:181} \texttt{update\_freq\_stats\_online} (bọc trong \texttt{torch.no\_grad()} qua \texttt{compute\_projected\_axes\_subset}, \texttt{freq\_utils.py:120}), với $\eta = \ell_{\text{axis}}/\lambda_{\min}$ tính riêng cho \textbf{3 trục} (\texttt{freq\_utils.py:348}) rồi dùng để quyết định split/clone.
+    \item[$\Rightarrow$] Khác biệt cốt lõi: \texttt{frequency\_loss} là \emph{isotropic} (chỉ 1 con số $\sigma_{\text{lin}}$ từ định thức) và \emph{khả vi}; còn $\eta$ trong \texttt{freq\_utils} là \emph{dị hướng} (3 trục) và \emph{không khả vi}. SADGS chọn đường thứ hai: điều khiển tần số qua \textbf{densification}, không qua gradient.
+\end{itemize}
+\end{frame}
+
+% --- Frame 7: frequency_loss_simple + estimate_required_gaussians ---
+\begin{frame}{\texttt{frequency\_loss\_simple} và \texttt{estimate\_required\_gaussians}}
+\footnotesize
+\begin{columns}[T]
+\begin{column}{0.44\linewidth}
+\textbf{(a) \texttt{frequency\_loss\_simple}} (\texttt{loss\_utils.py:389-392}) --- biến thể "trên ảnh" thay vì "trên Gaussian":
+\[
+\mathcal{L} = L_1\Bigl(\mathrm{ST}\bigl(I_{\text{render}}\bigr),\ \texttt{st\_map}\Bigr)
+\]
+khớp trực tiếp structure tensor của ảnh render với structure tensor của ảnh gốc. Lưu ý nó gọi \texttt{get\_structure\_tensor\_torch} (\emph{đơn} tỉ lệ) trong khi \texttt{st\_map} được sinh \emph{đa} tỉ lệ $\Rightarrow$ hai vế không cùng thang đo.
+\vspace{4pt}
+
+\textbf{(b) \texttt{estimate\_required\_gaussians}} (\texttt{loss\_utils.py:394-437}) --- không phải loss, mà là \emph{ước lượng ngân sách} số Gaussian:
+\[
+N \;=\; \underbrace{H\,W\cdot b}_{\text{coverage}} \;+\; \underbrace{\Bigl(\textstyle\sum_{x,y}(S_{xx}+S_{yy})\Bigr)\cdot d}_{\text{detail}}
+\]
+với $b=$ \texttt{base\_density} $=0.01$ (1 GS / khối $10\times10$), $d=$ \texttt{detail\_sensitivity} $=0.5$.
+\end{column}
+\begin{column}{0.54\linewidth}
+\centering
+\includegraphics[width=\linewidth]{sadgsx/11_estimate_gaussians.png}
+\captionof{figure}{\footnotesize $N$ là hàm \textbf{tuyến tính} theo cả $b$ và $d$. $b$ dịch đường (nền phủ, không phụ thuộc cảnh); $d$ đổi \emph{độ dốc} theo năng lượng cấu trúc $E$ --- cảnh nhiều texture nhạy với $d$ hơn hẳn.}
+\end{column}
+\end{columns}
+\vspace{2pt}
+\begin{itemize}
+    \item \alert{Lỗi trong code:} dòng 411 gọi \texttt{get\_multiscale\_structure\_tensor(image)} --- tên này \textbf{không tồn tại} trong file (chỉ có hậu tố \texttt{\_v1} ở dòng 232 và \texttt{\_v2} ở dòng 315). Hàm sẽ ném \texttt{NameError} nếu bị gọi; bằng chứng gián tiếp rằng nó là tàn dư chưa dọn.
+\end{itemize}
+\end{frame}
+
+% --- Frame 8: tổng kết dùng / không dùng ---
+\begin{frame}{Tổng kết: thành phần nào thực sự chạy?}
+\footnotesize
+\begin{table}
+\centering
+\begin{tabular}{lccl}
+\toprule
+\textbf{Hàm} (\texttt{utils/loss\_utils.py}) & \textbf{Dòng} & \textbf{Vào $\mathcal{L}$?} & \textbf{Ghi chú} \\
+\midrule
+\texttt{l1\_loss} & 22 & \textbf{CÓ} & hệ số $1-\lambda_{\text{dssim}} = 0.8$ \\
+\texttt{l2\_loss} & 25 & \textbf{CÓ} & hệ số $\lambda_{L_2} = 2.0$ --- bổ sung riêng của SADGS \\
+\texttt{fused\_ssim} (submodule) & --- & \textbf{CÓ} & hệ số $\lambda_{\text{dssim}} = 0.2$, dạng $1-\mathrm{SSIM}$ \\
+\midrule
+\texttt{ssim} / \texttt{\_ssim} thuần torch & 46/56 & không & bị \texttt{fused\_ssim} thay thế ở \texttt{train.py:258} \\
+\texttt{tone\_curve\_loss} & 28 & \textbf{KHÔNG} & không import; \texttt{lambda\_tone=0.} (args:118), không tham chiếu \\
+\texttt{frequency\_loss} & 80 & \textbf{KHÔNG} & không import; \texttt{lambda\_freq=0.} (args:119), không tham chiếu \\
+\texttt{frequency\_loss\_simple} & 389 & \textbf{KHÔNG} & chỉ được \texttt{freq\_utils.py:5} import, rồi bỏ không dùng \\
+\texttt{estimate\_required\_gaussians} & 394 & \textbf{KHÔNG} & lỗi \texttt{NameError} ở dòng 411 \\
+\midrule
+\texttt{freq\_utils.get\_loss} & 92 & \textbf{KHÔNG} & bản đồ $L_1$ chuẩn hoá min--max, có \texttt{.detach()} \\
+\texttt{freq\_utils.compute\_photometric\_loss} & 98 & \textbf{KHÔNG} & $0.8L_1 + 0.2(1-\mathrm{SSIM})$, hằng số \textbf{hard-code}, thiếu $L_2$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+\begin{itemize}
+    \item[$\Rightarrow$] \textbf{Kết luận:} loss của SADGS về bản chất vẫn là loss photometric của 3DGS \emph{cộng thêm một số hạng $L_2$ nặng}. Toàn bộ "structure-aware" nằm ở \textbf{nhánh densification} chứ không nằm trong hàm mất mát.
+    \item Các hàm \texttt{tone\_curve\_loss} / \texttt{frequency\_loss} là \textbf{hạ tầng để mở rộng}: chỉ cần đặt \texttt{--lambda\_tone} hoặc \texttt{--lambda\_freq} $>0$ và nối vào \texttt{train.py:259} là kích hoạt được --- nhưng hiện tại \emph{dòng nối đó chưa tồn tại}, nên đặt trọng số qua CLI cũng không có tác dụng.
+    \item Structure tensor vẫn được tính mỗi lần khởi động (\texttt{train.py:186-194}, \texttt{st\_mode="v1"} mặc định, \texttt{st\_levels=4}) --- nhưng để \emph{nuôi thống kê $\eta$}, không để tính loss.
+\end{itemize}
+\end{frame}

@@ -1,0 +1,34 @@
+% ===== BOT 01: Structure tensor & multiscale image structure (bản 45 phút) =====
+
+\begin{frame}{Tensor cấu trúc đa tỉ lệ — nền tảng đo cấu trúc ảnh của SADGS}
+\scriptsize
+\begin{columns}[T]
+\begin{column}{0.46\textwidth}
+\[
+J_\rho=G_\rho*\!\begin{bmatrix} \sum_c I_{x,c}^2 & \sum_c I_{x,c}I_{y,c}\\ \sum_c I_{x,c}I_{y,c} & \sum_c I_{y,c}^2\end{bmatrix}
+\]
+\[
+\lambda_{1,2}=\frac{\mathrm{tr}}{2}\pm\sqrt{\Big(\frac{\mathrm{tr}}{2}\Big)^2-\det},\quad
+w_{\min}=\frac{1}{\sqrt{\lambda_1}}
+\]
+\[
+\hat J=\frac{\sum_i \dfrac{J_i}{\mathrm{tr}J_i}\,b_i^{\,p}\,f_i^{2}}{\sum_i b_i^{\,p}+10^{-6}},\quad
+\sigma_i=\sigma_0 s^i,\ f_i=s^{-i}
+\]
+\begin{itemize}
+\item Sobel sau làm mượt, cộng năng lượng 3 kênh RGB (Di Zenzo) — \texttt{loss\_utils.py:170--230}.
+\item $\lambda_1$ $\to$ bước sóng nhỏ nhất (px); $v_2\perp v_1$ $\to$ hướng texture.
+\item Đa tỉ lệ: $b_i$ là DoG, $\rho_i=3\sigma_i$; mặc định \texttt{levels=4}, $\sigma_0{=}1$, $s{=}1.5$, $p{=}3$.
+\item \textbf{v1} (\texttt{:282}) làm mờ lại tensor gốc; \textbf{v2} (\texttt{:357}) tính lại tensor trên ảnh đã mờ ở từng thang. Mặc định \texttt{st\_mode="v1"}.
+\item \texttt{st\_map} $(1,3,H,W)=(S_{xx},S_{xy},S_{yy})$, cache theo \texttt{image\_name} một lần trước khi train (\texttt{train.py:160--200}).
+\end{itemize}
+\end{column}
+\begin{column}{0.54\textwidth}
+\begin{center}
+\includegraphics[width=\linewidth]{sadgsx/01_eigen_coherence.png}\\[2pt]
+\includegraphics[width=\linewidth]{sadgsx/01_v1_vs_v2.png}
+\captionof{figure}{\scriptsize Trên: $\lambda_1,\lambda_2$, coherence. Dưới: trace \texttt{st\_map} theo v1 vs v2.}
+\end{center}
+\end{column}
+\end{columns}
+\end{frame}

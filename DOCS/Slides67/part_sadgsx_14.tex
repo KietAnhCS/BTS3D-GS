@@ -1,0 +1,258 @@
+% ===== BOT 14: Rasterizer riêng của SADGS — diff-gaussian-rasterization\_structgs \& render\_structgs =====
+
+% --- Frame 1 ---
+\begin{frame}{Vì sao SADGS cần một rasterizer riêng?}
+\footnotesize
+SADGS không dùng được \texttt{diff-gaussian-rasterization} gốc của 3DGS, mà fork thành submodule riêng
+\texttt{submodules/diff-gaussian-rasterization\_structgs}. Lý do: cơ chế densify theo \textbf{tần số} cần hai đại lượng mà bản gốc \textbf{không hề xuất ra}.
+\begin{itemize}\itemsep2pt
+    \item \textbf{$\Sigma_{2D}$ (cov2D)} của mỗi Gaussian trên mặt phẳng ảnh $\Rightarrow$ để so hình chiếu của splat với structure tensor của ảnh (tính $\eta$).
+    \item \textbf{$T^{\max}$ (transmittance lớn nhất)} mà Gaussian đạt được trên mọi pixel $\Rightarrow$ để biết Gaussian có thực sự \textit{nhìn thấy được} hay đang bị che, trước khi đưa vào thống kê.
+    \item \textbf{\texttt{mult}} -- hệ số thu nhỏ hộp bao (compact box) trong bước gán tile, đánh đổi tốc độ/chất lượng.
+    \item \textbf{\texttt{metric\_map} / \texttt{accum\_metric\_counts}} -- đếm số lần mỗi Gaussian đóng góp vào vùng mask do người dùng chỉ định.
+    \item \textbf{\texttt{compute\_extra}} -- xuất thêm \texttt{depth\_map}, \texttt{opacity\_map}, \texttt{normal\_map} trong cùng một lượt render.
+\end{itemize}
+\vspace{0.15cm}
+\centering
+\begin{tabular}{ll}
+\toprule
+\textbf{3DGS gốc trả về} & \textbf{SADGS trả về (13 tensor từ \texttt{\_C.rasterize\_gaussians})}\\
+\midrule
+\texttt{color, radii} & \texttt{color, radii, accum\_metric\_counts, cov2D,}\\
+(+ 3 buffer nội bộ) & \texttt{depth\_map, opacity\_map, normal\_map} (+ 4 buffer, \texttt{num\_buckets})\\
+\bottomrule
+\end{tabular}
+\vspace{0.1cm}
+\scriptsize\raggedright
+\texttt{diff\_gaussian\_rasterization\_structgs/\_\_init\_\_.py:100,113} --- \texttt{rasterize\_points.cu:183}
+\end{frame}
+
+% --- Frame 2 ---
+\begin{frame}[fragile]{API: \texttt{render\_structgs} và \texttt{GaussianRasterizationSettings}}
+\scriptsize
+\textbf{Chữ ký} (\texttt{gaussian\_renderer/\_\_init\_\_.py:18}):
+\begin{verbatim}
+render_structgs(viewpoint_camera, pc, pipe, bg_color, mult,
+                scaling_modifier=1.0, override_color=None,
+                get_flag=None, metric_map=None, compute_extra=False)
+\end{verbatim}
+\begin{columns}[T]
+\begin{column}{0.49\textwidth}
+\textbf{Field MỚI trong settings} (so với 3DGS gốc), \texttt{\_\_init\_\_.py:177--193}:
+\begin{itemize}\itemsep1pt
+    \item \texttt{mult : float} --- box multiplier, mặc định \texttt{opt.mult = 0.7} (\texttt{arguments/\_\_init\_\_.py:114}).
+    \item \texttt{get\_flag : bool} --- bật đếm \texttt{metricCount}.
+    \item \texttt{metric\_map : torch.Tensor} --- mask nhị phân $H\!\times\!W$ (int), mặc định tensor 0.
+    \item \texttt{compute\_extra : bool = False} --- bật depth/opacity/normal.
+\end{itemize}
+\textbf{Lưu ý}: \texttt{screenspace\_points} có shape $(N,4)$ chứ không phải $(N,3)$ (\texttt{:27}); \texttt{opacity} lấy từ \texttt{get\_opacity\_with\_3D\_filter}, \texttt{scales} từ \texttt{get\_scaling\_with\_3D\_filter} (\texttt{:63,74}) --- Mip-splatting 3D filter.
+\end{column}
+\begin{column}{0.49\textwidth}
+\textbf{10 key của \texttt{render\_pkg}} (\texttt{:118--127}):
+\begin{itemize}\itemsep0pt
+    \item \texttt{render} --- ảnh $3\times H\times W$
+    \item \texttt{viewspace\_points}, \texttt{means2D} --- tensor $(N,4)$ giữ grad
+    \item \texttt{visibility\_filter} $=$ \texttt{(radii>0).nonzero()} --- \textbf{chỉ số nguyên}, không phải mask bool
+    \item \texttt{radii}
+    \item \texttt{accum\_metric\_counts}
+    \item \texttt{\textbf{cov2D}} --- $(N,7)$, trái tim của nhánh tần số
+    \item \texttt{depth\_map}, \texttt{opacity\_map}, \texttt{normal\_map}
+\end{itemize}
+\end{column}
+\end{columns}
+\end{frame}
+
+% --- Frame 3 ---
+\begin{frame}{Tile-based rasterization \& alpha blending trong nhân CUDA}
+\scriptsize
+Ảnh được chia thành tile $16\times16$ (\texttt{cuda\_rasterizer/config.h:16--17}: \texttt{BLOCK\_X}=\texttt{BLOCK\_Y}=16, mỗi tile = 1 CUDA block, 256 thread = 256 pixel). Key sort 64-bit ghép $\big[\text{tileID}\;\big|\;\text{depth}\big]$ (\texttt{auxiliary.h:294--298}) nên sau radix-sort mỗi tile có danh sách Gaussian đã sắp theo độ sâu.
+\[
+\alpha_i=\min\!\Big(0.99,\;\sigma_{o,i}\exp\big(-\tfrac12\,d_i^\top\Sigma_{2D,i}^{-1}d_i\big)\Big),\qquad
+T_i=\prod_{j<i}(1-\alpha_j),\qquad
+C=\sum_i c_i\,\alpha_i\,T_i + T_{\text{last}}\,c_{bg}
+\]
+\begin{columns}[T]
+\begin{column}{0.47\textwidth}
+\begin{itemize}\itemsep1pt
+    \item Bỏ qua nếu $\alpha < 1/255$ (\texttt{forward.cu:438}).
+    \item \textbf{Early stop} cả block khi $T<10^{-4}$ (\texttt{forward.cu:440--444}).
+    \item $T$ được \textbf{lấy mẫu mỗi 32 Gaussian} vào \texttt{sampled\_T} $\Rightarrow$ backward chạy theo \textit{bucket} thay vì duyệt ngược (\texttt{forward.cu:412--419}).
+    \item \texttt{compute\_extra}: $D=\sum_i z_i\alpha_iT_i$, $\;O=1-T$, normal chuẩn hoá (\texttt{forward.cu:451--459, 499--517}).
+\end{itemize}
+\end{column}
+\begin{column}{0.51\textwidth}
+\centering
+\includegraphics[width=0.99\linewidth]{sadgsx/14_alpha_blending_transmittance.png}
+\captionof{figure}{\footnotesize Đóng góp $\alpha_iT_i$, màu tích luỹ và đường cong $T$ theo thứ tự depth; $T^{\max}$ được ghi về \texttt{cov2D[:,6]}.}
+\end{column}
+\end{columns}
+\end{frame}
+
+% --- Frame 4 ---
+\begin{frame}{\texttt{mult}: compact box thay cho hộp bao $3\sigma$}
+\scriptsize
+3DGS gốc gán tile bằng \textbf{AABB} quanh bán kính $r=\lceil 3\sqrt{\lambda_{\max}}\rceil$ --- hộp vuông, phủ rất nhiều tile mà Gaussian không hề đóng góp. SADGS thay bằng \textbf{compact box + AccuTile} (\texttt{auxiliary.h:311--375}): xác định chính xác ellipse mức
+\[
+\Omega_{\text{mult}}=\Big\{d:\;d^\top\Sigma_{2D}^{-1}d\;\le\;t\Big\},\qquad
+t=\underbrace{2\ln\!\big(255\,\sigma_o\big)}_{\text{ngưỡng }\alpha=1/255}\times\;\texttt{mult}
+\]
+(\texttt{auxiliary.h:332--333}: \texttt{float t = 2.0f*log(con\_o.w*255.0f); t = mult*t;}) rồi cắt ellipse theo từng \textit{slice} tile (theo trục có ít tile hơn, \texttt{auxiliary.h:366}) để đếm đúng tile giao.
+\begin{columns}[T]
+\begin{column}{0.53\textwidth}
+\centering
+\includegraphics[width=0.99\linewidth]{sadgsx/14_mult_vs_3sigma.png}
+\captionof{figure}{\footnotesize Vùng ảnh hưởng theo \texttt{mult} so với AABB $3\sigma$, và số tile $16\times16$ phải xử lý.}
+\end{column}
+\begin{column}{0.45\textwidth}
+\begin{itemize}\itemsep1pt
+    \item \texttt{mult} \textbf{nhỏ hơn 1} $\Rightarrow$ siết ngưỡng $\alpha$: cắt bỏ phần đuôi Gaussian mà $\alpha$ vốn đã $<1/255$.
+    \item \texttt{radii} vẫn tính theo $3\sqrt{\lambda_{\max}}$ (\texttt{forward.cu:263}) --- dùng cho \texttt{visibility\_filter}, KHÔNG dùng để gán tile nữa.
+    \item Gaussian bị loại sớm nếu ellipse suy biến: \texttt{con\_o.x<=0 || con\_o.z<=0 || disc>=0} (\texttt{auxiliary.h:325}).
+    \item Cùng một hàm \texttt{duplicateToTilesTouched} được gọi \textbf{hai lần}: đếm (\texttt{forward.cu:268}) rồi ghi key (\texttt{rasterizer\_impl.cu:144}) --- đảm bảo nhất quán.
+\end{itemize}
+\end{column}
+\end{columns}
+\end{frame}
+
+% --- Frame 5 ---
+\begin{frame}{Đánh đổi tốc độ / chất lượng theo \texttt{mult}}
+\scriptsize
+\begin{columns}[T]
+\begin{column}{0.50\textwidth}
+Sai số cắt tại biên hộp:
+\[
+\alpha_{\text{biên}}=\sigma_o\,e^{-t/2}=\sigma_o\big(255\,\sigma_o\big)^{-\texttt{mult}}
+\]
+\begin{itemize}\itemsep1pt
+    \item \texttt{mult}$=1$: $\alpha_{\text{biên}}=1/255$ --- đúng ngưỡng mà nhân render đã bỏ qua $\Rightarrow$ \textbf{không mất mát}.
+    \item \texttt{mult}$<1$: cắt sớm hơn, một phần $\alpha\in[\alpha_{\text{biên}},1/255]$ bị loại --- gần như không nhìn thấy nhưng số tile giảm mạnh.
+    \item \texttt{mult}$>1$: phủ rộng hơn ngưỡng cần thiết $\Rightarrow$ chỉ tốn thời gian.
+    \item Chi phí render $\propto$ số cặp (tile, Gaussian) $=\sum_i$\texttt{tiles\_touched}$_i$, quyết định độ dài mảng key cần radix-sort.
+    \item SADGS chọn \textbf{\texttt{opt.mult}$=0.7$} (\texttt{arguments/\_\_init\_\_.py:114}, chú thích gốc: \textit{``multiplier for the compact box to control the tile number of each splat''}).
+\end{itemize}
+\end{column}
+\begin{column}{0.48\textwidth}
+\centering
+\includegraphics[width=0.99\linewidth]{sadgsx/14_cost_vs_mult.png}
+\captionof{figure}{\footnotesize Chi phí render (trái) và sai số cắt $\alpha_{\text{biên}}$ (phải, log) theo \texttt{mult}.}
+\end{column}
+\end{columns}
+\end{frame}
+
+% --- Frame 6 ---
+\begin{frame}{Sơ đồ tile $16\times16$ và footprint của một Gaussian}
+\scriptsize
+\begin{columns}[T]
+\begin{column}{0.55\textwidth}
+\centering
+\includegraphics[width=0.98\linewidth]{sadgsx/14_tile_grid_footprint.png}
+\captionof{figure}{\footnotesize Tile SADGS thực sự đưa vào danh sách (xanh) so với vùng thừa của AABB $3\sigma$ (hồng).}
+\end{column}
+\begin{column}{0.43\textwidth}
+\textbf{Pipeline mỗi frame} (\texttt{rasterizer\_impl.cu}):
+\begin{enumerate}\itemsep1pt
+    \item \texttt{preprocessCUDA}: frustum cull $\to$ \texttt{computeCov3D} $\to$ \texttt{computeCov2D} (EWA) $\to$ nghịch đảo thành \texttt{conic} $\to$ \texttt{duplicateToTilesTouched(\dots,nullptr)} chỉ để \textbf{đếm}.
+    \item Prefix-sum \texttt{tiles\_touched} $\to$ tổng số cặp.
+    \item \texttt{duplicateWithKeys} (\texttt{:120--149}) ghi key $\big[\text{tile}|\text{depth}\big]$, \textbf{có truyền \texttt{mult}} (\texttt{:122,144}).
+    \item Radix-sort theo key $\to$ \texttt{identifyTileRanges}.
+    \item \texttt{renderCUDA}: mỗi block nạp Gaussian vào shared memory theo lô 256, alpha-blend đến khi $T<10^{-4}$.
+\end{enumerate}
+\textbf{Điểm mấu chốt}: \texttt{mult} \textbf{không} ảnh hưởng công thức $\alpha$ --- nó chỉ quyết định \textit{Gaussian nào được đưa vào tile nào}, nên giảm \texttt{mult} là giảm công việc chứ không làm sai blending.
+\end{column}
+\end{columns}
+\end{frame}
+
+% --- Frame 7 ---
+\begin{frame}[fragile]{\texttt{cov2D} $(N,7)$: kênh dữ liệu GPU $\to$ CPU cho $\eta$}
+\scriptsize
+Tensor được cấp phát ở \texttt{rasterize\_points.cu:92} --- \texttt{torch::full(\{P,7\},0.0)} --- và ghi tại hai nơi khác nhau trong nhân CUDA:
+\vspace{0.1cm}
+\centering
+\begin{tabular}{clll}
+\toprule
+\textbf{Cột} & \textbf{Nội dung} & \textbf{Ghi ở đâu} & \textbf{Dùng làm gì ở CPU}\\
+\midrule
+0,1,2 & $\Sigma_{2D}=[\,\sigma_{xx},\sigma_{xy},\sigma_{yy}\,]$ & \texttt{forward.cu:241--243} & Cholesky jitter lấy mẫu trong ellipse $1\sigma$\\
+3,4 & \texttt{ndc2Pix}$(x,y)$ --- tâm theo pixel & \texttt{forward.cu:244--245} & tra cứu structure tensor tại điểm chiếu\\
+5 & \texttt{p\_view.z} --- độ sâu view-space & \texttt{forward.cu:246} & quy đổi tần số ảnh $\leftrightarrow$ kích thước 3D\\
+6 & $T^{\max}$ --- transmittance lớn nhất & \texttt{forward.cu:470} \texttt{atomicMax} & lọc Gaussian bị che\\
+\bottomrule
+\end{tabular}
+\raggedright
+\vspace{0.15cm}
+\begin{columns}[T]
+\begin{column}{0.48\textwidth}
+\centering
+\includegraphics[width=0.99\linewidth]{sadgsx/14_cov2d_dataflow.png}
+\captionof{figure}{\footnotesize Đường đi của \texttt{cov2D} từ nhân CUDA tới \texttt{update\_freq\_stats\_online}.}
+\end{column}
+\begin{column}{0.50\textwidth}
+\textbf{Thủ thuật \texttt{atomicMax} trên float}: cột 6 được khởi tạo $0$ ở \texttt{preprocess} rồi mỗi pixel gọi
+\begin{verbatim}
+atomicMax((int*)&cov2Ds[id*7+6],
+          __float_as_int(T));
+\end{verbatim}
+--- ép kiểu bit-pattern float sang int, hợp lệ vì $T\in[0,1]$ luôn dương nên thứ tự bit trùng thứ tự số thực. Nhờ đó lấy được $\max$ trên toàn ảnh mà không cần buffer phụ.
+\vspace{0.1cm}
+\\ \texttt{cov2D} cũng được \texttt{save\_for\_backward} (\texttt{\_\_init\_\_.py:112}) nhưng gradient của nó bị bỏ qua (\texttt{backward(\dots,\_cov2D,\dots)}, \texttt{:116}) --- đây là kênh \textbf{thống kê một chiều}, không tham gia tối ưu.
+\end{column}
+\end{columns}
+\end{frame}
+
+% --- Frame 8 ---
+\begin{frame}[fragile]{$T^{\max}$ làm ngưỡng lọc thống kê tần số}
+\scriptsize
+\begin{columns}[T]
+\begin{column}{0.47\textwidth}
+Trong \texttt{utils/freq\_utils.py:181--207}, \texttt{cov2D} được chỉ số hoá theo \texttt{visibility\_filter} rồi tách:
+\begin{verbatim}
+means2D  = current_cov2D[:, 3:5]
+depths   = current_cov2D[:, 5]
+max_transmittance = current_cov2D[:, 6]
+\end{verbatim}
+và mask hoạt động là
+\[
+\mathcal{M}=\big(T^{\max}>\tau_T\big)\wedge\big(\sigma_o>\tau_o\big)\wedge\big(\lVert\nabla_{xy}\rVert>\tau_g\big)
+\]
+\begin{itemize}\itemsep1pt
+    \item $\tau_T=$ \texttt{freq\_transmittance\_threshold} $=0.0$ (\texttt{arguments/\_\_init\_\_.py:146})
+    \item $\tau_o=$ \texttt{freq\_opacity\_threshold} $=0.05$ (\texttt{:145})
+    \item $\tau_g=$ \texttt{freq\_grad\_threshold} $=2\times10^{-5}$ (\texttt{:123})
+\end{itemize}
+\textbf{Ý nghĩa}: $T^{\max}$ nhỏ $\Rightarrow$ Gaussian luôn nằm sau một lớp đã đục $\Rightarrow$ nó không quyết định tần số quan sát được, đưa vào thống kê chỉ gây nhiễu cho $\eta$. Tăng $\tau_T$ là siết thống kê về \textbf{lớp bề mặt nhìn thấy trực tiếp}.
+\end{column}
+\begin{column}{0.51\textwidth}
+\centering
+\includegraphics[width=0.99\linewidth]{sadgsx/14_transmittance_filter.png}
+\captionof{figure}{\footnotesize Mask lọc theo $(T^{\max},\sigma_o)$ và tỉ lệ Gaussian còn lại khi tăng $\tau_T$.}
+\end{column}
+\end{columns}
+\end{frame}
+
+% --- Frame 9 ---
+\begin{frame}{Tổng kết: SADGS đã sửa gì trong CUDA so với 3DGS gốc}
+\scriptsize
+\centering
+\begin{tabular}{p{3.0cm}p{4.3cm}p{4.9cm}}
+\toprule
+\textbf{Hạng mục} & \textbf{3DGS gốc} & \textbf{SADGS (\texttt{\_structgs})}\\
+\midrule
+Gán tile & \texttt{getRect} + AABB quanh $3\sqrt{\lambda_{\max}}$ & \texttt{duplicateToTilesTouched} --- compact box $t=\texttt{mult}\cdot 2\ln(255\sigma_o)$ + AccuTile cắt theo slice (\texttt{auxiliary.h:311})\\
+Tham số mới & --- & \texttt{mult}, \texttt{get\_flag}, \texttt{metric\_map}, \texttt{compute\_extra}\\
+Xuất $\Sigma_{2D}$ & không & \texttt{cov2Ds[7i+0..2]} + tâm pixel + depth (\texttt{forward.cu:241--247})\\
+Xuất transmittance & chỉ \texttt{final\_T} theo pixel & thêm $T^{\max}$ \textbf{theo Gaussian} qua \texttt{atomicMax} (\texttt{forward.cu:470})\\
+Đầu ra phụ & không & \texttt{depth\_map}, \texttt{opacity\_map}, \texttt{normal\_map} khi \texttt{compute\_extra} (normal suy từ trục $z$ của quaternion, \texttt{forward.cu:291--300})\\
+Đếm theo mask & không & \texttt{metricCount} atomicAdd khi \texttt{metric\_map[pix]==1} (\texttt{forward.cu:461--467})\\
+Backward & duyệt ngược toàn tile & chia \textbf{bucket 32 Gaussian}, lưu \texttt{sampled\_T}/\texttt{sampled\_ar}, trả thêm \texttt{num\_buckets}, \texttt{sampleBuffer}\\
+Optimizer & Adam PyTorch & \texttt{SparseGaussianAdam} fused CUDA theo \texttt{visibility} (\texttt{\_\_init\_\_.py:249--276})\\
+\bottomrule
+\end{tabular}
+\raggedright
+\vspace{0.2cm}
+\textbf{Ba câu chốt}:
+\begin{enumerate}\itemsep1pt
+    \item \texttt{mult} là \textbf{nút vặn tốc độ}: thu nhỏ vùng ảnh hưởng $\Rightarrow$ ít cặp (tile, Gaussian) $\Rightarrow$ sort ngắn hơn, ít vòng blending hơn; tại $0.7$ phần bị cắt có $\alpha$ nhỏ hơn cả ngưỡng $1/255$ vốn đã bị nhân render bỏ qua.
+    \item \texttt{cov2D} biến rasterizer thành \textbf{cảm biến}: hình dạng chiếu, vị trí, độ sâu và độ nhìn thấy của từng Gaussian được trả thẳng về Python trong cùng lượt forward, không cần render lại.
+    \item $T^{\max}$ là \textbf{bộ lọc độ tin cậy}: chỉ Gaussian thực sự lộ ra mới được góp phiếu vào thống kê tần số $\eta$ dẫn dắt densify.
+\end{enumerate}
+\end{frame}

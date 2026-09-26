@@ -1,0 +1,95 @@
+% ============================================================
+% PHẦN SADGS — Slide 7/8: Prune cuối theo multi-view consistency (final_prune_structgs)
+% ============================================================
+
+\begin{frame}{Vì sao cần một bước dọn dẹp riêng sau densify?}
+\footnotesize
+\begin{itemize}
+    \item Trong suốt vòng lặp \texttt{densify\_from\_iter}..\texttt{densify\_until\_iter}, việc prune (Slide 6) chỉ dựa trên \textbf{tín hiệu cục bộ mỗi 100 vòng}: opacity thấp, \texttt{low\_ratio} theo $\eta$, bán kính/scale vượt ngưỡng -- tất cả đều là chẩn đoán \textbf{trong lúc mô hình còn đang thay đổi}.
+    \item Sau khi ngừng densify, một số Gaussian vẫn còn tồn tại dù không thực sự "thật": chúng chỉ khớp tốt với 1--2 camera train (do occlusion sai, do khởi tạo COLMAP nhiễu) nhưng \textbf{không được xác nhận nhất quán bởi nhiều góc nhìn khác} -- đây chính là hiện tượng \textbf{floater} kinh điển của 3D Gaussian Splatting.
+    \item SADGS giải quyết bằng \texttt{final\_prune\_structgs}: một bước tỉa \textbf{riêng biệt, dựa trên multi-view reconstruction consistency} thay vì gradient/$\eta$ -- tính điểm \texttt{pruning\_score} bằng cách đối chiếu tái tạo giữa nhiều camera cho cùng một Gaussian.
+    \item Trực giác: nếu một Gaussian chỉ "giải thích tốt" ảnh từ 1 view nhưng gây lỗi tái tạo lớn khi nhìn từ các view khác $\Rightarrow$ nghi ngờ cao là floater, không phải hình học thật.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Công thức: ngưỡng opacity/consistency và trọng số lấy mẫu}
+\footnotesize
+\begin{itemize}
+    \item Điều kiện đề xuất xoá trong \texttt{final\_prune\_structgs(min\_opacity, pruning\_score)}:
+\end{itemize}
+\[
+\text{prune\_mask} = (\alpha < \texttt{min\_opacity}{=}0.1) \ \vee\ (\text{pruning\_score} > 0.9)
+\]
+\begin{itemize}
+    \item \texttt{pruning\_score} $\in [0,1]$ càng gần $1$ $\Rightarrow$ Gaussian càng \textbf{không nhất quán} giữa các view (floater); ngưỡng cứng $0.9$ dùng để loại các trường hợp rõ ràng nhất.
+    \item Cùng họ với cơ chế multinomial đã thấy ở \texttt{densify\_and\_prune\_structgs} (Slide 6): khi cần \textbf{ưu tiên} ai bị xoá trước trong một ngân sách giới hạn, trọng số lấy mẫu tỉ lệ nghịch với độ nhất quán:
+\end{itemize}
+\[
+w_i = \frac{1}{\varepsilon + (1-\text{pruning\_score}_i)} \qquad (\varepsilon{=}10^{-6})
+\]
+\begin{itemize}
+    \item \texttt{pruning\_score}$_i \to 1 \Rightarrow w_i \to$ lớn $\Rightarrow$ xác suất bị chọn xoá cao hơn -- nhưng vẫn là \textbf{lấy mẫu xác suất}, không phải xoá cứng tuyệt đối 100\% mọi ứng viên thoả \texttt{prune\_mask} cùng lúc.
+    \item Khác biệt so với prune trong vòng lặp: đây là bước \textbf{cuối cùng}, không còn cơ hội để mô hình "sửa sai" cho Gaussian bị xoá nhầm ở vòng tối ưu tiếp theo.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Ví dụ số: 3 Gaussian với pruning\_score khác nhau}
+\footnotesize
+Giả sử cả 3 Gaussian đều có $\alpha \ge 0.1$ (không bị xoá vì opacity), chỉ xét điều kiện \texttt{pruning\_score}:
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+Gaussian & pruning\_score & $\text{score}>0.9$? & Kết luận \\
+\midrule
+$G_1$ & $0.20$ & Không & \textbf{Giữ lại} -- nhất quán tốt giữa các view \\
+$G_2$ & $0.70$ & Không & \textbf{Giữ lại} -- chưa vượt ngưỡng, nhưng $w_2$ đã bắt đầu tăng \\
+$G_3$ & $0.95$ & \textbf{Có} & \textbf{Đề xuất xoá} -- floater rõ ràng \\
+\bottomrule
+\end{tabular}
+\end{center}
+\begin{itemize}
+    \item Trọng số minh hoạ (nếu dùng lấy mẫu ưu tiên): $w_1 \approx 1.25$, $w_2 \approx 3.33$, $w_3 \approx 20$ -- $G_3$ có xác suất bị chọn xoá cao gấp $\sim$16 lần $G_1$ nếu cả ba cùng nằm trong \texttt{prune\_mask}.
+    \item Trong trường hợp này chỉ $G_3$ thoả điều kiện ngưỡng cứng $(> 0.9)$ nên nằm gọn trong \texttt{prune\_mask}; $G_1, G_2$ không bị xoá dù $G_2$ đã "đáng ngờ" hơn -- minh hoạ vì sao ngưỡng $0.9$ được chọn khá cao: tránh xoá nhầm Gaussian chỉ hơi kém nhất quán.
+\end{itemize}
+\centering
+\includegraphics[width=0.42\linewidth]{fig_18_hist_reset.png}
+\captionof{figure}{\footnotesize Phân bố minh hoạ: đa số Gaussian tập trung ở pruning\_score thấp, một đuôi nhỏ vượt ngưỡng $0.9$ (floater)}
+\end{frame}
+
+\begin{frame}{\alert{Cảnh báo quan trọng}: lời gọi hiện đang bị comment trong \texttt{train.py}}
+\footnotesize
+\alert{Đây là điểm quan trọng nhất của slide này:} \texttt{final\_prune\_structgs} được \textbf{định nghĩa đầy đủ và đúng đắn} trong \texttt{scene/gaussian\_model.py} (khớp mô tả "multi-view consistency pruning" của paper), nhưng lời gọi của nó trong \texttt{train.py} \textbf{hiện đang bị comment out}:
+\begin{itemize}
+    \item Trong khối \texttt{if iteration in prune\_iterations:} (\texttt{train.py}, $\sim$dòng 412--419): dòng 416--417 vẫn chạy một prune \textbf{đơn giản} theo $\alpha < 0.1$ (\texttt{gaussians.prune\_points(prune\_mask)}).
+    \item Nhưng dòng tính \texttt{pruning\_score} (\texttt{compute\_gaussian\_score\_structgs}, \texttt{train.py:418}) \textbf{và} lời gọi \\ \texttt{gaussians.final\_prune\_structgs(min\_opacity = 0.1, pruning\_score = pruning\_score)} (\texttt{:419}) \alert{đều đang bị comment out}.
+    \item \alert{Hơn nữa}: hàm \texttt{compute\_gaussian\_score\_structgs} \textbf{không tồn tại} ở bất kỳ đâu trong \texttt{SADGS/}. Nghĩa là \texttt{pruning\_score} chưa hề có cách tính trong repo này; \texttt{train.py:369} truyền thẳng \texttt{pruning\_score=None} cho \texttt{densify\_and\_prune\_structgs}, nên nhánh multinomial cũng \textbf{không bao giờ} chạy.
+\end{itemize}
+\[
+\alert{\text{Thiết kế paper (multi-view consistency)}} \ \ne\ \ \text{Pipeline mặc định hiện tại (chỉ opacity threshold)}
+\]
+\begin{itemize}
+    \item \alert{Ý nghĩa:} đây là một tính năng \textbf{đã thiết kế, đã cài đặt, nhưng chưa được bật mặc định} trong luồng huấn luyện của repo này -- không suy đoán lý do (có thể đang thử nghiệm/đánh giá riêng); chỉ ghi nhận khoảng cách giữa paper và code thực thi.
+    \item Hệ quả: các số liệu/ví dụ ở 3 frame trước là đúng về \textbf{thiết kế và cài đặt}, nhưng \textbf{không phản ánh} hành vi mặc định khi chạy \texttt{train.py} ở trạng thái hiện tại của repo -- floater đa view \textbf{không} bị lọc thêm ngoài ngưỡng opacity đơn giản.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Tổng kết chuỗi 6 hàm densify+prune của SADGS}
+\footnotesize
+\[
+\underbrace{\text{đo }\eta\text{ đa view}}_{\text{Phần 1--2}} \to
+\underbrace{\text{clone}}_{\text{Phần 3}} \to
+\underbrace{\text{split dị hướng}}_{\text{Phần 4}} \to
+\underbrace{\text{expand undersized}}_{\text{Phần 5, \alert{off}}} \to
+\underbrace{\text{prune trong vòng}}_{\text{Phần 6}} \to
+\underbrace{\text{prune cuối multi-view}}_{\text{Phần 7, \alert{off}}}
+\]
+\begin{itemize}
+    \item \textbf{Đang chạy mặc định}: đo $\eta$ đa view, clone, split dị hướng, prune trong vòng (\texttt{densify\_and\_prune\_structgs} với ngưỡng opacity/radius/scale; \texttt{pruning\_score=None} nên nhánh multinomial \textbf{không} chạy), và một prune đơn giản $\alpha<0.1$ tại \texttt{prune\_iterations}$=[4000,8000]$.
+    \item \textbf{\alert{Đã cài đặt nhưng bị tắt}}: \texttt{expand\_undersized\_gs} (Phần 5) và \texttt{final\_prune\_structgs} (Phần 7, slide này) -- cả hai lời gọi đều bị comment trong \texttt{train.py} ở trạng thái hiện tại của repo.
+    \item Điểm chung: pipeline SADGS mặc định là một \textbf{tập con thận trọng} của thiết kế đầy đủ trong paper -- đo đa view + clone + split + prune cơ bản chạy ổn định, còn hai cơ chế "tinh chỉnh thêm" (giãn Gaussian dưới cỡ, dọn floater cuối) đang chờ được kích hoạt.
+    \item Slide 8 (tiếp theo): tổng kết chung toàn bộ phần SADGS -- so sánh với 3DGS gốc, kết quả benchmark, và checklist thiết kế paper vs. code thực thi.
+\end{itemize}
+\centering
+\includegraphics[width=0.4\linewidth]{fig_17_opacity_trajectory.png}
+\captionof{figure}{\footnotesize Toàn bộ chuỗi densify+prune: các bước tô đậm \alert{off} hiện không chạy mặc định trong \texttt{train.py}}
+\end{frame}

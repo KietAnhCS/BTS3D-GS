@@ -1,0 +1,223 @@
+% ===== BOT 15: Tổng hợp đầu-cuối SADGS — pipeline, so sánh 3 phương pháp, mô hình chi phí, rủi ro =====
+
+% --- Frame 1: Sơ đồ pipeline đầy đủ 1 iteration ---
+\begin{frame}{Pipeline đầy đủ của \emph{một} iteration SADGS (\texttt{train.py:202--440})}
+\scriptsize
+Các phần trước mô tả từng cơ chế riêng lẻ. Ở đây ta ghép chúng lại theo \textbf{đúng thứ tự thực thi} trong mã nguồn:
+\begin{columns}[T]
+\begin{column}{0.46\textwidth}
+\begin{enumerate}\setlength{\itemsep}{0pt}
+    \item \texttt{update\_learning\_rate} + \texttt{oneupSHdegree} (214--217)
+    \item Chọn camera: \texttt{random} hoặc \texttt{fps} (220--243)
+    \item \texttt{render\_structgs} $\to$ \texttt{image}, \texttt{cov2D[N,7]} (249--252)
+    \item Loss $\mathcal{L}=(1{-}\lambda)L_1+\lambda(1{-}\text{SSIM})+\lambda_{L2}L_2$ (256--259)
+    \item \texttt{loss.backward()} (263)
+    \item \texttt{update\_freq\_stats\_online} --- \alert{chỉ khi} \texttt{iteration\%10==0} (275--276)
+    \item \texttt{add\_densification\_stats} (318--319)
+\end{enumerate}
+\end{column}
+\begin{column}{0.46\textwidth}
+\begin{enumerate}\setcounter{enumi}{7}\setlength{\itemsep}{0pt}
+    \item \texttt{high\_ratio}/\texttt{low\_ratio} $\to$ \texttt{split\_mask}, \texttt{prune\_mask} (337--353)
+    \item \texttt{densify\_and\_prune\_structgs} (362--374)
+    \item Reset 9 bộ tích luỹ về 0 (377--386)
+    \item \texttt{reset\_opacity(0.1)} mỗi 3000 vòng (402--403)
+    \item Prune \texttt{opacity<0.1} tại \texttt{prune\_iterations} (412--417)
+    \item \texttt{optimizer.step()} + \texttt{zero\_grad} (422--434)
+\end{enumerate}
+\end{column}
+\end{columns}
+\vspace{1mm}
+\textbf{Điểm bất ngờ:} dòng 216 là \texttt{if iteration \% 1 == 0: gaussians.oneupSHdegree()} --- bậc SH tăng \textbf{mỗi vòng}, nên \texttt{active\_sh\_degree} chạm \texttt{max\_sh\_degree=3} chỉ sau 3 iteration (3DGS gốc: mỗi 1000 vòng). Toàn bộ 48 hệ số SH được tối ưu ngay từ đầu.
+\end{frame}
+
+% --- Frame 2: sơ đồ khối ---
+\begin{frame}{Sơ đồ khối: cái gì chạy mỗi vòng, cái gì chạy theo nhịp}
+\scriptsize
+\begin{center}
+\includegraphics[width=0.82\linewidth]{sadgsx/15_pipeline_blocks.png}
+\end{center}
+\vspace{-2mm}
+\captionof{figure}{\footnotesize Sơ đồ khối 13 bước của một iteration SADGS, màu theo nguồn gốc cơ chế; khối xám nét đứt là nhánh mặc định TẮT.}
+\vspace{1mm}
+\textbf{Nhịp kích hoạt} (các phép chia dư quyết định chi phí trung bình):
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+\textbf{Cơ chế} & \textbf{Điều kiện} & \textbf{Tần suất} \\
+\midrule
+Render + loss + backward & mỗi vòng ($\times$\texttt{batch\_size}) & $1/1$ \\
+\texttt{update\_freq\_stats\_online} & \texttt{iter<15000 and iter\%10==0} & $1/10$ \\
+\texttt{densify\_and\_prune\_structgs} & \texttt{iter>500 and iter\%100==0} & $1/100$ \\
+\texttt{reset\_opacity} & \texttt{iter\%3000==0} & $1/3000$ \\
+Prune \texttt{opacity<0.1} & \texttt{iter in \{4000,8000\}} & 2 lần \\
+\bottomrule
+\end{tabular}
+\end{center}
+\end{frame}
+
+% --- Frame 3: Bảng so sánh 2 cột ---
+\begin{frame}{Bảng so sánh theo \emph{cơ chế và chi phí}: 3DGS gốc / SADGS}
+\scriptsize
+\begin{table}
+\centering
+\begin{tabular}{p{2.6cm} p{4.6cm} p{5.2cm}}
+\toprule
+ & \textbf{3DGS gốc} & \textbf{SADGS} \\
+\midrule
+Tín hiệu densify &
+$\|\nabla_{\mathbf{x}_{2D}}\mathcal{L}\|\!\ge\!2{\cdot}10^{-4}$ &
+\textbf{AND} của grad ($\ge 10^{-5}$) với \texttt{high\_ratio}$>$\texttt{split\_ratio\_threshold}$=0.8$ \\[1mm]
+Kiểu split &
+$N{=}2$ bản sao, lấy mẫu từ $\mathcal{N}(0,\Sigma)$, chia scale cho $1.6$ &
+\textbf{dị hướng}: $k_{\text{axis}}{=}\lceil\sqrt{\eta_{\text{axis}}}\rceil$, lưới con, scale chia $k^{\texttt{ks\_scale\_power}}$ \\[1mm]
+Tiêu chí prune &
+$\alpha<0.005$; $r_{2D}{>}20$; $\sigma{>}0.1\,\text{extent}$ &
+thêm \texttt{low\_ratio}$>0.8$ (đa view) và ngưỡng $\alpha<0.1$ cao hơn 20$\times$ \\[1mm]
+Tham số mới &
+--- &
+\texttt{mult}$=0.7$ (compact box, tăng từ mặc định $0.5$), \texttt{dense}, \texttt{grad\_abs\_thresh} kế thừa từ rasterizer/optimizer nền, cộng \texttt{st\_levels}, \texttt{st\_mode}, \texttt{eta\_compute\_mode}, \texttt{split/prune\_ratio\_threshold}, \texttt{freq\_*\_threshold}, \texttt{ks\_scale\_power}, \texttt{tau\_expand} \\[1mm]
+Chi phí thêm &
+cơ sở $aN+bP+c$ &
+$a$ giảm nhờ compact box $3\sigma$, \texttt{mult}$=0.7$; cộng cache structure tensor (1 lần, $O(|\text{views}|\!\cdot\!P)$ RAM GPU) $+\;a_\eta N/10$ $+\;a_D N/100$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+\vspace{-1mm}
+$\Rightarrow$ SADGS \textbf{không thay} nền rasterization gốc; nó chỉ thêm \emph{một tầng tín hiệu} và \emph{một kiểu split} lên trên.
+\end{frame}
+
+% --- Frame 4: Radar ---
+\begin{frame}{Biểu đồ radar: đánh đổi giữa chất lượng tín hiệu và độ phức tạp}
+\scriptsize
+\begin{columns}[T]
+\begin{column}{0.48\textwidth}
+\begin{center}
+\includegraphics[width=0.99\linewidth]{sadgsx/15_radar.png}
+\end{center}
+\end{column}
+\begin{column}{0.48\textwidth}
+\vspace{4mm}
+Sáu trục, thang $1$--$5$, chấm điểm \emph{định tính} từ đặc tính đọc được trong mã nguồn:
+\begin{itemize}\setlength{\itemsep}{1pt}
+    \item \textbf{Tín hiệu densify}: SADGS $5$ --- kết hợp gradient + tần số + đa view.
+    \item \textbf{Split có cấu trúc}: chỉ SADGS có split dị hướng theo trục.
+    \item \textbf{Tiết kiệm $N$}: prune \texttt{low\_ratio}$>0.8$ + ngưỡng $\alpha<0.1$ cắt mạnh hơn.
+    \item \textbf{Tốc độ/iteration}: SADGS thấp hơn ADC gốc vì trả thêm $a_\eta N/10$ và $a_D N/100$ --- nhưng bù lại bằng $N$ nhỏ hơn.
+    \item \textbf{Độ đơn giản}: SADGS thấp nhất --- thêm $\ge 17$ tham số mới, trong đó 6 tham số là dead code.
+\end{itemize}
+\vspace{1mm}
+$\Rightarrow$ Diện tích radar \emph{không} nói ai tốt hơn; nó nói SADGS \textbf{đổi độ đơn giản lấy chất lượng tín hiệu}.
+\end{column}
+\end{columns}
+\captionof{figure}{\footnotesize So sánh 6 trục giữa 3DGS gốc và SADGS; thang 1--5 định tính, không phải số đo benchmark.}
+\end{frame}
+
+% --- Frame 5: Mô hình chi phí ---
+\begin{frame}{Mô hình chi phí thời gian mỗi iteration}
+\scriptsize
+Gọi $N$ là số Gaussian, $P$ số pixel của ảnh huấn luyện. Chi phí trung bình một vòng:
+\begin{equation*}
+\boxed{\;
+t_{\text{iter}} \;=\; \underbrace{a\,N}_{\text{forward+backward+Adam}}
+\;+\; \underbrace{b\,P}_{\text{rasterize/blend}}
+\;+\; \underbrace{c}_{\text{overhead cố định}}
+\;+\; \underbrace{\frac{a_\eta N}{10}}_{\text{freq stats}}
+\;+\; \underbrace{\frac{a_D N}{100}}_{\text{densify+prune}} \;}
+\end{equation*}
+Ba số hạng đầu là mô hình chung của mọi biến thể 3DGS; hai số hạng cuối là phần \emph{riêng} của SADGS, đã được chia cho chu kỳ kích hoạt ($10$ và \texttt{densification\_interval}$=100$).
+\begin{center}
+\includegraphics[width=0.85\linewidth]{sadgsx/15_cost_model.png}
+\end{center}
+\vspace{-1.5mm}
+\captionof{figure}{\footnotesize Trái: $t_{\text{iter}}$ tuyến tính theo $N$ ở nhiều cấu hình (độ phân giải, compact box). Phải: phân rã 5 số hạng tại $N{=}2.4$M, 1080p. Hệ số $a,b,c$ là giá trị minh hoạ để thấy \emph{tỉ lệ}, không phải số đo trên máy cụ thể.}
+\vspace{1mm}
+\textbf{Hệ quả:} vì $t_{\text{iter}}$ tuyến tính theo $N$, mọi cơ chế \emph{giảm $N$} có hiệu ứng nhân trên toàn bộ 30k vòng --- đây là lý do prune đa view đáng giá hơn nhiều so với việc tối ưu vi mô một kernel.
+\end{frame}
+
+% --- Frame 6: Waterfall ---
+\begin{frame}{Các đòn bẩy giảm chi phí: biểu đồ thác nước}
+\scriptsize
+Tách $t_{\text{iter}}$ theo từng đòn bẩy, mỗi đòn bẩy tác động lên \emph{một} số hạng của công thức:
+\begin{center}
+\includegraphics[width=0.74\linewidth]{sadgsx/15_waterfall.png}
+\end{center}
+\vspace{-2mm}
+\captionof{figure}{\footnotesize Đóng góp từng đòn bẩy; xanh = giảm chi phí, cam = chi phí phải trả thêm. Giá trị minh hoạ.}
+\vspace{1mm}
+\begin{tabular}{lll}
+\toprule
+\textbf{Đòn bẩy} & \textbf{Tác động lên} & \textbf{Vị trí trong code} \\
+\midrule
+Compact box $3\sigma$, \texttt{mult}$=0.7$ & hệ số $a$ (số tile/splat) & \texttt{arguments/\_\_init\_\_.py:114} \\
+\texttt{optimizer\_type="hybrid"} & hệ số $a$ (chỉ update điểm visible) & \texttt{train.py:429--434} \\
+Prune \texttt{low\_ratio}$>0.8$ & biến $N$ & \texttt{train.py:353} \\
+Freq stats mỗi 10 vòng & chia $a_\eta$ cho 10 & \texttt{train.py:275} \\
+\texttt{densification\_interval}$=100$ & chia $a_D$ cho 100 & \texttt{arguments/\_\_init\_\_.py:87} \\
+\alert{Chi phí phải trả} & $+a_\eta$, split dị hướng sinh nhiều con & \texttt{train.py:276}, \texttt{gaussian\_model.py:638} \\
+\bottomrule
+\end{tabular}
+\end{frame}
+
+% --- Frame 7: Cơ chế cài nhưng KHÔNG chạy ---
+\begin{frame}{\alert{Trung thực}: những gì đã cài nhưng KHÔNG chạy ở cấu hình mặc định}
+\scriptsize
+\textbf{(a) Lời gọi bị comment trong \texttt{train.py}} --- code tồn tại, nhưng không bao giờ được thực thi:
+\begin{center}
+\begin{tabular}{p{1.9cm} p{5.2cm} p{4.5cm}}
+\toprule
+\textbf{Dòng} & \textbf{Nội dung bị tắt} & \textbf{Hệ quả} \\
+\midrule
+\texttt{356--359} & \texttt{gaussians.expand\_undersized\_gs(tau\_expand, avg\_high\_eta\_3ch)} & Gaussian \emph{dưới cỡ} không bao giờ được giãn lại; biến \texttt{avg\_high\_eta\_3ch} tính ở 348--350 trở thành vô dụng \\
+\texttt{418--419} & \texttt{compute\_gaussian\_score\_structgs} + \texttt{final\_prune\_structgs} & Tỉa cuối theo nhất quán đa view không chạy; chỉ còn prune \texttt{opacity<0.1} ở dòng 416--417 \\
+\texttt{393--400} & Prune đa view trong nhánh warmup & Cộng thêm \texttt{warmup\_densification=False} $\Rightarrow$ cả nhánh 388--400 là code chết \\
+\texttt{306} & \texttt{training\_report(...)} & Không log PSNR/SSIM/LPIPS trong lúc train; \texttt{tb\_writer} được tạo nhưng không ghi gì \\
+\texttt{442} & \texttt{scene.save(iteration)} & Không tự lưu ở vòng cuối --- chỉ lưu tại \texttt{save\_iterations} \\
+\texttt{197--199} & Lưu ảnh structure tensor & Thư mục \texttt{structure\_tensors/} vẫn được tạo (166) nhưng luôn rỗng \\
+\bottomrule
+\end{tabular}
+\end{center}
+\textbf{(b) Nhánh chết do đối số truyền vào:} \texttt{train.py:369} truyền \texttt{pruning\_score=None} $\Rightarrow$ khối lấy mẫu ngẫu nhiên \texttt{remove\_budget = int(0.5*to\_remove)} (\texttt{gaussian\_model.py:1029--1042}) không bao giờ chạy; \texttt{train.py:372} truyền \texttt{viewspace\_points\_indices=None} $\Rightarrow$ nhánh scatter theo chỉ số (\texttt{gaussian\_model.py:978--988}) không chạy.\\[1mm]
+\textbf{(c) Tính toán dư:} \texttt{train.py:257} tính \texttt{Ll2} mỗi vòng; nếu \texttt{lambda\_l2} bị đặt $0$ thì đây là chi phí thuần. \texttt{train.py:262} và \texttt{266} có \texttt{\#/ opt.batch\_size} và \texttt{\#* opt.batch\_size} bị comment $\Rightarrow$ với \texttt{batch\_size>1} gradient \textbf{cộng dồn chứ không trung bình}, learning rate hiệu dụng tăng $\times$\texttt{batch\_size}.
+\end{frame}
+
+% --- Frame 8: Timeline nhánh bị tắt ---
+\begin{frame}{Timeline 30k iteration: nơi các nhánh bị tắt \emph{lẽ ra} phải kích hoạt}
+\scriptsize
+\begin{center}
+\includegraphics[width=0.84\linewidth]{sadgsx/15_timeline_disabled.png}
+\end{center}
+\vspace{-2mm}
+\captionof{figure}{\footnotesize Dấu $\times$ đỏ = thời điểm nhánh bị comment lẽ ra phải chạy. Hai vùng màu: giai đoạn densify (500--15000) và giai đoạn chỉ tối ưu (15000--30000).}
+\vspace{1mm}
+\textbf{Cờ mặc định khiến nhánh không bao giờ vào} (\texttt{arguments/\_\_init\_\_.py}):
+\begin{center}
+\begin{tabular}{llll}
+\toprule
+\texttt{sample\_bbox\_faces=False} (129) & \texttt{compute\_3d\_filter=False} (132) & \texttt{warmup\_densification=False} (130) \\
+\texttt{camera\_sampling="random"} (131) & \texttt{batch\_size=1} (147) & \texttt{adaptive\_clone=False} (136) \\
+\texttt{scale\_rotation\_scheduler=False} (154) & \texttt{sample\_far\_plane=False} (141) & \texttt{lambda\_freq=0.} (119), \texttt{lambda\_tone=0.} (118) \\
+\bottomrule
+\end{tabular}
+\end{center}
+\vspace{1mm}
+$\Rightarrow$ Tổng cộng: \textbf{6 lời gọi bị comment} $+$ \textbf{10 cờ mặc định tắt} $+$ \textbf{2 nhánh chết do đối số} $+$ 6 tham số dead code. Phần \emph{thực sự chạy} của SADGS là: structure tensor cache $\to$ \texttt{update\_freq\_stats\_online} $\to$ \texttt{high/low\_ratio} $\to$ \texttt{densify\_and\_prune\_structgs} (clone + split dị hướng + prune).
+\end{frame}
+
+% --- Frame 9: Giới hạn & hướng mở rộng ---
+\begin{frame}{Giới hạn của bản cài đặt \& hướng mở rộng}
+\scriptsize
+\textbf{Giới hạn ở khâu \emph{đo đạc}} (\texttt{render.py}, \texttt{metrics.py}, \texttt{full\_eval.py}):
+\begin{itemize}\setlength{\itemsep}{1pt}
+    \item \texttt{render.py:40--44} đo FPS bằng \texttt{time.time()} \emph{không} có \texttt{torch.cuda.synchronize()} $\Rightarrow$ CUDA bất đồng bộ khiến con số FPS báo cáo có thể \textbf{lạc quan}; chỉ vòng lặp có \texttt{save\_image} (46--47) mới ép đồng bộ ngầm.
+    \item \texttt{metrics.py:74--76} dùng \texttt{ssim} chuẩn (cửa sổ Gauss $11{\times}11$, \texttt{loss\_utils.py:46}) và \texttt{lpips(net\_type='vgg')}, \emph{khác} với \texttt{fused\_ssim} dùng khi train (\texttt{train.py:18,258}) $\Rightarrow$ SSIM lúc train và SSIM báo cáo không cùng một hàm.
+    \item \texttt{metrics.py:94--95} bọc toàn bộ trong \texttt{except:} trần $\Rightarrow$ mọi lỗi bị nuốt thành một dòng ``Unable to compute metrics''; không phân biệt thiếu file với lỗi CUDA.
+    \item \alert{\texttt{full\_eval.py} không chạy được như đang viết}: các lệnh sinh ra ở dòng 90, 95, 121 truyền \texttt{--budget}, \texttt{--mode}, \texttt{--sh\_lower} cho \texttt{train.py}, nhưng ba tham số này \textbf{không được khai báo} ở bất kỳ đâu trong \texttt{arguments/\_\_init\_\_.py} hay \texttt{train.py} $\Rightarrow$ \texttt{argparse} sẽ báo lỗi. Thêm nữa \texttt{full\_eval.py:151--153} ghi \texttt{timing.txt} từ \texttt{m360\_timing} --- biến chưa gán nếu dùng \texttt{--skip\_training}.
+\end{itemize}
+\textbf{Giới hạn ở khâu \emph{mô hình}:}
+\begin{itemize}\setlength{\itemsep}{1pt}
+    \item Structure tensor được cache cho \emph{mọi} camera huấn luyện trước vòng lặp (\texttt{train.py:160--200}) --- bộ nhớ $O(|\text{views}|\cdot 3HW)$ nằm thường trú trên GPU, là nút thắt ở cảnh độ phân giải cao.
+    \item $\eta$ đo trên ảnh \emph{ground truth}, không phải trên ảnh render $\Rightarrow$ tín hiệu tần số là \emph{tĩnh}; nếu Gaussian đã đủ mịn, $\eta$ vẫn báo ``cần split''. Ngưỡng gradient ở \texttt{train.py:333} ($10^{-5}$) là chốt chặn duy nhất chống bùng nổ $N$.
+\end{itemize}
+\textbf{Hướng mở rộng theo thứ tự ưu tiên:} (1) bật lại \texttt{expand\_undersized\_gs} và \texttt{final\_prune\_structgs} rồi đo chênh lệch; (2) bổ sung \texttt{--budget/--mode/--sh\_lower} vào \texttt{arguments} để \texttt{full\_eval.py} chạy được; (3) thêm \texttt{cuda.synchronize()} trước khi đo FPS; (4) thống nhất hàm SSIM giữa train và metrics; (5) khôi phục chia \texttt{batch\_size} ở \texttt{train.py:262} trước khi dùng \texttt{batch\_size>1}.
+\end{frame}

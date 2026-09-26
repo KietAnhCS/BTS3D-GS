@@ -1,0 +1,105 @@
+% ============================================================
+% PHẦN SADGS — Slide 4/8: Giãn Gaussian dưới cỡ (expand_undersized_gs)
+% ============================================================
+
+\begin{frame}{Vì sao cần "giãn ngược" -- Gaussian quá nhỏ cũng lãng phí ngân sách \alert{(cơ chế này KHÔNG chạy mặc định, xem Slide 4.5)}}
+\footnotesize
+\begin{itemize}
+    \item \alert{Lưu ý ngay từ đầu:} \texttt{expand\_undersized\_gs} được \textbf{định nghĩa đầy đủ} trong \texttt{gaussian\_model.py}, nhưng lời gọi duy nhất tới nó trong \texttt{train.py:356--359} \textbf{đang bị comment out} -- mặc định SADGS \textbf{không} chạy bước "giãn ngược" mô tả dưới đây, chỉ clone/split. Chi tiết ở frame cuối và ở \texttt{part\_sadgsx\_06}.
+    \item ADC gốc (3DGS) chỉ có 2 phản ứng khi Gaussian sai cỡ: \textbf{clone} (nhân bản, cho vùng thiếu điểm) và \textbf{split} (chia nhỏ, cho vùng thừa điểm) -- không có cơ chế \textbf{thu gọn số lượng} khi một vùng đã bị chia \emph{quá mức cần thiết}.
+    \item SADGS đo $\eta = \text{axis}_k / w_{\min}$ (\texttt{freq\_utils.py:348}): tỉ số giữa độ dài trục chiếu màn hình của Gaussian và bước sóng cục bộ của texture -- đã dùng để \textbf{chia} khi $\eta$ quá lớn (Slide 3). \alert{Lưu ý:} docstring của \texttt{expand\_undersized\_gs} (\texttt{gaussian\_model.py:838}) lại giả định $\eta=(\sigma\omega)^2$ -- một mâu thuẫn với $\eta$ tuyến tính thực sự được tính (hệ quả ở slide sau).
+    \item Chiều ngược lại: nếu $\eta$ \textbf{quá nhỏ} ($0 < \eta < \tau_{\text{expand}}$, tham số \texttt{tau\_expand}, mặc định $1.0$), Gaussian đang \emph{mờ hơn mức cần thiết} so với chi tiết cục bộ -- một Gaussian to hơn có thể phủ đúng vùng đó mà \textbf{không mất chi tiết} và không tốn thêm 1 điểm nào trong ngân sách.
+    \item Đây là đòn bẩy thứ ba của SADGS bên cạnh clone/split: \textbf{sửa scale tại chỗ bằng công thức giải tích}, không cần thêm/xoá Gaussian, không cần lặp gradient descent.
+\end{itemize}
+\end{frame}
+
+% --- Slide mới: công thức giải tích ---
+\begin{frame}{Công thức giải tích: co/giãn đúng \emph{một bước} tới biên Nyquist}
+\footnotesize
+\begin{itemize}
+    \item Mục tiêu đặt ra trong docstring: $\eta_{\text{new}} = 1$. Với \emph{giả định} $\eta\propto\sigma^2$ của docstring (\texttt{gaussian\_model.py:837--840}):
+\end{itemize}
+\[
+\eta_{\text{new}} = \Big(\frac{\sigma_{\text{target}}}{\sigma_{\text{old}}}\Big)^2 \eta_{\text{old}} = 1
+\;\Longrightarrow\;
+\sigma_{\text{target}} = \frac{\sigma_{\text{old}}}{\sqrt{\eta_{\text{old}}}}
+\]
+\begin{itemize}
+    \item Vì scale được lưu trong \textbf{log-space} (\texttt{self.\_scaling}, qua \texttt{scaling\_inverse\_activation}), phép chia trên trở thành một \textbf{phép cộng trực tiếp}:
+\end{itemize}
+\[
+\log\sigma_{\text{target}} = \log\sigma_{\text{old}} - \tfrac12\log\eta_{\text{old}}
+\quad\Longleftrightarrow\quad
+\Delta\!\log\sigma = -\tfrac12\log\eta
+\]
+\begin{itemize}
+    \item Code (\texttt{expand\_undersized\_gs}, \texttt{gaussian\_model.py:833--864}): \texttt{eta\_vals = clamp(eta, min=1e-6)} (tránh $\log 0$), rồi \texttt{delta\_log\_scale = -0.5*torch.log(eta\_vals)} cộng thẳng vào \texttt{self.\_scaling} -- \textbf{không lặp, không tối ưu}, 1 phép gán tensor là xong.
+    \item \alert{Nhưng} $\eta$ thực tế \textbf{tuyến tính} theo $\sigma$ ($\eta=\text{axis}/w_{\min}$), nên $\sigma\!\to\!\sigma/\sqrt{\eta}$ chỉ cho $\eta_{\text{new}}=\sqrt{\eta}$ --- \emph{rút căn} khoảng cách tới $1$, không đạt $1$ như comment \texttt{":853"} tuyên bố. Muốn đúng một bước phải dùng $\Delta\!\log\sigma=-\log\eta$.
+\end{itemize}
+\end{frame}
+
+% --- Slide mới: dị hướng theo trục + so sánh với split ---
+\begin{frame}{Cũng dị hướng theo từng trục -- nhưng ngược chiều với split}
+\footnotesize
+\begin{itemize}
+    \item Giống split (Slide 3), \texttt{expand\_undersized\_gs} nhận \texttt{max\_eta\_3ch} -- $\eta$ tách riêng theo 3 trục $x,y,z$ -- và chỉ sửa trục nào thoả điều kiện:
+\end{itemize}
+\[
+\text{undersized\_mask}_{\text{axis}} = \big(0 < \eta_{\text{axis}} < \tau_{\text{expand}}\big)
+\]
+\begin{itemize}
+    \item Trục không thoả điều kiện (đã đúng cỡ hoặc đang quá lớn, chờ split) được \textbf{giữ nguyên} -- \texttt{delta} chỉ khác 0 tại các trục dưới cỡ, nên một Gaussian có thể vừa "đủ cỡ" theo trục này vừa "được giãn" theo trục khác trong cùng 1 bước.
+    \item Khác biệt cốt lõi với split: split dùng $k=\lceil\sqrt{\eta}\rceil$ (làm tròn lên số nguyên $\ge 1$) để nhân bản thành lưới $k_x\times k_y\times k_z$ Gaussian con; expand dùng $\sqrt{\eta}$ \textbf{liên tục} (không làm tròn) để chia scale ngay trên chính Gaussian đó -- \textbf{số lượng Gaussian không đổi}.
+\end{itemize}
+\centering
+\includegraphics[width=0.3\linewidth]{fig_09_split_geometry.png}
+\captionof{figure}{\footnotesize Đối chiếu: hình mượn từ cơ chế split dị hướng (Slide 3) -- nơi $\eta$ lớn sinh lưới $k_x\times k_y\times k_z$ Gaussian con; expand xử lý chiều ngược lại ($\eta$ nhỏ) bằng cách co scale tại chỗ, không sinh thêm điểm}
+\end{frame}
+
+% --- Slide mới: ví dụ số ---
+\begin{frame}{Ví dụ số: một Gaussian dưới cỡ trên 2/3 trục}
+\footnotesize
+\begin{itemize}
+    \item Giả sử $\tau_{\text{expand}}=1.0$ và một Gaussian có $\eta = (\eta_x,\eta_y,\eta_z) = (0.25,\ 0.64,\ 1.5)$:
+\end{itemize}
+\centering
+\begin{tabular}{lccc}
+\toprule
+\textbf{Trục} & $\eta_{\text{axis}}$ & Dưới cỡ? ($0<\eta<1$) & $\Delta\log\sigma = -\tfrac12\log\eta$ \\
+\midrule
+$x$ & $0.25$ & Có & $-\tfrac12\log(0.25) \approx +0.693$ \\
+$y$ & $0.64$ & Có & $-\tfrac12\log(0.64) \approx +0.223$ \\
+$z$ & $1.5$  & Không (chờ split) & $0$ (giữ nguyên) \\
+\bottomrule
+\end{tabular}
+\vspace{0.2cm}
+\footnotesize
+\begin{itemize}
+    \item Kết quả: $\sigma_x$ tăng theo hệ số $1/\sqrt{0.25}=2\times$, $\sigma_y$ tăng $1/\sqrt{0.64}\approx1.25\times$, $\sigma_z$ giữ nguyên -- Gaussian trở nên "phình" đúng theo hướng đang quá mờ so với chi tiết, còn trục $z$ để dành cho vòng split kế tiếp.
+    \item Số lượng Gaussian: vẫn là \textbf{1} (so với split cùng $\eta$ thì $k_z=\lceil\sqrt{1.5}\rceil=2$ nếu $\eta_z$ vượt ngưỡng split, sinh thêm điểm) -- minh hoạ đúng vai trò "tiết kiệm ngân sách" của expand.
+\end{itemize}
+\centering
+\includegraphics[width=0.32\linewidth]{fig_11_N_accounting.png}
+\captionof{figure}{\footnotesize Kế toán $N$ theo cơ chế split (tham khảo đối chiếu): expand không cộng thêm vào $N$, chỉ cập nhật $\sigma$ tại chỗ}
+\end{frame}
+
+% --- Slide mới: bảng so sánh + vị trí trong pipeline ---
+\begin{frame}{So sánh expand vs.\ split và vị trí trong vòng lặp ADC}
+\footnotesize
+\begin{tabular}{lll}
+\toprule
+\textbf{Tiêu chí} & \texttt{expand\_undersized\_gs} & \texttt{densify\_and\_split\_structgs} \\
+\midrule
+Điều kiện kích hoạt & $0<\eta_{\text{axis}}<\tau_{\text{expand}}{=}1.0$ & $\eta_{\text{axis}}\ge 1$ (qua $k\ge\sqrt{\eta}$) \\
+Số Gaussian & Không đổi (sửa tại chỗ) & Tăng: $N{=}k_x k_y k_z$ mới thay 1 cũ \\
+Công thức scale & $\sigma_{\text{old}}/\sqrt{\eta}$ (liên tục $\Rightarrow \eta_{\text{new}}{=}\sqrt{\eta}$) & $\sigma_{\text{old}}/k^{p}$, $k{=}\lceil\sqrt{\eta}\rceil$, $p{=}$\texttt{ks\_scale\_power}${=}1$ \\
+Vị trí/hướng & Không đổi & Dịch theo lưới $k$, xoay bởi $R(q)$ \\
+Chi phí & $O(1)$, 1 phép cộng log-space & $O(N)$ điểm mới + prune điểm cũ \\
+\bottomrule
+\end{tabular}
+\vspace{0.3cm}
+\begin{itemize}
+    \item \alert{Thực trạng:} lời gọi \texttt{gaussians.expand\_undersized\_gs(...)} trong \texttt{train.py:356--359} \textbf{đang bị comment out}, nên cơ chế này \textbf{không chạy} trong luồng huấn luyện mặc định. Về thiết kế, nó được đặt \textbf{ngay trước} clone/split trong cùng bước densify.
+    \item Vì cả hai cơ chế đều dựa trên cùng một đại lượng $\eta$ 3 kênh, SADGS xử lý \textbf{cả hai đầu} của sai số mật độ (quá thưa lẫn quá thừa) bằng công cụ toán học nhất quán, thay vì chỉ có "chia đôi khi gradient cao" như ADC 3DGS gốc.
+\end{itemize}
+\end{frame}

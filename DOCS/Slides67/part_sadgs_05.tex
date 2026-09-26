@@ -1,0 +1,105 @@
+% ============================================================
+% PHẦN SADGS — Slide 5/8: Split dị hướng theo trục (densify_and_split_structgs)
+% ============================================================
+
+\begin{frame}{Quyết định Clone/Split: ngưỡng gradient + tỉ lệ nhất quán đa view}
+\footnotesize
+\begin{itemize}
+    \item Ngoài gradient chuẩn ($\lVert\bar g\rVert\ge$ \texttt{grad\_thresh}, $\lVert\bar g_{\text{abs}}\rVert\ge$ \texttt{grad\_abs\_thresh}) và điều kiện scale (\texttt{dense}$\times$extent để phân biệt clone/split), SADGS thêm điều kiện \textbf{nhất quán đa góc nhìn} dựa trên bộ đếm $\eta$ tích luỹ ở Slide 2:
+\end{itemize}
+\[
+\text{high\_ratio}_i = \frac{\texttt{eta\_high\_count}_i}{\texttt{accum\_view\_count}_i},\qquad
+\text{low\_ratio}_i = \frac{\texttt{eta\_low\_count}_i}{\texttt{accum\_view\_count}_i}
+\]
+\[
+\text{split\_mask} = (\text{high\_ratio} > \texttt{split\_ratio\_threshold}) \,\wedge\, \text{is\_grad\_high}
+\]
+\begin{itemize}
+    \item Nghĩa là: Gaussian chỉ bị đánh dấu split khi nó \textbf{thường xuyên} ($> $\texttt{split\_ratio\_threshold}, mặc định $0.8$) bị đánh giá "quá lớn so với texture" ($\eta > \tau_{\text{high}}{=}1.0$) \textbf{ở nhiều góc nhìn khác nhau}, không chỉ 1 view nhiễu.
+    \item Khi \texttt{split\_mask} $=$ true và \texttt{max(scale)} $>$ \texttt{dense}$\times$extent (Gaussian đã đủ lớn về hình học), SADGS gọi \texttt{densify\_and\_split\_structgs(...)} -- cơ chế trọng tâm của slide này.
+\end{itemize}
+\centering
+\includegraphics[width=0.38\linewidth]{fig_10_split_samples.png}
+\captionof{figure}{\footnotesize high\_ratio: tỉ lệ view mà Gaussian bị coi là quá lớn so với texture, điều kiện AND nhất quán đa view trước khi split}
+\end{frame}
+
+% --- Slide 5b ---
+\begin{frame}{Split dị hướng theo từng trục: $k_{\text{axis}} = \lceil\sqrt{\eta_{\text{axis}}}\rceil$}
+\footnotesize
+\begin{itemize}
+    \item Khác với 3DGS gốc (luôn chia 1 Gaussian thành đúng \textbf{2} con, lấy mẫu ngẫu nhiên $\mathcal N(0,\mathrm{diag}(s^2))$), SADGS chia dựa trực tiếp trên mức độ "quá cỡ" $\eta$ của \textbf{từng trục riêng biệt}:
+\end{itemize}
+\[
+k_{\text{axis}} = \left\lceil \sqrt{\eta_{\text{axis}}} \right\rceil, \qquad \eta_{\text{axis}} = \mathrm{clamp}(\eta_{\text{axis}},\ \min{=}1.0)
+\]
+\[
+N_{\text{con}} = k_x \times k_y \times k_z
+\]
+\begin{itemize}
+    \item Code (\texttt{densify\_and\_split\_structgs}, \texttt{scene/gaussian\_model.py} dòng $\sim$638--833): mỗi trục $x,y,z$ được chia \textbf{độc lập} thành $k_{\text{axis}}$ phần trên một \textbf{lưới tất định} (deterministic grid) -- không lấy mẫu ngẫu nhiên như bản gốc.
+    \item Đã xác nhận trực tiếp trên code: có \texttt{clamp(min=1)} nhưng \textbf{không có clamp trần (max)} trong công thức $k$, dù tham số \texttt{max\_clones\_per\_axis} (mặc định $8$) có khai báo trong \texttt{arguments/\_\_init\_\_.py} -- đây là 1 trong 6 tham số \textbf{dead code}, không thực sự được dùng để giới hạn $k$ trong hàm này.
+\end{itemize}
+\end{frame}
+
+% --- Slide 5c ---
+\begin{frame}{Vị trí và scale của các Gaussian con}
+\footnotesize
+\begin{itemize}
+    \item \textbf{Lưới con tất định}: $N_{\text{con}}=k_x k_y k_z$ vị trí được đặt đều trên lưới cục bộ, sau đó \textbf{dịch chuyển theo đúng hướng xoay thật} của Gaussian gốc bằng ma trận $R(q_i)$ (quaternion rotation) -- không phải dịch theo trục toạ độ thế giới.
+    \item \textbf{Scale mới} của mỗi Gaussian con:
+\end{itemize}
+\[
+\sigma_{\text{new}} = \frac{\sigma_{\text{old}}}{k^{\,\texttt{ks\_scale\_power}}}
+\]
+\begin{itemize}
+    \item \texttt{ks\_scale\_power} (\texttt{arguments/\_\_init\_\_.py} dòng $\sim$138) mặc định $1.0$ -- khác 3DGS gốc vốn chia scale cho hằng số cố định $1.6$ bất kể số con sinh ra.
+    \item Sau khi tạo $N_{\text{con}}$ Gaussian con, Gaussian gốc bị \textbf{xoá} (không giữ lại như clone) -- toàn bộ $N_{\text{con}}$ điểm mới được nối vào optimizer qua \texttt{densification\_postfix} (hàm dùng chung với clone).
+\end{itemize}
+\centering
+\includegraphics[width=0.32\linewidth]{fig_09_split_geometry.png}
+\captionof{figure}{\footnotesize Lưới con $k_x\times k_y\times k_z$ đặt tất định, dịch theo hướng xoay $R(q_i)$ của Gaussian gốc}
+\end{frame}
+
+% --- Slide 5d ---
+\begin{frame}{Ví dụ số: split dị hướng chỉ theo trục cần thiết}
+\footnotesize
+Giả sử một Gaussian có $\eta = (\eta_x,\eta_y,\eta_z) = (4.0,\ 1.0,\ 0.5)$ (trục $x$ quá lớn so với texture, trục $y$ vừa đủ, trục $z$ còn nhỏ):
+\vspace{0.15cm}
+\centering
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Trục} & $\eta_{\text{axis}}$ & $\mathrm{clamp}(\eta,\min{=}1)$ & $k=\lceil\sqrt{\cdot}\rceil$ & Ghi chú \\
+\midrule
+$x$ & $4.0$ & $4.0$ & $2$ & Chia đôi theo trục này \\
+$y$ & $1.0$ & $1.0$ & $1$ & Không chia (đúng ngưỡng) \\
+$z$ & $0.5$ & $1.0$ (clamp) & $1$ & Không chia (chờ expand, Slide 4) \\
+\bottomrule
+\end{tabular}
+\vspace{0.2cm}
+\begin{itemize}
+    \item $N_{\text{con}} = k_x \cdot k_y \cdot k_z = 2\times1\times1 = 2$ -- \textbf{chỉ} chia theo trục $x$, không lãng phí sinh thêm Gaussian theo các trục đã đúng cỡ (khác 3DGS gốc luôn sinh đúng 2 con bất kể hướng nào gây ra gradient cao).
+    \item Nếu $\eta=(4.0,\ 4.0,\ 1.0)$: $k=(2,2,1) \Rightarrow N_{\text{con}}=4$ -- số con tăng đúng theo số trục thực sự cần chi tiết hơn.
+\end{itemize}
+\end{frame}
+
+% --- Slide 5e ---
+\begin{frame}{So sánh: split dị hướng SADGS vs.\ split ngẫu nhiên 3DGS gốc}
+\footnotesize
+\centering
+\begin{tabular}{lll}
+\toprule
+\textbf{Tiêu chí} & \textbf{3DGS gốc} & \textbf{SADGS (\texttt{\_structgs})} \\
+\midrule
+Tín hiệu quyết định & Positional gradient $\|\bar g\|$ & $\eta$ (tần số) $+$ multiview-consistency \\
+Số con & Luôn $2$ & $N_{\text{con}}=k_x k_y k_z$, thay đổi theo $\eta$ \\
+Vị trí con & Lấy mẫu $\mathcal N(0,\mathrm{diag}(s^2))$ & Lưới tất định, dịch theo $R(q_i)$ \\
+Scale con & $\sigma_{\text{old}}/1.6$ (hằng số) & $\sigma_{\text{old}}/k^{\texttt{ks\_scale\_power}}$ \\
+Dị hướng theo trục? & Không & \textbf{Có} -- từng trục độc lập \\
+\bottomrule
+\end{tabular}
+\vspace{0.3cm}
+\begin{itemize}
+    \item Điểm mấu chốt: SADGS không còn "đoán" hướng cần chia bằng gradient trung bình (dễ bị nhiễu/mất hướng ở vùng nhiều chi tiết theo 1 trục nhưng phẳng theo 2 trục còn lại) -- mà chia \textbf{đúng theo hướng texture đòi hỏi}, đo trực tiếp từ ảnh gốc.
+    \item Liên hệ: split (đây) và expand (Slide 4, \texttt{expand\_undersized\_gs}) xử lý \textbf{hai đầu đối lập} của cùng đại lượng $\eta$ -- split khi $\eta$ quá lớn, expand khi $\eta$ quá nhỏ -- cả hai đều \textbf{dị hướng theo trục}, khác biệt căn bản với ADC 1 chiều của 3DGS gốc.
+\end{itemize}
+\end{frame}

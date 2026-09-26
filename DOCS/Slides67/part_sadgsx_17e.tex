@@ -1,0 +1,67 @@
+% ===== BOT 17e: dao sau muc 17.5 -- no N khong tran, scale_power, sqrt(12) =====
+
+\begin{frame}{Đào sâu 17.5 (1/3): rủi ro nổ $N$ khi không có trần cho $k$}
+\footnotesize
+Mục 17.5 đã nêu: \texttt{gaussian\_model.py:698} (comment) ghi ``clamp min=2 và max=8'' nhưng
+\texttt{:701} (code thật) chỉ \texttt{ks = torch.clamp(ks, min=1)} --- \textbf{không có trần trên}.
+Ở đây định lượng mức độ nổ khi giả định cả 3 trục cùng vi phạm bằng $\eta$ (worst case đối xứng):
+\[
+k=\Big\lceil\sqrt{\max(\eta,1)}\Big\rceil,\qquad N=k_xk_yk_z
+\]
+\vspace{0.1cm}
+\begin{center}
+\includegraphics[width=0.92\linewidth]{deep17e_01_N_explosion_no_clamp.png}
+\end{center}
+\begin{itemize}
+  \item $\eta{=}(9,9,9)\Rightarrow N{=}27$ (ví dụ đã nêu ở 17.5); tới $\eta{=}64$ code thật và bản
+        ``có trần max=8'' còn trùng nhau --- lệch nhau chỉ lộ rõ từ $\eta{>}64$: tại $\eta{=}100$,
+        code thật cho $N{=}1000$ so với $N{=}512$ nếu có trần --- gần \textbf{gấp đôi}.
+  \item $\eta$ lớn nhất \textbf{đo được thật} trong checkpoint (G2, trục $z$) $=491.3\Rightarrow k_z{=}23$
+        trên \emph{một} trục; $N$ thật của G2 chỉ là $184$ (2 trục còn lại $\eta$ nhỏ) --- bằng chứng số
+        cho tính dị hướng: $N$ chỉ nổ theo trục thật sự vi phạm.
+\end{itemize}
+\end{frame}
+
+
+\begin{frame}{Đào sâu 17.5 (2/3): \texttt{scale\_power} $p$ đổi kích thước, không đổi vị trí}
+\footnotesize
+Trên Gaussian $G_1$ \textbf{thật} của checkpoint \texttt{point\_cloud\_iter5000.ply}
+($s_{\text{old}}{=}0.53156$, $k{=}3$ thật trên trục $z$), cố định $k$, so sánh $p\in\{1.0,1.5,2.0\}$:
+\[
+\boxed{\,s_{\text{new}}=\dfrac{s_{\text{old}}}{k^{\,p}}\,}\quad(\texttt{gaussian\_model.py:722})
+\qquad\qquad
+\text{offset}=\dfrac{s_{\text{old}}}{k}\sqrt{12}\cdot\text{grid}\ \ (\texttt{:775--778, không phụ thuộc }p)
+\]
+\vspace{0.1cm}
+\begin{center}
+\includegraphics[width=0.92\linewidth]{deep17e_02_scale_power_effect.png}
+\end{center}
+\begin{itemize}
+  \item Khoảng cách giữa 2 con liền kề \textbf{cố định} $=\sqrt{12}\,(s_{\text{old}}/k)=0.6138$ (không đổi theo $p$).
+  \item $p{=}1.0$: khe hở $=0.2594$; $p{=}1.5$: khe hở $=0.4092$; $p{=}2.0$: khe hở $=0.4957$ ---
+        \textbf{gần gấp đôi} từ $p{=}1$ lên $p{=}2$, vì offset không co lại cùng tốc độ với kích thước con.
+\end{itemize}
+\end{frame}
+
+
+\begin{frame}{Đào sâu 17.5 (3/3): vì sao $\sqrt{12}$, không phải $\sqrt3$ hay $\sqrt6$}
+\footnotesize
+Suy luận đúng theo code: \texttt{separations} là bề rộng \textbf{một ô lưới} (nửa bề rộng $a=\text{sep}/2$),
+$\mathrm{Var}(\mathcal U(-a,a))=a^2/3$ phải khớp $\sigma_{\text{new}}^2$:
+\[
+\boxed{\,\dfrac{(\text{sep}/2)^2}{3}=\sigma_{\text{new}}^2 \;\Longleftrightarrow\; \text{sep}=\sigma_{\text{new}}\sqrt{12}\,}
+\qquad(\texttt{gaussian\_model.py:775--776})
+\]
+\vspace{0.1cm}
+\begin{center}
+\includegraphics[width=0.78\linewidth]{deep17e_03_sqrt12_grid_variance.png}
+\end{center}
+\begin{itemize}
+  \item Trên $G_1$ thật ($k{=}3$, $\sigma_{\text{new}}^2{=}0.031395$): chỉ $\sqrt{12}$ cho
+        $\mathrm{Var}(\text{1 ô lưới})=0.031395$ khớp \textbf{chính xác}; $\sqrt3\Rightarrow0.007849$
+        (nhỏ hơn 4 lần), $\sqrt6\Rightarrow0.015698$ (nhỏ hơn 2 lần).
+  \item \alert{Sắc thái chưa nêu ở 17.5:} phương sai \textbf{thực nghiệm} của $k{=}3$ điểm lưới rời rạc
+        lại lớn hơn mục tiêu theo hệ số $(k^2{-}1){=}8$ ở cả 3 lựa chọn --- $\sqrt{12}$ chỉ khớp đúng
+        phương sai giả định cho \textbf{một ô lưới}, không phải đẳng thức chính xác cho toàn bộ $k$ điểm.
+\end{itemize}
+\end{frame}

@@ -1,0 +1,59 @@
+% ===== BOT 17a: Dao sau muc 17.1 -- 3 khoang trong bang so lieu that =====
+
+\begin{frame}{Vì sao cộng 3 kênh RGB thay vì luminance -- đo trên ảnh thật}
+\footnotesize
+Trên crop thật \texttt{samples\_drjohnson.png} (panel "gt IMG\_6292", $440{\times}288$px), tính thêm gradient luminance ITU-R BT.709 để đối chứng với công thức Di Zenzo thật:
+\[
+\boxed{\ \text{grad}_{\text{DiZenzo}}=\sqrt{I_{xx}+I_{yy}},\ \ I_{xx}=\sum_{\text{ch}}I_x^{(\text{ch})2},\ I_{yy}=\sum_{\text{ch}}I_y^{(\text{ch})2}\ }\quad\text{(\texttt{loss\_utils.py:198--208}) vs.}\quad \text{grad}_{\text{lum}}=\sqrt{L_x^2+L_y^2}
+\]
+\begin{itemize}
+\item Quét toàn crop, tìm pixel thật nơi tỉ lệ $\text{grad}_{\text{DiZenzo}}/\text{grad}_{\text{lum}}$ lớn nhất (vùng grad Di Zenzo top-30\%, tránh nhiễu nền phẳng).
+\item Rơi đúng viền bình chữa cháy đỏ áp sát cửa gỗ be, tại $(x{=}293,y{=}260)$: $\text{grad}_{\text{lum}}=0.0029$ nhưng $\text{grad}_{\text{DiZenzo}}=0.3227$ -- \textbf{lớn hơn 81.8 lần}.
+\item Per-channel tại điểm đó: $|\text{grad}\,R|=0.309$, $|\text{grad}\,G|=0.091$, $|\text{grad}\,B|=0.021$ -- kênh R mang gần hết tín hiệu cạnh, luminance gần như triệt tiêu vì độ sáng hai bên viền xấp xỉ nhau.
+\item Bằng chứng số thật (không phải ví dụ lý thuyết) cho câu "luminance bỏ sót cạnh iso-luminant" ở \texttt{loss\_utils.py:172--173}.
+\end{itemize}
+\begin{center}
+\includegraphics[width=0.82\linewidth]{deep17a_01_iso_luminant_dizenzo.png}
+\captionof{figure}{\footnotesize Ảnh thật đánh dấu điểm tìm được, zoom cận cảnh, biểu đồ cột 5 đại lượng tại điểm, và ba bản đồ toàn crop (grad luminance / grad Di Zenzo / tỉ lệ).}
+\end{center}
+\end{frame}
+
+
+\begin{frame}{Vai trò của $\rho$ ở bước 4: từ ước lượng điểm ảnh giòn tới coherence thật}
+\footnotesize
+Cùng $I_{xx},I_{xy},I_{yy}$ thô (bước 3, chưa tích hợp) trên crop thật, so sánh ba trạng thái $\rho=0$ (thô), $\rho=1.5$, $\rho=6.0$:
+\[
+\boxed{\ S_{xx}=G_\rho*I_{xx},\ S_{xy}=G_\rho*I_{xy},\ S_{yy}=G_\rho*I_{yy}\ }\ \text{(\texttt{loss\_utils.py:210--217})},\qquad
+\text{coherence}=\Big(\tfrac{\lambda_1-\lambda_2}{\lambda_1+\lambda_2}\Big)^2
+\]
+\begin{itemize}
+\item Coherence trung bình toàn crop \textbf{giảm} theo $\rho$: $\rho{=}0\!:0.884 \to \rho{=}1.5\!:0.726 \to \rho{=}6.0\!:0.590$ -- ngược với trực giác "blur nhiều hơn thì coherent hơn".
+\item Lý do: ở $\rho=0$, $I_{xx}$ tại mỗi pixel là ma trận \textbf{hạng-1} theo đúng một hướng gradient điểm ảnh đó $\Rightarrow$ coherence $\approx1$ \emph{giả tạo} ở hầu hết pixel có cạnh -- không phân biệt được cạnh thẳng thật với góc/texture.
+\item Chỉ sau khi $G_\rho$ thật sự trung bình hoá không gian, vùng nhiều hướng gần nhau (góc cửa, khung cửa sổ, chân ghế) mới lộ coherence thấp; đoạn cạnh dài đơn hướng (mép cửa, thanh dàn sưởi) vẫn giữ coherence cao, mượt hơn hẳn bản đồ thô đầy nhiễu hạt.
+\item Đây là bằng chứng số cho lý do bước 4 \textbf{bắt buộc} phải có $G_\rho$: không có nó, coherence "ảo" ở khắp nơi, không phân biệt cạnh với góc/texture (khớp lý luận đã nêu ở slide "Tensor cấu trúc $J_\rho$").
+\end{itemize}
+\begin{center}
+\includegraphics[width=0.86\linewidth]{deep17a_02_rho_integration_window.png}
+\captionof{figure}{\footnotesize $S_{xx},S_{xy},S_{yy}$ và coherence ở $\rho{=}0$/$1.5$/$6.0$ trên cùng crop thật -- $\rho$ lớn hơn "gộp" cạnh lân cận thành mảng liền, lộ đúng vùng góc/texture thay vì nhiễu điểm ảnh giả-coherent.}
+\end{center}
+\end{frame}
+
+
+\begin{frame}{Chuẩn hoá batch ở bước 5: bất biến thật với độ sáng, trừ vùng cháy sáng}
+\footnotesize
+Cùng crop thật, nhân trực tiếp pixel với hệ số độ sáng $k\in\{0.5,1.0,1.5\}$ (clip $[0,1]$ như ảnh 8-bit thật):
+\[
+\boxed{\ S_{xx},S_{xy},S_{yy}\ \leftarrow\ \dfrac{S_{xx},S_{xy},S_{yy}}{\max_{\text{batch}}(S_{xx}+S_{yy})+10^{-6}}\ }\quad\text{(\texttt{loss\_utils.py:219--227}})
+\]
+\begin{itemize}
+\item \textbf{Trước} chuẩn hoá: $\max(S_{xx}{+}S_{yy})=9.730\ (\times0.5)$, $38.920\ (\times1.0)$, $44.275\ (\times1.5)$ -- lệch rất lớn theo độ sáng.
+\item Tỉ lệ $\times0.5$: đo được $9.730/38.920=0.250$, khớp gần tuyệt đối lý thuyết bậc hai $0.5^2=0.250$ (không bão hoà).
+\item \textbf{Sau} chuẩn hoá: bản đồ $S_{xx}$ của $\times0.5$ và $\times1.0$ \textbf{giống hệt nhau} -- $\max|\text{diff}|=0.0000$ toàn crop -- vì $k^2$ triệt tiêu đúng đại số ở tử/mẫu tại từng pixel.
+\item Với $\times1.5$: đa số pixel vẫn giống hệt, nhưng $\max|\text{diff}|=0.3032$ tại vùng cửa sổ/khung cửa bị \textbf{bão hoà} $[0,1]$ -- tỉ lệ max đo được chỉ $1.138$ thay vì $1.5^2{=}2.25$ lý thuyết, đúng dấu hiệu giả định tuyến tính bị phá vỡ khi ảnh over-expose.
+\item Kết luận thực nghiệm: ngưỡng $\eta$ (mục 17.3) bất biến \emph{chính xác} với độ sáng scene ở vùng không bão hoà -- một giới hạn thật đã đo được, không phải giả định suông.
+\end{itemize}
+\begin{center}
+\includegraphics[width=0.62\linewidth]{deep17a_03_brightness_normalization.png}
+\captionof{figure}{\footnotesize Trên: crop thật ở 3 mức sáng. Giữa: $S_{xx}{+}S_{yy}$ trước chuẩn hoá (lệch $\sim$4.5 lần). Dưới: $S_{xx}$ sau chuẩn hoá (gần như giống hệt) và hai bản đồ hiệu số.}
+\end{center}
+\end{frame}

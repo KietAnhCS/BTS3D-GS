@@ -1,0 +1,78 @@
+% ===== BOT 17d: Vi du so sau cho multiview consistency ratio (dao sau 17.4) =====
+
+\begin{frame}{SADGS --- Vì sao ngưỡng $0.8$ tính theo \emph{tỉ lệ}, không theo 1 view?}
+\footnotesize
+\textbf{Mô phỏng.} Một Gaussian được quan sát $M=30$ lần (mỗi 10 iteration, đúng nhịp \texttt{update\_freq\_stats\_online}), mỗi lần cho $\eta_{\max}$ rút từ 1 trong 3 kịch bản: (a) duoi-giải nhất quán, (b) đã đủ mịn nhất quán, (c) chỉ bị ``flag'' khi nhìn cạnh nghiêng ($\approx22\%$ view).
+
+\[
+\text{is\_high}=[\eta_{\max}>1.0],\quad \text{is\_low}=[\eta_{\max}\le0.1] \qquad \texttt{(freq\_utils.py:395--404)}
+\]
+\[
+\text{high\_ratio}(M)=\tfrac1M\textstyle\sum_m \text{is\_high}_m,\qquad
+\text{low\_ratio}(M)=\tfrac1M\textstyle\sum_m \text{is\_low}_m
+\]
+
+\begin{center}
+\includegraphics[width=0.92\linewidth]{deep17d_01_ratio_trajectories.png}
+\captionof{figure}{\footnotesize Quỹ đạo (mô phỏng) high\_ratio/low\_ratio qua $M$ quan sát: (a) hội tụ $0.93>0.8\Rightarrow$ SPLIT; (b) $1.00>0.8\Rightarrow$ PRUNE; (c) dao động quanh $0.15$--$0.25$, không vượt $0.8\Rightarrow$ không hành động dù có view outlier.}
+\end{center}
+\end{frame}
+
+
+\begin{frame}[fragile]{Bất biến theo độ phân giải: Importance tuyệt đối vs tỉ lệ}
+\footnotesize
+\begin{columns}[T]
+\begin{column}{0.5\linewidth}
+Mô phỏng $N{=}400$ Gaussian, hạ độ phân giải $r\in\{1,2,4,8\}$ (quy ước \texttt{-r} của ADC gốc, chương 12):
+\begin{itemize}\itemsep1pt
+  \item \textbf{Importance} (ADC gốc, đếm pixel-lỗi): diện tích footprint $\propto 1/r^2$ $\Rightarrow$ Importance mô phỏng cũng co theo $1/r^2$.
+  \item \textbf{$\eta$} (SAD-GS): tỉ số axis\_length\_px / wavelength\_min\_px --- cả tử và mẫu cùng đo bằng pixel-đã-downsample nên $r$ tự triệt tiêu $\Rightarrow$ high\_ratio gần như không đổi.
+\end{itemize}
+\[
+\text{Importance}(r)\approx\text{Importance}(1)/r^2,\qquad \eta(r)\approx\eta(1)
+\]
+Số liệu mô phỏng: Importance $= \{24.4,6.1,1.5,0.4\}$ (giảm $4^\times$ mỗi khi $r$ gấp đôi) trong khi high\_ratio $=\{0.826,0.826,0.825,0.825\}$ (đổi $<0.2\%$).
+\end{column}
+\begin{column}{0.5\linewidth}
+\centering
+\includegraphics[width=\linewidth]{deep17d_02_resolution_invariance.png}
+\captionof{figure}{\footnotesize Trái: Importance (mô phỏng) cắt qua ngưỡng cố định $5$ giữa $r{=}1$ và $r{=}2$. Phải: high\_ratio (mô phỏng) luôn trên $\tau_{split}=0.8$, không đổi theo $r$.}
+\end{column}
+\end{columns}
+\end{frame}
+
+
+\begin{frame}{Trục $\eta_{\max}$ thật: histogram thật chồng lên 3 vùng HIGH/MID/LOW}
+\footnotesize
+Dùng lại pipeline structure tensor thật (\texttt{real\_eta\_axis.py}) trên ảnh thật \texttt{DOCS/assets/samples\_train.png} (panel ``gt 00097'', box $(468,394,908,638)$, $440\times244$ pixel). Với $(\sigma_{major},\sigma_{minor})=(18,6)$px neo (giả định hình học, ghi rõ trong code), tính $\eta_{\max}(x,y)$ THẬT trên \textbf{mọi pixel}:
+\[
+\eta_{\max}(x,y)=\max\!\Big(\tfrac{\sigma_{major}}{\lambda_{\min}(x,y)},\ \tfrac{\sigma_{minor}}{\lambda_{\min}(x,y)}\Big) \qquad \texttt{(freq\_utils.py:325--348,\,399)}
+\]
+
+\begin{center}
+\includegraphics[width=0.74\linewidth]{deep17d_03_threshold_bands.png}
+\captionof{figure}{\footnotesize Histogram $\eta_{\max}$ THẬT (structure tensor trên ảnh thật) chồng lên 3 dải màu theo đúng $\tau_{high}=1.0$, $\tau_{low}=0.1$: LOW $18.9\%$ pixel, MID $47.6\%$, HIGH $33.5\%$.}
+\end{center}
+\end{frame}
+
+
+\begin{frame}{Tóm tắt --- ba minh hoạ số cho multiview consistency}
+\footnotesize
+\begin{enumerate}\itemsep2pt
+  \item \textbf{Ngưỡng tỉ lệ chặn view lẻ tẻ:} kịch bản ``chỉ bị flag khi nhìn cạnh nghiêng'' (22\% số view) không đẩy được high\_ratio qua $0.8$ --- đúng thiết kế ``$\ge80\%$ số view đồng ý''.
+  \item \textbf{Ngưỡng tỉ lệ bất biến theo $r$:} trong khi Importance tuyệt đối của ADC gốc đổi ý nghĩa khi đổi \texttt{-r} (cùng Gaussian: quan trọng ở $r{=}1$, không quan trọng ở $r{=}4$), high\_ratio giữ nguyên quyết định ở mọi $r$.
+  \item \textbf{Cả 3 lớp đều xuất hiện đáng kể trên dữ liệu thật:} $18.9\%$/$47.6\%$/$33.5\%$ (LOW/MID/HIGH) trên một ảnh đơn lẻ --- không phải trường hợp biên hiếm.
+\end{enumerate}
+\begin{center}
+\scriptsize
+\begin{tabular}{lll}
+\hline
+\textbf{Hình} & \textbf{Loại dữ liệu} & \textbf{Kết luận số} \\
+\hline
+\texttt{deep17d\_01} & Mô phỏng chuỗi $M{=}30$ quan sát & (a) 0.93$\to$SPLIT, (b) 1.00$\to$PRUNE, (c) 0.17$\to$không \\
+\texttt{deep17d\_02} & Mô phỏng $N{=}400$ Gaussian, $r{=}1..8$ & Importance $\propto 1/r^2$; high\_ratio phẳng \\
+\texttt{deep17d\_03} & Structure tensor THẬT trên ảnh thật & LOW 18.9\% / MID 47.6\% / HIGH 33.5\% \\
+\hline
+\end{tabular}
+\end{center}
+\end{frame}

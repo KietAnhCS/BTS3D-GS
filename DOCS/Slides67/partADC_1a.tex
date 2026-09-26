@@ -1,0 +1,56 @@
+% === partADC_1a.tex ===
+% Phan 1 (Section 1) cua chuong Adaptive Density Control (ADC) / SADGS.
+% Tin hieu sai so anh dung lam dau vao cho quyet dinh densify/prune,
+% TRUOC khi tinh importance score da view.
+% 6 frame, tuong ung 6 hinh trong DOCS/BOOK/adc_figures/part1_figures.py
+
+% --- 1_1_timeline.png ---
+\begin{frame}{Lịch chạy ADC trong vòng lặp huấn luyện (0 $\to$ 30000)}
+\footnotesize
+\begin{itemize}
+    \item Adaptive Density Control không chạy liên tục: nó được \textbf{lồng} vào vòng lặp huấn luyện 30000 iteration theo các mốc cấu hình sẵn.
+    \item \textbf{Tích luỹ thống kê gradient} (\texttt{accum}, \texttt{accum\_abs}, \texttt{denom}): chạy suốt $t < 15000$ (\texttt{densify\_until\_iter}).
+    \item \textbf{Densify + prune}: từ $t = 500$ (\texttt{densify\_from\_iter}) đến $t = 15000$, lặp lại mỗi \texttt{densification\_interval} $= 500$ vòng $\Rightarrow$ 28 lần densify+prune (multinomial).
+    \item \textbf{Reset opacity}: mỗi \texttt{opacity\_reset\_interval} $= 3000$ vòng, chỉ khi $t < 15000$ $\Rightarrow$ 4 lần tại $t = 3000, 6000, 9000, 12000$, đặt $\alpha \leftarrow \min(\alpha, 0.01)$.
+    \item \texttt{final\_prune\_structgs} \textbf{bị comment out} trong \texttt{SADGS/train.py} (quanh dòng 419) -- \textbf{không chạy} trong pipeline mặc định. Prune thật chỉ là ngưỡng opacity đơn giản tại \texttt{prune\_iterations} (mặc định \texttt{[4000, 8000]}).
+    \item Sau $t = 30000$: kết thúc huấn luyện.
+\end{itemize}
+\begin{center}
+\includegraphics[width=0.78\linewidth]{1_1_timeline.png}
+\captionof{figure}{\footnotesize Lịch chạy ADC theo cấu hình mặc định \texttt{train.py}: 3 dải mốc đang chạy thật (thống kê gradient, densify+prune, reset opacity) + dải "final prune" (đường đứt xám) để đối chiếu, KHÔNG chạy live.}
+\end{center}
+\end{frame}
+
+% --- 1_2_N_qualitative.png ---
+\begin{frame}{Số lượng Gaussian $N(t)$ thay đổi ra sao qua các giai đoạn}
+\begin{columns}[T]
+\begin{column}{0.52\linewidth}
+\footnotesize
+\begin{itemize}
+    \item Mỗi lần densify là một \textbf{phép nhân}, không phải phép cộng: sau mỗi bước tại $t \in (500, 15000)$,
+    \[
+        N \leftarrow N \cdot (1 + r_{\text{spawn}}) \cdot (1 - r_{\text{prune}}).
+    \]
+    \item Vì lặp lại 28 lần, chênh lệch nhỏ ở $r_{\text{spawn}}$ tạo tác động \textbf{luỹ thừa} lên $N$ cuối giai đoạn densify.
+    \item 3DGS gốc: $r_{\text{spawn}} \approx 0.085$, $r_{\text{prune}} \approx 0.035$ $\Rightarrow N$ tăng nhanh rồi giữ nguyên.
+    \item SADGS: $r_{\text{spawn}} \approx 0.045$ (chọn lọc hơn nhờ điều kiện \texttt{accum\_view\_count>0.5} trong phép AND).
+    \item \alert{Đính chính:} điều kiện chọn lọc thật là \texttt{importance\_score = gaussians.accum\_view\_count} (số view đã "thấy" Gaussian) với ngưỡng \texttt{importance\_score\_threshold = 0.5} (\texttt{arguments/\_\_init\_\_.py:124}, \texttt{train.py:362-374}) -- không phải điểm lỗi pixel/footprint. \texttt{final\_prune\_structgs} bị comment out trong \texttt{train.py} nên \textbf{không} có bậc giảm nào do final prune.
+    \item Kết quả định tính: $N$ \textbf{tăng nhanh} đầu train, \textbf{chững lại} khi hết giai đoạn densify ($t=15000$), sau đó chỉ giảm nhẹ do prune-opacity đơn giản (không phải bậc thang final prune).
+\end{itemize}
+\end{column}
+\begin{column}{0.46\linewidth}
+\centering
+\includegraphics[width=\linewidth]{1_2_N_qualitative.png}
+\captionof{figure}{\footnotesize $N(t)$ minh hoạ định tính: 3DGS gốc (xám) và SADGS (xanh) đều tăng rồi bão hoà -- không có bậc giảm final-prune vì hàm đó không chạy live.}
+\end{column}
+\end{columns}
+\end{frame}
+
+% --- [XOA] Bước (1)/(L1 vs L2): co che e_v(x)/get_loss/metric_map la DEAD CODE ---
+% Xac minh: SADGS/train.py KHONG bao gio goi get_loss() hay truyen metric_map
+% khac None (SADGS/utils/freq_utils.py:92 dinh nghia nhung khong duoc goi o
+% dau). Co che clone/split/prune that dung gradient tich luy + eta (structure
+% tensor) + accum_view_count -- khong lien quan gi den e_v(x)/metric_map. Vi
+% day la dead code chua tung chay, cac frame "Buoc (1): sai so anh theo tung
+% pixel e_v(x)" va "Vi sao dung L1 thay vi L2" da bi XOA (khong chi dinh
+% chinh) cung voi 2 hinh 1_3_pixel_error_view1.png, 1_4_l1_vs_l2.png.

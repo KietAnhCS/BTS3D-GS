@@ -1,0 +1,193 @@
+% ===== BOT 13: Toàn bộ siêu tham số của SADGS & lịch trình huấn luyện thực tế =====
+
+% --- Frame 1: Tổng quan ---
+\begin{frame}{Bản đồ siêu tham số của SADGS}
+\footnotesize
+SADGS kế thừa toàn bộ \texttt{ModelParams}/\texttt{PipelineParams} của 3DGS và mở rộng \texttt{OptimizationParams}
+(\texttt{arguments/\_\_init\_\_.py:73--160}) lên \textbf{hơn 50 cờ}, chia thành 5 nhóm:
+\begin{itemize}\itemsep1pt
+    \item \textbf{(A) Rasterizer compact box} -- \texttt{mult} (duy nhất, truyền thẳng xuống CUDA).
+    \item \textbf{(B) Thống kê tần số (frequency stats)} -- \texttt{eta\_compute\_mode}, \texttt{freq\_grad\_threshold}, \texttt{freq\_opacity\_threshold}, \texttt{freq\_transmittance\_threshold}, \texttt{st\_levels}, \texttt{st\_mode}.
+    \item \textbf{(C) Densify/prune đồng thuận đa view} -- \texttt{split\_ratio\_threshold}, \texttt{prune\_ratio\_threshold}, \texttt{dense}, \texttt{grad\_thresh}, \texttt{grad\_abs\_thresh}, \texttt{ks\_scale\_power}, \texttt{warmup\_densification}.
+    \item \textbf{(D) Tối ưu hoá} -- \texttt{optimizer\_type}, \texttt{adam\_eps\_order}, \texttt{highfeature\_lr}/\texttt{lowfeature\_lr}, \texttt{batch\_size}, \texttt{lambda\_l2}, \texttt{opacity\_reset\_decay}, \texttt{scale\_rotation\_scheduler}.
+    \item \textbf{(E) Cờ khai báo nhưng chưa nối vào code} -- \texttt{tau\_expand}, \texttt{clone\_target\_eta}, \texttt{lambda\_freq}, \texttt{min\_weight}, \dots
+\end{itemize}
+\vspace{0.15cm}
+\begin{block}{\footnotesize Lưu ý quan trọng}
+\footnotesize
+Hai ngưỡng \textbf{then chốt nhất} của SADGS lại \textbf{KHÔNG} nằm trong \texttt{arguments}: $\tau_{high}=1.0$ và $\tau_{low}=0.1$
+được \textbf{hard-code} trong \texttt{utils/freq\_utils.py:395--396}, muốn đổi phải sửa mã nguồn.
+\end{block}
+\end{frame}
+
+% --- Frame 2: Bảng 1 ---
+\begin{frame}{Bảng 1 -- Tham số rasterizer \& thống kê tần số (giá trị mặc định thật)}
+\scriptsize
+\centering
+\begin{tabular}{llp{4.6cm}p{3.3cm}}
+\toprule
+\textbf{Cờ} & \textbf{Mặc định} & \textbf{Ý nghĩa} & \textbf{Ảnh hưởng} \\
+\midrule
+\texttt{--mult} & \texttt{0.7} & Hệ số thu nhỏ hộp bao compact: $t=\text{mult}\cdot 2\log(255\alpha)$ (\texttt{auxiliary.h:331}) & Giảm số tile/splat $\Rightarrow$ render nhanh; quá nhỏ gây cắt đuôi Gaussian \\
+\texttt{--eta\_compute\_mode} & \texttt{"wavelength"} & Cách tính $\eta$: \textit{wavelength} $\eta=\ell_{axis}\sqrt{\lambda_1}$, hoặc \textit{projection} $\eta=\sqrt{a^{\!\top}\!Sa}$ (\texttt{freq\_utils.py:313--373}) & Đổi hoàn toàn thang đo $\eta$, kéo theo ý nghĩa của $\tau_{high}/\tau_{low}$ \\
+\texttt{--freq\_grad\_threshold} & \texttt{2e-5} & Chỉ tích luỹ $\eta$ cho GS có $\lVert\nabla_{uv}\rVert$ vượt ngưỡng (\texttt{freq\_utils.py:208--216}) & Lọc nhiễu; tăng $\Rightarrow$ ít GS được thống kê $\Rightarrow$ ít split \\
+\texttt{--freq\_opacity\_threshold} & \texttt{0.05} & Bỏ qua GS gần trong suốt & Tránh tách GS vô hình \\
+\texttt{--freq\_transmittance\_threshold} & \texttt{0.0} & Bỏ qua GS bị che khuất ($T_{max}$ thấp) & Mặc định $0$ = không lọc \\
+\texttt{--st\_levels} & \texttt{4} & Số mức kim tự tháp của structure tensor đa tỉ lệ & Nhiều mức $\Rightarrow$ bắt cả tần số thấp \\
+\texttt{--st\_mode} & \texttt{"v1"} & Chọn \texttt{get\_multiscale\_structure\_tensor\_v1/v2} (\texttt{train.py:187--190}) & Đổi công thức $S$ tiền tính \\
+\texttt{--batch\_size} & \texttt{1} & Số camera gộp gradient trước 1 bước optimizer (\texttt{train.py:235}) & $>1$ ổn định hơn nhưng chậm hơn \\
+\bottomrule
+\end{tabular}
+\vspace{0.1cm}\\
+\scriptsize Hai hằng số quyết định phân loại nằm trong code: \texttt{TAU\_HIGH = 1.0}, \texttt{TAU\_LOW = 0.1} (\texttt{freq\_utils.py:395--396}).
+\end{frame}
+
+% --- Frame 3: Bảng 2 ---
+\begin{frame}{Bảng 2 -- Tham số densify/prune \& lịch trình}
+\scriptsize
+\centering
+\begin{tabular}{llp{4.4cm}p{3.2cm}}
+\toprule
+\textbf{Cờ} & \textbf{Mặc định} & \textbf{Ý nghĩa} & \textbf{Ảnh hưởng} \\
+\midrule
+\texttt{--split\_ratio\_threshold} & \texttt{0.8} & Split khi $n_{high}/n_{view} > 0.8$ (\texttt{train.py:345}) & Giảm $\Rightarrow$ bùng nổ số Gaussian \\
+\texttt{--prune\_ratio\_threshold} & \texttt{0.8} & Prune khi $n_{low}/n_{view} > 0.8$ (\texttt{train.py:353}) & Giảm $\Rightarrow$ cắt mạnh, mất chi tiết nền \\
+\texttt{--dense} & \texttt{0.001} & Ranh giới clone/split: $\max\sigma \lessgtr \texttt{dense}\cdot\text{extent}$ (\texttt{gaussian\_model.py:990--991}) & Thay vai trò \texttt{percent\_dense} của 3DGS \\
+\texttt{--grad\_thresh} & \texttt{2e-4} & Ngưỡng gradient cho nhánh \textbf{clone} & Kênh dự phòng khi tín hiệu $\eta$ yếu \\
+\texttt{--grad\_abs\_thresh} & \texttt{2e-4} & Ngưỡng gradient tuyệt đối cho nhánh \textbf{split} & Như trên \\
+\texttt{--ks\_scale\_power} & \texttt{1.0} & Mũ chia scale khi split: $\sigma'=\sigma/k^{p}$ & $p$ lớn $\Rightarrow$ con nhỏ hơn nhiều \\
+\texttt{--densification\_interval} & \texttt{100} & Chu kỳ gọi \texttt{densify\_and\_prune\_structgs} & Quyết định tần suất tăng/giảm số GS \\
+\texttt{--densify\_from\_iter} & \texttt{500} & Bắt đầu densify & \\
+\texttt{--densify\_until\_iter} & \texttt{15000} & Kết thúc densify \textbf{và} kết thúc cập nhật $\eta$ & Sau mốc này chỉ tinh chỉnh \\
+\texttt{--opacity\_reset\_interval} & \texttt{3000} & Chu kỳ reset opacity & Cũng là mốc bật \texttt{size\_threshold}=20 \\
+\texttt{--opacity\_reset\_decay} & \texttt{0.1} & Reset \textbf{nhân} $\alpha \leftarrow 0.1\alpha$ (\texttt{gaussian\_model.py:419}) & Khác 3DGS: 3DGS dùng $\min(\alpha,0.01)$ \\
+\texttt{--warmup\_densification} & \texttt{False} & Bật nhánh densify kiểu 3DGS mỗi 100 iter (\texttt{train.py:322,388--390}) & Chỉ khi bật mới dùng \texttt{densify\_grad\_(abs\_)threshold} \\
+\texttt{--densify\_grad\_threshold} & \texttt{2e-4} & \multicolumn{2}{p{7.8cm}}{Chỉ có tác dụng trong nhánh warmup} \\
+\texttt{--densify\_grad\_abs\_threshold} & \texttt{4e-4} & \multicolumn{2}{p{7.8cm}}{Chỉ có tác dụng trong nhánh warmup} \\
+\bottomrule
+\end{tabular}
+\end{frame}
+
+% --- Frame 4: Bảng 3 + LR ---
+\begin{frame}{Bảng 3 -- Learning rate \& optimizer (hình: đường cong LR theo cờ)}
+\scriptsize
+\begin{columns}[T]
+\begin{column}{0.45\textwidth}
+\begin{tabular}{llp{2.1cm}}
+\toprule
+\textbf{Cờ} & \textbf{Mặc định} & \textbf{Ghi chú} \\
+\midrule
+\texttt{optimizer\_type} & \texttt{"hybrid"} & Adam(amsgrad) cho hình học + SparseAdam cho SH \\
+\texttt{adam\_eps\_order} & \texttt{8} & $\varepsilon=10^{-8}$ \\
+\texttt{lowfeature\_lr} & \texttt{0.0025} & LR của \texttt{f\_dc} \\
+\texttt{highfeature\_lr} & \texttt{0.005} & Chia 20 khi gán: \texttt{f\_rest} $=2.5\!\times\!10^{-4}$ \\
+\texttt{opacity\_lr} & \texttt{0.05} & 3DGS: 0.025 \\
+\texttt{scaling\_lr} & \texttt{0.01} & 3DGS: 0.005 \\
+\texttt{rotation\_lr} & \texttt{0.002} & 3DGS: 0.001 \\
+\texttt{scale\_rot\_sched} & \texttt{False} & Nếu bật: $3\times$lr $\rightarrow 0.5\times$lr \\
+\texttt{lambda\_l2} & \texttt{2.0} & Thêm hạng L2 vào loss \\
+\texttt{lambda\_dssim} & \texttt{0.2} & Như 3DGS \\
+\bottomrule
+\end{tabular}
+\vspace{0.15cm}\\
+\scriptsize
+$\mathcal{L}=(1-\lambda_{d})L_1+\lambda_d(1-\text{SSIM})+\lambda_{L2}L_2$ (\texttt{train.py:259}).
+\end{column}
+\begin{column}{0.55\textwidth}
+\centering
+\includegraphics[width=\linewidth]{sadgsx/13_lr.png}
+\captionof{figure}{\footnotesize LR thực tế: chỉ \texttt{xyz} có lịch expon; các LR khác là hằng số trừ khi bật \texttt{scale\_rotation\_scheduler}.}
+\end{column}
+\end{columns}
+\end{frame}
+
+% --- Frame 5: 3DGS vs SADGS ---
+\begin{frame}{Đối chiếu siêu tham số: 3DGS gốc vs SADGS}
+\scriptsize
+\centering
+\begin{tabular}{lll}
+\toprule
+\textbf{Khía cạnh} & \textbf{3DGS gốc} & \textbf{SADGS} \\
+\midrule
+Tiêu chí densify & $\lVert \bar g_{xyz}\rVert > $ \texttt{densify\_grad\_threshold} & Đồng thuận đa view trên $\eta$ + gradient \\
+Ngưỡng clone/split & \texttt{percent\_dense} $=0.01$ & \texttt{dense} $=0.001$ (nhỏ hơn $10\times$) \\
+Tiêu chí prune & $\alpha <$ \texttt{min\_opacity}, bán kính lớn & Thêm $n_{low}/n_{view} >$ \texttt{prune\_ratio\_threshold} \\
+Reset opacity & $\alpha \leftarrow \min(\alpha, 0.01)$ & $\alpha \leftarrow$ \texttt{opacity\_reset\_decay} $\cdot\,\alpha$ ($=0.1\alpha$) \\
+Nâng bậc SH & mỗi 1000 iter & \textbf{mỗi iteration} (\texttt{train.py:216}) $\Rightarrow$ đạt bậc 3 sau 3 iter \\
+LR màu & \texttt{feature\_lr} $=0.0025$, \texttt{f\_rest}$/20$ & Tách \texttt{lowfeature\_lr} / \texttt{highfeature\_lr} \\
+Optimizer & Adam & \texttt{hybrid}: Adam(amsgrad) + SparseGaussianAdam(SH) \\
+Rasterizer & hộp bao theo bán kính $3\sigma$ & Compact box co bởi \texttt{mult} $=0.7$ \\
+Loss & $L_1$ + DSSIM & $L_1$ + DSSIM + $\lambda_{L2}L_2$ ($\lambda_{L2}=2.0$) \\
+Tiền xử lý & -- & Tiền tính structure tensor đa tỉ lệ cho mọi ảnh (\texttt{train.py:160--200}) \\
+\bottomrule
+\end{tabular}
+\vspace{0.2cm}\\
+\footnotesize
+Các tham số 3DGS vẫn khai báo nhưng \textbf{đã bị thay thế}: \texttt{feature\_lr}, \texttt{shfeature\_lr}, \texttt{percent\_dense} (chỉ còn dùng trong \texttt{densify\_and\_clone/split} kiểu cũ của nhánh warmup).
+\end{frame}
+
+% --- Frame 6: Lịch trình ---
+\begin{frame}{Lịch trình huấn luyện thực tế theo iteration}
+\scriptsize
+\centering
+\includegraphics[width=0.72\linewidth]{sadgsx/13_lich_trinh.png}
+\captionof{figure}{\footnotesize Sơ đồ Gantt dựng từ đúng các điều kiện \texttt{if} trong \texttt{train.py:202--440}.}
+\vspace{0.1cm}
+\scriptsize
+\begin{itemize}\itemsep0pt
+    \item \texttt{iter \% 1}: \texttt{oneupSHdegree()} $\Rightarrow$ \texttt{active\_sh\_degree} chạm 3 ngay iteration 3.
+    \item \texttt{iter < 15000 and iter \% 10 == 0}: \texttt{update\_freq\_stats\_online} tích luỹ $\eta$, \texttt{eta\_high/mid/low\_count}.
+    \item \texttt{iter > 500 and iter \% 100 == 0}: \texttt{densify\_and\_prune\_structgs} $\rightarrow$ ngay sau đó \textbf{xoá sạch} mọi bộ đếm $\eta$ (\texttt{train.py:377--386}) $\Rightarrow$ mỗi cửa sổ 100 iter chỉ có $\approx 10$ lần quan sát.
+    \item \texttt{iter \% 3000 == 0}: \texttt{reset\_opacity(0.1)}; từ iter $>3000$ bật \texttt{size\_threshold}$=20$.
+    \item \texttt{iter in prune\_iterations} (mặc định \texttt{[4000, 8000]}): prune thô $\alpha<0.1$.
+    \item \texttt{iter} $\ge 15000$: dừng densify \textbf{và} dừng thống kê tần số -- 15k iteration cuối chỉ tinh chỉnh tham số.
+\end{itemize}
+\end{frame}
+
+% --- Frame 7: Độ nhạy ---
+\begin{frame}{Độ nhạy của số Gaussian theo ba ngưỡng cốt lõi}
+\scriptsize
+\centering
+\includegraphics[width=0.88\linewidth]{sadgsx/13_do_nhay.png}
+\captionof{figure}{\footnotesize Mô phỏng $2\!\times\!10^4$ Gaussian $\times$ 60 view với $\eta$ phân phối log-chuẩn; ba panel quét đúng ba biểu thức trong code.}
+\vspace{0.1cm}
+\scriptsize
+\begin{itemize}\itemsep0pt
+    \item (a) \texttt{prune\_ratio\_threshold} rất nhạy ở vùng $<0.4$: hạ từ 0.8 xuống 0.4 làm tỉ lệ prune tăng gấp $\approx 3$ lần.
+    \item (b) $\tau_{high}$ (hard-code $=1.0$) là "van" chính của split; giảm nhẹ xuống 0.7 đã gần gấp đôi số GS được tách.
+    \item (c) \texttt{mult}$=0.7$ thu bán trục hộp bao còn $\sqrt{0.7}\approx 84\%$ $\Rightarrow$ ít tile hơn, render nhanh hơn mà hầu như không đổi ảnh.
+\end{itemize}
+\end{frame}
+
+% --- Frame 8: Heatmap ---
+\begin{frame}{Bảng nhiệt ảnh hưởng \& khuyến nghị tinh chỉnh}
+\footnotesize
+\begin{columns}[T]
+\begin{column}{0.56\textwidth}
+\centering
+\includegraphics[width=\linewidth]{sadgsx/13_heatmap.png}
+\end{column}
+\begin{column}{0.44\textwidth}
+\scriptsize
+\textbf{Thứ tự nên chỉnh:}
+\begin{enumerate}\itemsep1pt
+    \item \texttt{split\_ratio\_threshold} / \texttt{prune\_ratio\_threshold} -- điều khiển trực tiếp ngân sách Gaussian.
+    \item \texttt{dense} -- quyết định tỉ lệ clone so với split.
+    \item \texttt{mult} -- đổi tốc độ render, gần như không đổi chất lượng.
+    \item \texttt{freq\_grad\_threshold} -- khử nhiễu thống kê $\eta$.
+    \item \texttt{lambda\_l2}, \texttt{highfeature\_lr} -- tinh chỉnh chất lượng cuối.
+\end{enumerate}
+\vspace{0.1cm}
+\textbf{Không nên chỉnh qua CLI} (vô tác dụng): \texttt{feature\_lr}, \texttt{shfeature\_lr}, \texttt{lambda\_freq}, \texttt{lambda\_tone}, \texttt{min\_weight}, \texttt{prune\_from\_iter}, \texttt{prune\_interval}, \texttt{densify\_prune\_ratio}, \texttt{after\_densify\_prune\_ratio}, \texttt{min\_contribution\_threshold}, \texttt{importance\_error\_threshold}, \texttt{loss\_thresh}, \texttt{sample\_far\_plane}, \texttt{far\_plane\_dist}, \texttt{far\_plane\_res}, \texttt{densification\_window\_width}, \texttt{clone\_target\_eta}, \texttt{max\_clones\_per\_axis}, \texttt{expansion\_speed}, \texttt{adaptive\_clone}.
+\end{column}
+\end{columns}
+\vspace{0.12cm}
+\begin{alertblock}{\footnotesize Các nhánh bị comment-out trong code}
+\scriptsize
+(1) \texttt{expand\_undersized\_gs(tau\_expand=\dots)} -- \texttt{train.py:356--359} $\Rightarrow$ \texttt{tau\_expand} hiện vô hiệu;
+(2) prune theo đồng thuận trong nhánh warmup -- \texttt{train.py:392--400};
+(3) \texttt{final\_prune\_structgs} cuối huấn luyện -- \texttt{train.py:418--419} (chỉ còn prune $\alpha<0.1$);
+(4) lọc \texttt{densify\_count} $\le 3$ -- \texttt{freq\_utils.py:222--227};
+(5) \texttt{training\_report(\dots)} -- \texttt{train.py:306} $\Rightarrow$ không log PSNR trong lúc train.
+\end{alertblock}
+\end{frame}

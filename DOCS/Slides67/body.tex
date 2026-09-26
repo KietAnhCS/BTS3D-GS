@@ -1,0 +1,180 @@
+% ============================================================================
+% THÂN DECK — tổ chức theo 6 PHẦN (\part). Mỗi phần mở bằng một trang mục lục
+% chỉ liệt kê section của chính phần đó, nên mục lục không còn dài 30 dòng.
+% Không frame nội dung nào bị xoá so với bản phẳng trước đây.
+% ============================================================================
+
+\begin{frame}
+\titlepage
+\end{frame}
+
+% ---------- Lộ trình 7 phần (thay cho mục lục phẳng 30 dòng) ----------
+\begin{frame}{Lộ trình}
+\footnotesize
+\begin{enumerate}\setlength{\itemsep}{3pt}
+    \item \textbf{Nền tảng \& Render} --- 3D Gaussian, Spherical Harmonics, chiếu phối cảnh, rasterizer khả vi.
+    \item \textbf{Loss, Gradient \& Optimizer} --- cái gì được tối ưu và gradient chảy về đâu.
+    \item \textbf{Adaptive Density Control} --- từ tổng quan tới 5 mục chuyên sâu + dòng thời gian.
+    \item \textbf{SADGS --- cơ chế} --- bản đồ toàn tuyến, khối SIGGRAPH 2026, rồi 15 mục quét từ source.
+    \item \textbf{SADGS --- đào sâu công thức} --- 6 mục input$\to$công thức$\to$output bằng số liệu thật, lấp khoảng trống chương 17.
+    \item \textbf{SADGS --- chi phí \& kết quả} --- ba đòn bẩy tăng tốc, thực nghiệm Colab T4.
+    \item \textbf{Quan sát \& Kết luận}.
+\end{enumerate}
+\vspace{2mm}
+\scriptsize Mỗi phần mở đầu bằng một trang mục lục riêng của phần đó.
+\end{frame}
+
+% ============================================================================
+\part{Nền tảng \& Render}
+\begin{frame}{Phần I --- Nền tảng \& Render}
+\small
+\tableofcontents
+\end{frame}
+
+\section{Nền tảng: 3D Gaussian là gì}
+\input{part1}
+
+\section{Spherical Harmonics trong SADGS (	exttt{utils/sh\_utils.py})}
+\input{partSH_B}
+
+\section{Chiếu phối cảnh \& Rasterizer khả vi}
+\input{part2}
+
+% ============================================================================
+\part{Loss, Gradient \& Optimizer}
+\begin{frame}{Phần II --- Loss, Gradient \& Optimizer}
+\small
+\tableofcontents
+\end{frame}
+
+\section{Loss, Gradient \& Optimizer}
+\input{part3}
+
+% ============================================================================
+\part{Adaptive Density Control}
+\begin{frame}{Phần III --- Adaptive Density Control}
+\small
+\tableofcontents
+\end{frame}
+
+\section{ADC --- Tổng quan}
+\input{part4}
+
+\section{ADC P1: Sai số ảnh \& tín hiệu pixel}
+\input{partADC_1a}
+\input{partADC_1b}
+
+\section{ADC P4: Gradient Cancellation \& quyết định Clone/Split}
+\input{partADC_4a}
+\input{partADC_4b}
+
+\section{ADC P5: Trọng số, Multinomial Resample \& Opacity Reset}
+\input{partADC_5a}
+\input{partADC_5b}
+
+\section{ADC P6: Toy Model 2D (có ADC vs không ADC)}
+\input{partADC_6}
+
+\section{ADC P7: So sánh cuối 3DGS vs SADGS}
+\input{partADC_7}
+
+\section{ADC --- Cơ chế theo dòng thời gian}
+\input{partADC_TLa}
+\input{partADC_TLb}
+
+% ============================================================================
+\part{SADGS --- Cơ chế}
+\begin{frame}{Phần IV --- SADGS: cơ chế}
+\small
+\tableofcontents
+\end{frame}
+
+\section{SADGS Teaser: Tổng quan trực quan}
+\input{part_sadgs_teaser}
+
+\section{SADGS B00: Bản đồ toàn tuyến (Structure Tensor $\to$ ADC)}
+\input{part_sadgsx_16}
+
+\section{SADGS (SIGGRAPH 2026): Structure-Aware Densification}
+\input{part_sadgs_01}
+\input{part_sadgs_02}
+\input{part_sadgs_03}
+\input{part_sadgs_04}
+\input{part_sadgs_05}
+\input{part_sadgs_06}
+\input{part_sadgs_07}
+\input{part_sadgs_08}
+
+\section{SADGS B01: Structure Tensor \& cấu trúc ảnh đa tỉ lệ}
+\input{part_sadgsx_01}
+\section{SADGS B02: Chiếu trục Gaussian \& tỉ số $\eta$}
+\input{part_sadgsx_02}
+\section{SADGS B03: Thống kê $\eta$ online đa view}
+\input{part_sadgsx_03}
+\section{SADGS B04: Anisotropic Split --- \texttt{densify\_and\_split\_structgs}}
+\input{part_sadgsx_04}
+\section{SADGS B05: Clone \& ghép tensor vào Optimizer}
+\input{part_sadgsx_05}
+\section{SADGS B06: \texttt{expand\_undersized\_gs}}
+\input{part_sadgsx_06}
+\section{SADGS B07: Vòng Densify+Prune hợp nhất}
+\input{part_sadgsx_07}
+\section{SADGS B08: \texttt{final\_prune\_structgs} \& Multiview Consistency}
+\input{part_sadgsx_08}
+\section{SADGS B09: Optimizer, LR Schedule \& Opacity Reset}
+\input{part_sadgsx_09}
+\section{SADGS B10: Bộ lọc 3D chống alias (Nyquist)}
+\input{part_sadgsx_10}
+\section{SADGS B11: Hàm mất mát --- L1, SSIM, Tone-curve, Frequency}
+\input{part_sadgsx_11}
+\section{SADGS B12: Chọn mẫu Camera (FPS) \& lấy mẫu Gaussian dị hướng}
+\input{part_sadgsx_12}
+\section{SADGS B13: Siêu tham số \& lịch huấn luyện thực tế}
+\input{part_sadgsx_13}
+\section{SADGS B14: Rasterizer riêng \texttt{diff-gaussian-rasterization\_structgs}}
+\input{part_sadgsx_14}
+\section{SADGS B15: Tổng hợp đầu-cuối --- pipeline, so sánh, chi phí, rủi ro}
+\input{part_sadgsx_15}
+
+% ============================================================================
+\part{SADGS --- Đào sâu công thức}
+\begin{frame}{Phần V --- SADGS: đào sâu công thức (Input $\to$ Công thức $\to$ Output)}
+\small
+\tableofcontents
+\end{frame}
+
+\section{Đ17a: Structure Tensor --- ba khoảng trống bằng số liệu thật}
+\input{part_sadgsx_17a}
+\section{Đ17b: Multiscale v1/v2 --- chi phí, độ nhạy $r,p$, kiểm chứng đẳng thức}
+\input{part_sadgsx_17b}
+\section{Đ17c: $\eta$ wavelength vs projection --- bất biến hướng, jitter Cholesky}
+\input{part_sadgsx_17c}
+\section{Đ17d: Multiview Consistency --- quỹ đạo ratio, bất biến độ phân giải}
+\input{part_sadgsx_17d}
+\section{Đ17e: Anisotropic Split --- nổ $N$, scale\_power, vì sao $\sqrt{12}$}
+\input{part_sadgsx_17e}
+\section{Đ17f: Toàn cảnh --- README $\to$ cơ chế, SAD-GS sửa gì của ADC gốc}
+\input{part_sadgsx_17f}
+
+% ============================================================================
+\part{SADGS --- Chi phí \& Kết quả}
+\begin{frame}{Phần VI --- SADGS: chi phí \& kết quả}
+\small
+\tableofcontents
+\end{frame}
+
+\section{Ba đòn bẩy tăng tốc SADGS \& mô hình chi phí}
+\input{part5}
+
+\section{SADGS: kết quả thực nghiệm trên Colab T4}
+\input{part6}
+
+% ============================================================================
+\part{Quan sát \& Kết luận}
+\begin{frame}{Phần VII --- Quan sát \& Kết luận}
+\small
+\tableofcontents
+\end{frame}
+
+\section{Quan sát \& Kết luận}
+\input{part7}

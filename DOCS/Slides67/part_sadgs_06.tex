@@ -1,0 +1,131 @@
+% ============================================================
+% PHẦN SADGS — Slide 6/8: densify_and_prune_structgs — "nhạc trưởng" điều phối
+% ============================================================
+
+% --- Frame 1 ---
+\begin{frame}{\texttt{densify\_and\_prune\_structgs}: nhạc trưởng điều phối 1 vòng ADC}
+\footnotesize
+\begin{itemize}
+    \item Hàm này được gọi mỗi \texttt{densification\_interval} ($100$ vòng), trong khoảng $[\texttt{densify\_from\_iter}{=}500,\ \texttt{densify\_until\_iter}{=}15000]$. Nó \textbf{không tự tính} tín hiệu -- nó \textbf{nhận vào} các mask/score đã tính sẵn ở \texttt{train.py} rồi \textbf{điều phối} clone/split/prune theo đúng thứ tự:
+\end{itemize}
+\begin{enumerate}
+    \item Tính \texttt{grad\_qualifiers}, \texttt{grad\_qualifiers\_abs} từ gradient tích luỹ chuẩn (kế thừa 3DGS gốc).
+    \item Tính \texttt{clone\_qualifiers}/\texttt{split\_qualifiers} theo kích thước: $\max(\text{scale}) \le/> \texttt{args.dense}\times\text{extent}$.
+    \item Ghép \texttt{custom\_split\_mask}/\texttt{custom\_prune\_mask} (từ high\_ratio/low\_ratio đa view) vào full mask theo \texttt{viewspace\_points\_indices}.
+    \item Kết hợp AND/OR ra \texttt{final\_clone\_mask}, \texttt{final\_split\_mask} $\to$ gọi \texttt{densify\_and\_clone\_structgs} rồi \texttt{densify\_and\_split\_structgs}.
+    \item Tính \texttt{prune\_mask} (opacity + kích thước) $\to$ tuỳ chọn multinomial resample $\to$ \texttt{prune\_points}.
+    \item Ép trần opacity $\alpha \leftarrow \min(\alpha, 0.8)$ cho toàn bộ Gaussian còn lại.
+\end{enumerate}
+\begin{itemize}
+    \item Toàn bộ 6 bước trên nằm gọn trong \textbf{một lệnh gọi hàm} mỗi 100 vòng -- đây là lý do gọi nó là ``nhạc trưởng'': chính \texttt{train.py} chuẩn bị tín hiệu, còn hàm này thực thi đồng bộ và đúng thứ tự.
+\end{itemize}
+\end{frame}
+
+% --- Frame 2 ---
+\begin{frame}{Hai lớp tín hiệu song song: gradient (cũ) vs.\ tần số/đa view (mới)}
+\footnotesize
+\begin{itemize}
+    \item 3DGS gốc chỉ có \textbf{một} loại tín hiệu densify: chuẩn gradient vị trí trung bình. SADGS giữ nguyên lớp này và \textbf{cộng thêm} một lớp tín hiệu thứ hai dựa trên tần số dao động $\eta$ quan sát qua nhiều view, rồi \textbf{kết hợp} hai lớp bằng AND/OR thay vì thay thế:
+\end{itemize}
+\vspace{0.2em}
+\centering
+\begin{tabular}{lll}
+\toprule
+\textbf{Tiêu chí} & \textbf{Gradient (kế thừa 3DGS)} & \textbf{Tần số/đa view (SADGS mới)} \\
+\midrule
+Đại lượng & $\|\overline{\nabla_{xyz}}\|$, $\|\overline{\nabla_{xyz}^{abs}}\|$ & \texttt{high\_ratio}, \texttt{low\_ratio} từ $\eta$ \\
+Ngưỡng & \texttt{grad\_thresh} (0.0002), \texttt{grad\_abs\_thresh} (0.0004) & \texttt{split\_/prune\_ratio\_threshold} (0.8) \\
+Nguồn & Tích luỹ mỗi backward, 1 giá trị/Gaussian & Tích luỹ theo view, tỉ lệ \% view đồng thuận \\
+Yếu điểm riêng & Nhạy nhiễu 1 view, có thể trồi sụt & Không phản ánh trực tiếp độ khó tối ưu \\
+\bottomrule
+\end{tabular}
+\vspace{0.4em}
+\footnotesize
+\begin{itemize}
+    \item Clone: $\text{final\_clone\_mask} = \big(\text{full\_split\_mask} \lor \text{grad\_qualifiers}\big) \wedge \text{clone\_qualifiers}$
+    \item Split: $\text{final\_split\_mask} = \big(\text{full\_split\_mask} \lor \text{grad\_qualifiers\_abs}\big) \wedge \text{split\_qualifiers}$
+    \item OR giữa 2 tín hiệu $\Rightarrow$ \textbf{dễ đề xuất} thêm Gaussian hơn (chỉ cần 1 trong 2 báo động); AND với \texttt{clone\_qualifiers}/\texttt{split\_qualifiers} $\Rightarrow$ vẫn phải đúng \textbf{kích thước} mới được thực thi.
+\end{itemize}
+\end{frame}
+
+% --- Frame 3 ---
+\begin{frame}{Ngưỡng $0.8$: high\_ratio/low\_ratio quyết định split/prune như thế nào}
+\footnotesize
+\begin{itemize}
+    \item Với mỗi Gaussian, sau khi tích luỹ $\eta$ (độ dao động màu/hình học) qua nhiều view trong 100 vòng:
+\end{itemize}
+\[
+\text{high\_ratio} = \frac{\texttt{eta\_high\_count}}{\texttt{accum\_view\_count}}, \qquad
+\text{low\_ratio} = \frac{\texttt{eta\_low\_count}}{\texttt{accum\_view\_count}}
+\]
+\[
+\text{split\_mask} = (\text{high\_ratio} > \texttt{split\_ratio\_threshold}{=}0.8) \ \wedge\ \text{is\_grad\_high}, \qquad
+\text{prune\_mask}_{\text{sơ bộ}} = (\text{low\_ratio} > \texttt{prune\_ratio\_threshold}{=}0.8) \ \wedge\ \text{valid\_mask}
+\]
+\begin{itemize}
+    \item \textbf{Ví dụ số cụ thể}: Gaussian $A$ được quan sát bởi $10$ view; $9/10$ view đo $\eta$ cao ($\eta > \tau_{\text{high}}$) $\Rightarrow$ \texttt{high\_ratio}$=0.9 > 0.8$ $\Rightarrow$ đủ điều kiện split (nếu gradient cũng cao).
+    \item Gaussian $B$ được quan sát bởi $10$ view; chỉ $6/10$ view đo $\eta$ cao ($\texttt{high\_ratio}=0.6 < 0.8$) $\Rightarrow$ \textbf{không} split dù có 1--2 view báo động mạnh -- tránh phản ứng thái quá với nhiễu cục bộ.
+    \item Gaussian $C$ có $8/10$ view đo $\eta$ thấp ($\texttt{low\_ratio}=0.8$, không $>0.8$ nên \textbf{chưa} đạt ngưỡng prune) -- ngưỡng dùng dấu $>$ nghiêm ngặt, không $\ge$.
+    \item Ngưỡng $0.8$ chung cho cả hai chiều thể hiện triết lý \textbf{đối xứng}: cần đa số áp đảo ($>80\%$) view đồng thuận mới được phép thay đổi cấu trúc Gaussian, dù là thêm hay bớt.
+\end{itemize}
+\end{frame}
+
+% --- Frame 4 ---
+\begin{frame}{Prune trong cùng vòng: opacity, kích thước thế giới \& màn hình}
+\begin{columns}
+\begin{column}{0.55\textwidth}
+\footnotesize
+\begin{itemize}
+    \item Ngay sau clone/split, cùng lệnh gọi \texttt{densify\_and\_prune\_structgs} thực hiện \textbf{prune tiêu chuẩn} (độc lập với high\_ratio/low\_ratio):
+\end{itemize}
+\[
+\text{prune\_mask} = (\alpha < \texttt{min\_opacity})
+\]
+\[
+\vee\ (\texttt{max\_radii2D} > \texttt{max\_screen\_size})
+\]
+\[
+\vee\ \big(\max(\text{scale}) > 0.1\times\text{extent}\big)
+\]
+\begin{itemize}
+    \item \texttt{min\_opacity}: Gaussian quá mờ, gần như vô hình, không còn đóng góp render.
+    \item \texttt{big\_points\_ws}: scale thế giới vượt $10\%$ đường chéo cảnh -- Gaussian ``phình'' bất thường, thường do split/clone lỗi hoặc tối ưu chệch hướng.
+    \item \texttt{max\_screen\_size} (\texttt{big\_points\_vs}): bán kính trên màn hình quá lớn -- chỉ áp dụng sau \texttt{opacity\_reset\_interval} để tránh xoá nhầm giai đoạn đầu.
+    \item Ba điều kiện nối bằng \textbf{OR}: chỉ cần vi phạm 1 trong 3 là đủ bị đề xuất xoá.
+\end{itemize}
+\end{column}
+\begin{column}{0.45\textwidth}
+\centering
+\includegraphics[width=0.95\linewidth]{fig_12_prune_alpha.png}
+\captionof{figure}{\footnotesize Prune theo ngưỡng opacity $\alpha < \texttt{min\_opacity}$}
+\vspace{0.4em}
+\includegraphics[width=0.95\linewidth]{fig_14_prune_scale.png}
+\captionof{figure}{\footnotesize Prune theo scale thế giới $> 0.1\times$extent}
+\end{column}
+\end{columns}
+\end{frame}
+
+% --- Frame 5 ---
+\begin{frame}{Tổng hợp: một chu kỳ densify+prune hoàn chỉnh (mỗi 100 vòng)}
+\footnotesize
+\begin{itemize}
+    \item Toàn bộ pipeline bên trong \texttt{densify\_and\_prune\_structgs}, ghép cả tín hiệu gradient cũ và tần số/đa view mới, chạy tuần tự trong một vòng gọi:
+\end{itemize}
+\[
+\underbrace{\text{grad \& }\eta\text{-ratio (2 lớp tín hiệu)}}_{\text{bước 1--3}}
+\ \to\
+\underbrace{\text{AND/OR} \to \text{clone} \to \text{split}}_{\text{bước 4}}
+\ \to\
+\underbrace{\text{prune (opacity/scale/screen)}}_{\text{bước 5}}
+\ \to\
+\underbrace{\text{clamp }\alpha \le 0.8}_{\text{bước 6}}
+\]
+\begin{itemize}
+    \item Vùng Gaussian bị đề xuất xoá có thể đến từ \textbf{một trong hai nhánh}: điều kiện chuẩn (opacity/kích thước) \textbf{HOẶC} điều kiện đa view (\texttt{low\_ratio} $>0.8$) -- hợp thành vùng ``OR'' rộng hơn nếu chỉ dùng một tín hiệu.
+    \item Sau prune, các accumulator \textbf{tần số} ($\texttt{accum\_eta}$, $\texttt{accum\_view\_count}$, $\texttt{max\_eta\_3ch}$, $\texttt{accum\_weights\_valid}$, $\texttt{eta\_high/mid/low\_count}$, $\texttt{eta\_high/mid\_sum\_3ch}$) được reset về $0$ ở \texttt{train.py:375--385}. Riêng $\texttt{xyz\_gradient\_accum}$/$\texttt{denom}$ \textbf{không} nằm trong danh sách reset này.
+    \item Khác với \texttt{final\_prune\_structgs} (Slide 7) chạy \textbf{một lần duy nhất} sau khi ngừng densify và xoá \textbf{dứt khoát}, prune trong vòng này chạy \textbf{lặp lại nhiều lần} trong suốt giai đoạn densify và có thể đi kèm multinomial resample (xem Slide 7) để tránh xoá quá đà.
+\end{itemize}
+\centering
+\includegraphics[width=0.42\linewidth]{fig_15_prune_or_region.png}
+\captionof{figure}{\footnotesize Vùng prune hợp thành từ OR giữa điều kiện chuẩn và điều kiện đa view (low\_ratio)}
+\end{frame}

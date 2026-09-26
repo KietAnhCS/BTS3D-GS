@@ -1,0 +1,177 @@
+% ===== BOT 10: Bộ lọc 3D chống alias (3D filter / Mip-splatting style) trong SADGS =====
+
+% --- Frame 1 ---
+\begin{frame}{Vì sao cần bộ lọc 3D? Alias khi zoom xa}
+\footnotesize
+\begin{itemize}
+    \item Một Gaussian 3D có thể nhỏ tuỳ ý. Khi camera lùi ra xa, hình chiếu của nó xuống ảnh nhỏ hơn \textbf{một pixel} $\Rightarrow$ tần số không gian của tín hiệu vượt giới hạn Nyquist của lưới pixel $\Rightarrow$ \textbf{alias}: nhấp nháy, moiré, hạt li ti khi đổi góc nhìn/độ phân giải.
+    \item Cách chữa theo lý thuyết lấy mẫu: \textbf{tiền lọc} (pre-filter) tín hiệu trước khi lấy mẫu. Vì tích chập của Gaussian với Gaussian vẫn là Gaussian, ta có thể lọc \textit{giải tích}, không cần mipmap:
+    \[
+        G(\mathbf{x};\Sigma) * G(\mathbf{x}; \sigma_f^2 I) \;=\; G\!\left(\mathbf{x};\; \Sigma + \sigma_f^2 I\right)
+    \]
+    \item SADGS đặt $\sigma_f = $ \texttt{filter\_3D}, một giá trị \textbf{riêng cho từng Gaussian}, lưu ở \texttt{self.filter\_3D} (\texttt{scene/gaussian\_model.py:71}), được ghi cả vào file PLY (\texttt{:391, :405, :410}) nên \textbf{giữ nguyên khi load lại} (\texttt{:444}).
+    \item Bật/tắt bằng cờ \texttt{--compute\_3d\_filter} (mặc định \texttt{False}, \texttt{arguments/\_\_init\_\_.py:132}); nếu tắt thì \texttt{filter\_3D} được gán 0 cho mọi điểm (\texttt{train.py:158}) và toàn bộ cơ chế thành vô hiệu (identity).
+\end{itemize}
+\vspace{0.15cm}
+\begin{center}
+\includegraphics[width=0.86\linewidth]{sadgsx/10_alias_demo.png}
+\captionof{figure}{\footnotesize Lấy mẫu thưa tín hiệu sine 23 chu kỳ bằng 18 mẫu sinh tần số giả (trái). Tiền lọc Gaussian $\hat{G}(\omega)=e^{-\omega^2\sigma_f^2/2}$ dập tắt phần vượt Nyquist (giữa, phải).}
+\end{center}
+\end{frame}
+
+% --- Frame 2 ---
+\begin{frame}{\texttt{compute\_3D\_filter}: lấy độ sâu tới camera \textit{gần nhất}}
+\footnotesize
+Hàm \texttt{compute\_3D\_filter(cameras)} (\texttt{gaussian\_model.py:207--255}), chạy dưới \texttt{@torch.no\_grad()}, duyệt \textbf{toàn bộ camera train}:
+\begin{enumerate}
+    \item Khởi tạo \texttt{distance}$=10^5$ cho mọi Gaussian, \texttt{valid\_points}$=$False (\texttt{:211--212}).
+    \item Đưa tâm Gaussian về hệ camera (\texttt{:222}) --- lưu ý $R$ đã được lưu \textbf{chuyển vị sẵn} do quy ước \texttt{glm} trong CUDA nên không transpose lại:
+    \[
+        \mathbf{x}_{cam} = \mathbf{x}\,R + \mathbf{T}
+    \]
+    \item Điều kiện hợp lệ: (a) \textbf{độ sâu} $z>0.2$ (\texttt{:227}); (b) \textbf{trong màn hình nới rộng} --- chiếu phối cảnh $u=\frac{x}{z}f_x+\frac{W}{2},\; v=\frac{y}{z}f_y+\frac{H}{2}$ (\texttt{:233--234}, với $z$ đã \texttt{clamp(min=0.001)}) rồi kiểm tra biên \textbf{nới} $\pm 15\%$ (tangent-space filtering, \texttt{:239}):
+    \[
+        -0.15\,W \le u \le 1.15\,W, \qquad -0.15\,H \le v \le 1.15\,H
+    \]
+    \item Cập nhật khoảng cách nhỏ nhất. Điểm quan trọng: code dùng \textbf{độ sâu} $z$ chứ không dùng khoảng cách Euclid $\lVert \mathbf{x}_{cam}\rVert$ (dòng dùng \texttt{xyz\_to\_cam} đã bị comment ở \texttt{:244}):
+    \[
+        \texttt{distance}[v] \leftarrow \min\big(\texttt{distance}[v],\; z[v]\big) \qquad (\texttt{:245})
+    \]
+    \item Gaussian \textbf{không camera nào thấy} được gán giá trị lớn nhất trong nhóm nhìn thấy: \texttt{distance[\textasciitilde valid] = distance[valid].max()} (\texttt{:250}) --- tức lọc mạnh nhất, an toàn.
+    \item \texttt{focal\_length} $=\max_i f_x^{(i)}$ --- tiêu cự của camera \textbf{độ phân giải cao nhất} (\texttt{:247--248}).
+\end{enumerate}
+\end{frame}
+
+% --- Frame 3 ---
+\begin{frame}{Công thức \texttt{filter\_3D} và ý nghĩa hình học}
+\footnotesize
+Dòng \texttt{gaussian\_model.py:254--255}:
+\[
+\boxed{\;\texttt{filter\_3D} \;=\; \frac{\texttt{distance}}{\texttt{focal\_length}}\cdot\sqrt{0.2}\;}
+\qquad \sqrt{0.2}\approx 0.4472
+\]
+\begin{itemize}
+    \item $\dfrac{z}{f}$ chính là \textbf{kích thước thế giới của 1 pixel} tại độ sâu $z$ (từ đồng dạng tam giác: $\Delta u = 1\text{ px} \Leftrightarrow \Delta x = z/f$). Vậy \texttt{filter\_3D} $\approx 0.447\times$ "một pixel quy về 3D" --- đúng là \textbf{giới hạn Nyquist} của lưới pixel chiếu ngược vào không gian 3D.
+    \item Hệ số $\sqrt{0.2}$ là \textbf{hard-code} trong source (\texttt{\#TODO remove hard coded value}, \texttt{:252}) --- nó biến hộp lấy mẫu 1 pixel thành độ lệch chuẩn Gaussian tương đương (box $\to$ Gaussian).
+    \item Dùng \texttt{distance} \textbf{nhỏ nhất} (camera gần nhất) $\Rightarrow$ chọn ràng buộc \textbf{chặt nhất} qua mọi view: nếu một view nào đó nhìn rất gần, Gaussian được phép nhỏ; view xa hơn sẽ tự động bị lọc nhiều hơn ở khâu chiếu 2D.
+    \item Dùng \texttt{focal\_length} \textbf{lớn nhất} $\Rightarrow$ lấy chuẩn theo camera phân giải cao nhất để không làm mờ quá mức ảnh nét nhất trong tập train.
+\end{itemize}
+\begin{center}
+\includegraphics[width=0.75\linewidth]{sadgsx/10_filter_vs_dist_focal.png}
+\captionof{figure}{\footnotesize \texttt{filter\_3D} tuyến tính theo độ sâu $z$ và tỉ lệ nghịch với tiêu cự $f$. Xa camera hoặc ống kính góc rộng $\Rightarrow$ ngưỡng lọc lớn hơn.}
+\end{center}
+\end{frame}
+
+% --- Frame 4 ---
+\begin{frame}{Scale hiệu dụng: \texttt{get\_scaling\_with\_3D\_filter}}
+\footnotesize
+\texttt{gaussian\_model.py:156--161}:
+\[
+\texttt{scales} = \exp(\_\texttt{scaling}), \qquad
+\boxed{\; s^{\text{eff}}_i \;=\; \sqrt{s_i^2 + \texttt{filter\_3D}^2 } \;},\quad i\in\{x,y,z\}
+\]
+\begin{itemize}
+    \item Đây chính là dạng đường chéo của $\Sigma + \sigma_f^2 I$: tích chập với Gaussian đẳng hướng cộng thêm $\sigma_f^2$ vào phương sai \textbf{mỗi trục}.
+    \item Tác dụng: \textbf{sàn (floor) kích thước}. Nếu $s_i \ll \sigma_f$ thì $s^{\text{eff}}_i \to \sigma_f$ --- không Gaussian nào nhỏ hơn 1 pixel-tại-độ-sâu-gần-nhất. Nếu $s_i \gg \sigma_f$ thì $s^{\text{eff}}_i \approx s_i$ --- \textbf{không đụng chạm} Gaussian lớn.
+    \item \texttt{filter\_3D} có shape $[N,1]$ (\texttt{:255}) nên broadcast sang cả 3 trục $\Rightarrow$ lọc \textbf{đẳng hướng} trong không gian thế giới; hình dạng dị hướng của Gaussian được giữ, chỉ "béo" thêm đều.
+    \item Giá trị này được truyền thẳng vào rasterizer: \texttt{scales = pc.get\_scaling\_with\_3D\_filter} (\texttt{gaussian\_renderer/\_\_init\_\_.py:74}). Lưu ý \textbf{nhánh \texttt{compute\_cov3D\_python}} (\texttt{:71--72}) gọi \texttt{get\_covariance(...)} dùng \texttt{get\_scaling} \textbf{thô} $\Rightarrow$ đường này \textbf{bỏ qua} bộ lọc.
+\end{itemize}
+\begin{center}
+\includegraphics[width=0.52\linewidth]{sadgsx/10_scale_effective.png}
+\captionof{figure}{\footnotesize $s^{\text{eff}}=\sqrt{s^2+\sigma_f^2}$: tiệm cận $\sigma_f$ khi $s\to 0$ và tiệm cận đường chéo $s^{\text{eff}}=s$ khi $s$ lớn.}
+\end{center}
+\end{frame}
+
+% --- Frame 5 ---
+\begin{frame}{Bù opacity theo tỉ số định thức: \texttt{get\_opacity\_with\_3D\_filter}}
+\footnotesize
+\texttt{gaussian\_model.py:190--201} --- chính xác từng dòng:
+\[
+\texttt{det1}=\prod_{i=1}^{3} s_i^2, \qquad
+\texttt{det2}=\prod_{i=1}^{3}\big(s_i^2 + \texttt{filter\_3D}^2\big), \qquad
+\boxed{\;\texttt{coef}=\sqrt{\frac{\texttt{det1}}{\texttt{det2}}}\;},\qquad
+\alpha^{\text{eff}} = \alpha\cdot \texttt{coef}
+\]
+với $\alpha = \texttt{opacity\_activation}(\_\texttt{opacity})$ --- mặc định \texttt{sigmoid} (\texttt{:43}), nhưng \texttt{modify\_functions} (\texttt{:48--52}) có thể đổi sang \texttt{torch.abs}.
+\begin{itemize}
+    \item \textbf{Bảo toàn năng lượng}: tích phân của một Gaussian 3D là $\alpha\,(2\pi)^{3/2}\sqrt{\det\Sigma}$. Nếu chỉ phình $\Sigma \to \Sigma + \sigma_f^2 I$ mà giữ $\alpha$, \textbf{tổng năng lượng tăng} theo $\sqrt{\det2/\det1}$ --- vật thể xa sẽ \textbf{sáng/đậm lên}, các Gaussian nhỏ tụ lại thành mảng mờ đục. Nhân \texttt{coef} khử đúng hệ số đó: $\alpha^{\text{eff}}\sqrt{\det2} = \alpha\sqrt{\det1}$.
+    \item Trường hợp đẳng hướng $s_i=s$, đặt $r=\texttt{filter\_3D}/s$: $\;\texttt{coef}=(1+r^2)^{-3/2}$. Ví dụ $r=1 \Rightarrow \texttt{coef}=2^{-3/2}\approx 0.354$; $r=2 \Rightarrow \approx 0.089$. Gaussian càng bé so với pixel thì càng \textbf{mờ hẳn đi} thay vì nhấp nháy.
+    \item Được dùng ngay tại render: \texttt{opacity = pc.get\_opacity\_with\_3D\_filter} (\texttt{gaussian\_renderer/\_\_init\_\_.py:63}).
+\end{itemize}
+\begin{center}
+\includegraphics[width=0.78\linewidth]{sadgsx/10_opacity_coef.png}
+\captionof{figure}{\footnotesize \texttt{coef} theo $r=\texttt{filter\_3D}/s$ cho các mức dị hướng (1/2/3 trục bị lọc) và opacity hiệu dụng tương ứng.}
+\end{center}
+\end{frame}
+
+% --- Frame 6 ---
+\begin{frame}{Trực quan: profile 1D trước/sau lọc \& \texttt{reset\_opacity} nhất quán}
+\footnotesize
+\begin{columns}[T]
+\begin{column}{0.56\textwidth}
+\includegraphics[width=\linewidth]{sadgsx/10_gauss_profile.png}
+\captionof{figure}{\footnotesize Trái: chỉ nới scale $\Rightarrow$ diện tích (năng lượng) phồng lên. Phải: nhân \texttt{coef} $\Rightarrow$ diện tích bảo toàn, đỉnh hạ xuống.}
+\end{column}
+\begin{column}{0.44\textwidth}
+\textbf{\texttt{reset\_opacity} (\texttt{:415--433})} phải \textbf{đi vòng} qua bộ lọc để không phá vỡ tính nhất quán:
+\[
+\alpha^{\text{new}} = \frac{(\alpha\cdot\texttt{coef})\cdot \texttt{decay}}{\texttt{coef}}
+\]
+rồi \texttt{inverse\_opacity\_activation} trước khi ghi vào optimizer.
+\begin{itemize}
+    \item \texttt{decay} $=$ \texttt{opt.opacity\_reset\_decay} $=0.1$ (\texttt{arguments:90}), gọi mỗi \texttt{opacity\_reset\_interval}$=3000$ iteration (\texttt{arguments:89}, \texttt{train.py:402--403}).
+    \item Vì reset thao tác trên \textbf{opacity đã lọc} rồi chia ngược lại, giá trị \textbf{quan sát được} giảm đúng $10\times$ --- nếu reset trực tiếp trên \texttt{\_opacity} thô thì mức suy giảm thật sự sẽ lệch theo từng Gaussian tuỳ $r$.
+\end{itemize}
+\end{column}
+\end{columns}
+\end{frame}
+
+% --- Frame 7 ---
+\begin{frame}{Vòng đời \texttt{filter\_3D}: densify, prune và lịch cập nhật}
+\footnotesize
+\textbf{(a) Giữ đồng bộ số phần tử $N$.} \texttt{filter\_3D} là tensor $[N,1]$ \textbf{không nằm trong optimizer}, nên mọi thao tác thay đổi $N$ phải chỉnh tay:
+\begin{itemize}
+    \item \texttt{prune\_points} (\texttt{:547--548}): \texttt{self.filter\_3D = self.filter\_3D[valid\_points\_mask]}, có bọc \texttt{if ... numel() > 0} để an toàn khi tắt cờ.
+    \item \texttt{densification\_postfix} nhận thêm \textbf{tham số thứ 8} \texttt{new\_filter\_3D} (\texttt{:595}) và nối: \texttt{cat((self.filter\_3D, new\_filter\_3D), dim=0)} (\texttt{:619--620}).
+    \item Mọi nơi sinh Gaussian mới đều \textbf{kế thừa} \texttt{filter\_3D} của cha: clone \texttt{[mask]} (\texttt{:907}), split chuẩn \texttt{[mask].repeat(N,1)} (\texttt{:886}), split theo $\eta$ của SADGS \texttt{[split\_indices].repeat\_interleave(repeats,dim=0)} (\texttt{:728, :798, :820}), và nhánh \texttt{:944}.
+    \item \textbf{Ngoại lệ}: các điểm khởi tạo trên 6 mặt bounding box trong \texttt{train.py} được gán \texttt{new\_filter\_3D = zeros} (\texttt{train.py:148, :150}) --- tức \textbf{không lọc} cho tới lần \texttt{compute\_3D\_filter} kế tiếp.
+\end{itemize}
+\textbf{(b) Lịch cập nhật (\texttt{train.py}).}
+\begin{itemize}
+    \item \textbf{Một lần trước vòng lặp}: \texttt{compute\_3D\_filter(cameras=scene.getTrainCameras())} nếu \texttt{opt.compute\_3d\_filter} (\texttt{train.py:154--155}); ngược lại gán 0 (\texttt{:158}).
+    \item \textbf{Trong huấn luyện}: chỉ chạy lại khi \texttt{iteration \% 100 == 0} \textbf{và} \texttt{iteration > opt.densify\_until\_iter} ($15\,000$, \texttt{arguments:92}) \textbf{và} \texttt{iteration < opt.iterations - 100} (\texttt{train.py:405--409}) --- "không cập nhật ở cuối huấn luyện" để tránh dịch chuyển mục tiêu tối ưu ngay trước khi hội tụ.
+    \item \textbf{Hệ quả cần lưu ý}: trong toàn bộ pha densification ($\le 15\,000$), \texttt{filter\_3D} \textbf{không} được tính lại --- con sinh ra nhỏ hơn cha nhưng vẫn mang \texttt{filter\_3D} của cha, nên tỉ lệ $r=\sigma_f/s$ \textbf{tăng} $\Rightarrow$ \texttt{coef} giảm mạnh, con mới ra đời đã bị mờ sẵn.
+\end{itemize}
+\end{frame}
+
+% --- Frame 8 ---
+\begin{frame}{Tương tác với $\eta$ và densification của SADGS}
+\footnotesize
+\begin{itemize}
+    \item SADGS chia Gaussian theo \textbf{lý thuyết lấy mẫu} với hệ số riêng từng trục (\texttt{:688--701}):
+    \[
+        k_i \;=\; \Big\lceil \sqrt{\max(\eta_i,\,1)} \Big\rceil, \qquad
+        s_i^{\text{new}} \;=\; \frac{s_i}{k_i^{\texttt{scale\_power}}} \quad (\texttt{:722})
+    \]
+    với $\eta$ là tỉ lệ năng lượng tần số $\sim(\sigma\,\omega_{\max})^2$ --- lập luận trong comment \texttt{:692--695}: cần $\sigma/k\cdot\omega\le 1 \Rightarrow k\ge\sqrt{\eta}$.
+    \item \textbf{Hai cơ chế cùng nói về Nyquist nhưng ngược chiều nhau}:
+\end{itemize}
+\vspace{0.1cm}
+\centering
+\begin{tabular}{lll}
+\toprule
+ & \textbf{Bộ lọc 3D} & \textbf{Chia theo $\eta$ (SADGS)} \\
+\midrule
+Tín hiệu & Hình học: $z/f$ (pixel $\to$ 3D) & Ảnh: năng lượng tần số $\eta$ \\
+Tác động & \textbf{Chặn dưới} kích thước: $s\!\uparrow$ tới $\sigma_f$ & \textbf{Giảm} kích thước: $s \to s/k^{p}$ \\
+Ở đâu & Chỉ lúc render (property) & Sửa thật \texttt{\_scaling} trong densify \\
+Chi phí & 0 Gaussian mới & Sinh $\prod_i k_i$ con \\
+\bottomrule
+\end{tabular}
+\vspace{0.15cm}
+\begin{itemize}\footnotesize
+    \item Điểm cân bằng: chia theo $\eta$ làm $s$ nhỏ đi cho tới khi $s\lesssim \sigma_f$; lúc đó bộ lọc \textbf{chặn} lại, $s^{\text{eff}}$ bão hoà ở $\sigma_f$ còn \texttt{coef} lao xuống $\Rightarrow$ các con quá nhỏ \textbf{mất dần opacity} và bị dọn bởi prune \texttt{get\_opacity < 0.1} (\texttt{train.py:412--417}).
+    \item Vậy bộ lọc 3D đóng vai trò \textbf{"phanh vật lý"} cho densification theo $\eta$: ngăn SADGS chia vô hạn để đuổi theo chi tiết mà lưới pixel vốn dĩ không thể tái hiện.
+    \item Lưu ý thực nghiệm: điều kiện split/clone dùng \texttt{get\_scaling} \textbf{thô} (\texttt{:683, :897}) chứ không dùng \texttt{get\_scaling\_with\_3D\_filter} $\Rightarrow$ quyết định densify \textbf{độc lập} với bộ lọc; bộ lọc chỉ điều tiết ảnh render và gradient chảy ngược.
+\end{itemize}
+\end{frame}

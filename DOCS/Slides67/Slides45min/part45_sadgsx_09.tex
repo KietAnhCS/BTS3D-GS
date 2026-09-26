@@ -1,0 +1,35 @@
+% ===== BOT 09: Optimizer, learning-rate schedule & opacity reset trong SADGS =====
+
+\begin{frame}{Optimizer, lịch learning rate \& reset opacity trong SADGS}
+\scriptsize
+\begin{columns}[T]
+\begin{column}{0.52\textwidth}
+\textbf{1. Lịch lr vị trí} (\texttt{get\_expon\_lr\_func}, \texttt{general\_utils.py:32--64}):
+\[
+\mathrm{lr}(k)=\exp\!\big[(1-t)\ln lr_{\text{init}} + t\ln lr_{\text{fin}}\big],\; t=\mathrm{clip}\!\big(\tfrac{k}{30000},0,1\big)
+\]
+với $lr_{\text{init}}=1.6\!\times\!10^{-4}\!\cdot s$, $lr_{\text{fin}}=1.6\!\times\!10^{-6}\!\cdot s$. \texttt{lr\_delay\_steps} không được truyền ($=0$) nên warm-up \textbf{không kích hoạt}.
+\vspace{0.12cm}
+
+\textbf{2. lr hằng số các nhóm khác} (\texttt{training\_setup:306--313}): \texttt{opacity} $0.05$, \texttt{scaling} $0.01$, \texttt{rotation} $0.002$, \texttt{f\_dc} $0.0025$, \texttt{f\_rest} $=0.005/20$ -- ba nhóm đầu \textbf{gấp đôi} 3DGS gốc.
+\vspace{0.12cm}
+
+\textbf{3. Optimizer} \texttt{hybrid} (mặc định): Adam+\texttt{amsgrad} cho hình học $\oplus$ \texttt{SparseGaussianAdam} cho SH bậc cao (chỉ cập nhật Gaussian có \texttt{radii>0}), $\varepsilon=10^{-8}$.
+\vspace{0.12cm}
+
+\textbf{4. Reset opacity} mỗi $3000$ iter (\texttt{train.py:402}):
+\[
+\alpha_{\text{new}}=\frac{\sigma(o)\,c\cdot 0.1}{c}=0.1\,\sigma(o)
+\]
+hệ số 3D filter $c$ \textbf{triệt tiêu} $\Rightarrow$ chỉ là phép \textbf{nhân} $0.1$; khác 3DGS gốc kẹp $\min(\alpha,0.01)$ -- SADGS \textbf{giữ nguyên thứ tự} độ đục rồi prune ở ngưỡng $0.1$.
+\vspace{0.12cm}
+
+\textbf{5. Bậc SH}: \texttt{oneupSHdegree} gọi \textbf{mỗi iteration} $\Rightarrow d_k=\min(k,3)$, bão hoà ngay tại $k=3$ (3DGS: mỗi 1000 iter).
+\end{column}
+\begin{column}{0.46\textwidth}
+\centering
+\includegraphics[width=\linewidth]{sadgsx/09_opacity_reset_traj.png}
+\captionof{figure}{\scriptsize Quỹ đạo $\alpha$ (log) qua 10 chu kỳ reset $\alpha\!\leftarrow\!0.1\alpha$; đường đứt là ngưỡng prune $0.1$.}
+\end{column}
+\end{columns}
+\end{frame}

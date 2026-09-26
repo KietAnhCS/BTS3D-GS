@@ -1,0 +1,39 @@
+\xpg@aux {}{vietnamese}
+\beamer@sectionintoc {1}{Nền tảng: 3D Gaussian là gì}{4}{1}{1}
+\beamer@sectionintoc {2}{Spherical Harmonics trong SADGS ( exttt{utils/sh\_utils.py})}{14}{1}{2}
+\beamer@sectionintoc {3}{Chiếu phối cảnh \& Rasterizer khả vi}{22}{1}{3}
+\beamer@sectionintoc {4}{Loss, Gradient \& Optimizer}{33}{2}{4}
+\beamer@sectionintoc {5}{ADC --- Tổng quan}{44}{3}{5}
+\beamer@sectionintoc {6}{ADC P1: Sai số ảnh \& tín hiệu pixel}{54}{3}{6}
+\beamer@sectionintoc {7}{ADC P4: Gradient Cancellation \& quyết định Clone/Split}{56}{3}{7}
+\beamer@sectionintoc {8}{ADC P5: Trọng số, Multinomial Resample \& Opacity Reset}{69}{3}{8}
+\beamer@sectionintoc {9}{ADC P6: Toy Model 2D (có ADC vs không ADC)}{85}{3}{9}
+\beamer@sectionintoc {10}{ADC P7: So sánh cuối 3DGS vs SADGS}{96}{3}{10}
+\beamer@sectionintoc {11}{ADC --- Cơ chế theo dòng thời gian}{106}{3}{11}
+\beamer@sectionintoc {12}{SADGS Teaser: Tổng quan trực quan}{125}{4}{12}
+\beamer@sectionintoc {13}{SADGS B00: Bản đồ toàn tuyến (Structure Tensor $\to $ ADC)}{127}{4}{13}
+\beamer@sectionintoc {14}{SADGS (SIGGRAPH 2026): Structure-Aware Densification}{132}{4}{14}
+\beamer@sectionintoc {15}{SADGS B01: Structure Tensor \& cấu trúc ảnh đa tỉ lệ}{174}{4}{15}
+\beamer@sectionintoc {16}{SADGS B02: Chiếu trục Gaussian \& tỉ số $\eta $}{182}{4}{16}
+\beamer@sectionintoc {17}{SADGS B03: Thống kê $\eta $ online đa view}{190}{4}{17}
+\beamer@sectionintoc {18}{SADGS B04: Anisotropic Split --- \texttt {densify\_and\_split\_structgs}}{199}{4}{18}
+\beamer@sectionintoc {19}{SADGS B05: Clone \& ghép tensor vào Optimizer}{207}{4}{19}
+\beamer@sectionintoc {20}{SADGS B06: \texttt {expand\_undersized\_gs}}{216}{4}{20}
+\beamer@sectionintoc {21}{SADGS B07: Vòng Densify+Prune hợp nhất}{224}{4}{21}
+\beamer@sectionintoc {22}{SADGS B08: \texttt {final\_prune\_structgs} \& Multiview Consistency}{233}{4}{22}
+\beamer@sectionintoc {23}{SADGS B09: Optimizer, LR Schedule \& Opacity Reset}{242}{4}{23}
+\beamer@sectionintoc {24}{SADGS B10: Bộ lọc 3D chống alias (Nyquist)}{251}{4}{24}
+\beamer@sectionintoc {25}{SADGS B11: Hàm mất mát --- L1, SSIM, Tone-curve, Frequency}{259}{4}{25}
+\beamer@sectionintoc {26}{SADGS B12: Chọn mẫu Camera (FPS) \& lấy mẫu Gaussian dị hướng}{267}{4}{26}
+\beamer@sectionintoc {27}{SADGS B13: Siêu tham số \& lịch huấn luyện thực tế}{275}{4}{27}
+\beamer@sectionintoc {28}{SADGS B14: Rasterizer riêng \texttt {diff-gaussian-rasterization\_structgs}}{283}{4}{28}
+\beamer@sectionintoc {29}{SADGS B15: Tổng hợp đầu-cuối --- pipeline, so sánh, chi phí, rủi ro}{292}{4}{29}
+\beamer@sectionintoc {30}{Đ17a: Structure Tensor --- ba khoảng trống bằng số liệu thật}{302}{5}{30}
+\beamer@sectionintoc {31}{Đ17b: Multiscale v1/v2 --- chi phí, độ nhạy $r,p$, kiểm chứng đẳng thức}{305}{5}{31}
+\beamer@sectionintoc {32}{Đ17c: $\eta $ wavelength vs projection --- bất biến hướng, jitter Cholesky}{308}{5}{32}
+\beamer@sectionintoc {33}{Đ17d: Multiview Consistency --- quỹ đạo ratio, bất biến độ phân giải}{311}{5}{33}
+\beamer@sectionintoc {34}{Đ17e: Anisotropic Split --- nổ $N$, scale\_power, vì sao $\sqrt {12}$}{315}{5}{34}
+\beamer@sectionintoc {35}{Đ17f: Toàn cảnh --- README $\to $ cơ chế, SAD-GS sửa gì của ADC gốc}{318}{5}{35}
+\beamer@sectionintoc {36}{Ba đòn bẩy tăng tốc SADGS \& mô hình chi phí}{323}{6}{36}
+\beamer@sectionintoc {37}{SADGS: kết quả thực nghiệm trên Colab T4}{333}{6}{37}
+\beamer@sectionintoc {38}{Quan sát \& Kết luận}{344}{7}{38}

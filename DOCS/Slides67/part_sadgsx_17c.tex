@@ -1,0 +1,71 @@
+% ===== BOT 17c: Dao sau eta wavelength vs projection, jitter Cholesky, bug w_valid =====
+
+\begin{frame}{Chứng minh bằng số: \texttt{"wavelength"} bất biến hướng, \texttt{"projection"} thì không}
+\scriptsize
+Trên cùng một cạnh ngang \textbf{thật} (pixel $(132,128)$ của một crop mới,
+$S=(S_{xx},S_{xy},S_{yy})=(0.0024,-0.0141,0.1866)$), đặt 3 trục tổng hợp cùng
+độ dài $L=20$px, hướng $\theta\in\{0^\circ,45^\circ,90^\circ\}$:
+\[
+\ell_k=\sqrt{u_k^2+v_k^2+10^{-8}}=L\ \ (\text{không đổi theo }\theta)
+\quad\Rightarrow\quad
+\boxed{\;\eta_k^{\text{wavelength}}=\ell_k/w_{\min}\;}\ \text{const.}
+\]
+\[
+\boxed{\;\eta_k^{\text{projection}}=\sqrt{S_{xx}u_k^2+2S_{xy}u_kv_k+S_{yy}v_k^2}\;}\ \text{thay đổi theo }\theta
+\]
+\begin{itemize}\itemsep0pt
+\item \texttt{freq\_utils.py:342,348} vs \texttt{freq\_utils.py:350-373}.
+\item $\eta^{\text{wavelength}}=(8.665,8.665,8.665)$ ở cả 3 hướng — phẳng tuyệt đối.
+\item $\eta^{\text{projection}}=(0.971,5.673,8.640)$ tại $0^\circ/45^\circ/90^\circ$ — gấp \textbf{8.9 lần} từ trục song song đến vuông góc cạnh.
+\end{itemize}
+\begin{center}
+\includegraphics[width=0.92\linewidth]{deep17c_01_orientation_invariance.png}\\
+\captionof{figure}{\tiny Trái: ảnh thật + 3 trục tổng hợp. Giữa: $\eta^{wavelength}$ phẳng. Phải: $\eta^{projection}$ tăng dần theo hướng.}
+\end{center}
+\end{frame}
+
+
+\begin{frame}{Jitter Cholesky thật: hình dạng theo $\Sigma_{2D}$, phương sai $\eta$}
+\scriptsize
+Tại pixel nhạy cảm thật $(144,121)$ (độ lệch chuẩn cục bộ của $S_{xx}{+}S_{yy}$
+lớn nhất), 400 lần jitter mỗi $\Sigma_{2D}$ (\texttt{freq\_utils.py:257-274}):
+\[
+\boxed{\;L_{11}=\sqrt{\sigma_{xx}},\ L_{21}=\sigma_{xy}/L_{11},\ L_{22}=\sqrt{\sigma_{yy}-L_{21}^2},\quad
+(\delta_x,\delta_y)=(L_{11}\epsilon_1,\,L_{21}\epsilon_1{+}L_{22}\epsilon_2)\;}
+\]
+\begin{itemize}\itemsep0pt
+\item Isotropic $\Sigma{=}\mathrm{diag}(9,9)$ vs dị hướng $\Sigma{=}\left(\begin{smallmatrix}25&14\\14&10\end{smallmatrix}\right)$ (giả định hợp lý, không đo được nếu thiếu scene 3DGS train).
+\item Vệt jitter dị hướng kéo dài đúng theo trục chính của $\Sigma_{2D}$ — xác nhận trực quan công thức Cholesky.
+\item $\eta$(tâm cố định)$=7.219$ cả hai trường hợp, nhưng $\eta$(TB qua jitter)$=4.351{\pm}2.349$ (isotropic) và $2.783{\pm}2.296$ (dị hướng) — lấy mẫu tâm cố định đánh giá cao hơn thực tế \textbf{65--160\%} tại vị trí này.
+\end{itemize}
+\begin{center}
+\includegraphics[width=0.92\linewidth]{deep17c_02_cholesky_jitter.png}\\
+\captionof{figure}{\tiny Trái/giữa: 400 điểm jitter thật overlay ảnh thật. Phải: histogram $\eta$ qua jitter, nét đứt = $\eta$ tâm cố định.}
+\end{center}
+\end{frame}
+
+
+\begin{frame}{Bug \texttt{w\_valid=1}: hệ quả số THẬT vs GIẢ ĐỊNH theo comment}
+\scriptsize
+6 lớp Gaussian chồng lấn tại 1 pixel, $\eta_k$ lấy lại giá trị thật từ khung
+trước; profile transmittance $T_i$ alpha-compositing chuẩn \textbf{giả định
+hợp lý} (không có pipeline render thật trong script numpy này):
+\[
+T_i=\prod_{j<i}(1-\alpha_j),\qquad
+\boxed{\;\eta_{\text{total},i}=\textstyle\sum_k\eta_{k,i}\cdot w_{\text{valid},i}\;}
+\]
+\[
+w_{\text{valid},i}=\underbrace{1}_{\textbf{THẬT --- code hiện tại, fu:238,378-380}}
+\quad\text{vs}\quad
+\underbrace{T_i}_{\textbf{GIẢ ĐỊNH --- theo ý comment ``Weight by Transmittance''}}
+\]
+\begin{itemize}\itemsep0pt
+\item THẬT: $\eta_{\text{total}}\approx24$--$28$ ở \emph{mọi} lớp, kể cả lớp gần như bị che hết ($T_5{=}0.031$).
+\item GIẢ ĐỊNH: $28.07\to18.45\to11.25\to5.37\to2.62\to1.31$ --- giảm đúng theo $T_i$.
+\item Chênh lệch THẬT so GIẢ ĐỊNH: $+0\%$ (lớp 0) $\to$ \textbf{+2046\%} (lớp 5) --- Gaussian bị che gần hết vẫn được tính $\eta$ y hệt Gaussian lộ hoàn toàn trong code hiện tại.
+\end{itemize}
+\begin{center}
+\includegraphics[width=0.92\linewidth]{deep17c_03_weighting_bug.png}\\
+\captionof{figure}{\tiny Trái: $w_{valid}$ THẬT (phẳng, =1) vs GIẢ ĐỊNH ($=T_i$, giảm dần). Giữa: $\eta_{total}$ hai cách. Phải: \% chênh lệch, tăng vọt ở lớp bị che sâu.}
+\end{center}
+\end{frame}
