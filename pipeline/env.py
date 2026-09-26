@@ -82,6 +82,22 @@ def _run(command):
     return subprocess.run(command, check=False).returncode
 
 
+def _run_capture(command, tail=60):
+    """Chạy command, in stdout/stderr nếu thất bại (thay vì nuốt lỗi bằng -q).
+
+    Trả về returncode. Khi build lỗi (vd thiếu header, nvcc OOM-killed), in
+    `tail` dòng cuối để thấy lỗi biên dịch thật thay vì chỉ "thất bại" chung chung.
+    """
+    print("$", " ".join(command))
+    result = subprocess.run(command, capture_output=True, text=True)
+    if result.returncode != 0:
+        output = (result.stdout or "") + (result.stderr or "")
+        lines = output.strip().splitlines()
+        print(f"--- {len(lines)} dòng log, {min(tail, len(lines))} dòng cuối ---")
+        print("\n".join(lines[-tail:]))
+    return result.returncode
+
+
 def install_dependencies(force=False, flag_path=DEPS_FLAG):
     """Cài pip package + 3 submodule CUDA. Lần đầu ~3-5 phút, sau đó bỏ qua nhờ cờ.
 
@@ -89,7 +105,13 @@ def install_dependencies(force=False, flag_path=DEPS_FLAG):
     kiện, nên một submodule build lỗi (vd thiếu #include) vẫn để lại /content/.deps_ok,
     khiến các lần chạy sau "dependencies đã cài" bỏ qua luôn bước cài lại và
     import ModuleNotFoundError lặp lại vô thời hạn.
+
+    MAX_JOBS được giới hạn (mặc định 2) vì build submodule CUDA biên dịch song song
+    nhiều file .cu (~5 file cho diff-gaussian-rasterization) và trên RAM giới hạn của
+    Colab, nvcc/cc1plus dễ bị OOM-killed -- lỗi hiện ra chỉ là "thất bại" chung chung
+    vì trước đây log bị nuốt bởi pip -q.
     """
+    os.environ.setdefault("MAX_JOBS", "2")
     if os.path.exists(flag_path) and not force:
         print("dependencies đã cài (xoá", flag_path, "để cài lại)")
         return False
@@ -97,7 +119,7 @@ def install_dependencies(force=False, flag_path=DEPS_FLAG):
     failed = []
     for module in SUBMODULES:
         if os.path.isdir(module):
-            rc = _run([sys.executable, "-m", "pip", "-q", "install", f"./{module}"])
+            rc = _run_capture([sys.executable, "-m", "pip", "install", "--no-build-isolation", f"./{module}"])
             if rc != 0:
                 failed.append(module)
         else:
@@ -106,7 +128,7 @@ def install_dependencies(force=False, flag_path=DEPS_FLAG):
         raise RuntimeError(
             "build submodule thất bại: " + ", ".join(failed) +
             f" -- {flag_path} KHÔNG được ghi, chạy lại install_dependencies() sau khi sửa lỗi build"
-            " (xem log !pip install ./submodules/<tên> -v ở trên để đọc lỗi biên dịch thật)")
+            " (lỗi biên dịch thật đã in ở log phía trên)")
     os.makedirs(os.path.dirname(flag_path) or ".", exist_ok=True)
     open(flag_path, "w").close()
     return True
