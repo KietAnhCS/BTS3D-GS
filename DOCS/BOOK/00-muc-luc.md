@@ -30,6 +30,7 @@ Công thức toán (LaTeX), bảng, code block, sơ đồ Mermaid và ảnh minh
 | 16 | [Bài toán lớn: Từ COLMAP đến `.ply` render 3D](16-bai-toan-lon-de-bai.md) | Một đề bài duy nhất gộp chương 6–13 (input COLMAP thật) + [lời giải 8 phần, ~30 000 dòng](16-loi-giai/00-muc-luc-loi-giai.md), tính tay đến file `.ply` render được |
 | 17 | [SAD-GS: Structure-Aware Densification (so với 3DGS gốc)](17-sadgs-structure-aware-densification.md) | Structure tensor Di Zenzo, $\eta$ = extent/bước sóng texture, multiview high/low ratio, anisotropic split $(k_x,k_y,k_z)$, trạng thái port vào codebase chính |
 | 18 | [SADGS: Cơ chế chuyên sâu (10 mục, 82 hình matplotlib)](18-sadgs-co-che-chuyen-sau/00-muc-luc.md) | Mở từng hàm SADGS ra đọc: structure tensor → $\eta$ → thống kê đa view → split dị hướng / clone / prune → optimizer, 3D filter, loss, rasterizer riêng, siêu tham số, pipeline đầu-cuối. Mỗi công thức kèm một hình sinh từ chính công thức đó. |
+| 19 | [Kết quả thực nghiệm SADGS thật — HCM0539 (7 hình matplotlib + ảnh submission thật)](19-ket-qua-sadgs-that/19-ket-qua-sadgs-that.md) | Lần train thật đầu tiên với densify/prune SADGS thật: score 0.8681, PSNR 23.78dB, SSIM 0.8897, LPIPS 0.0915, 2.97M Gaussian, 4234.8s trên T4. Diễn biến metric theo iteration, sự kiện opacity-reset, tăng trưởng Gaussian, chi phí tài nguyên, tốc độ hội tụ, so sánh với FastGS-lite cũ, quan sát ảnh submission thật, bảng `cfg_args` đầy đủ (phát hiện nhiều tham số "chết"), đối chiếu notebook, và đánh giá tổng thể. |
 
 ## Nguồn tài liệu gốc
 
@@ -77,7 +78,9 @@ Bên cạnh cơ chế densify/prune chính kế thừa từ 3DGS gốc (xem Chư
 
 ![Số lượng cơ chế luôn bật trước/sau đợt merge (đếm số lượng kỹ thuật, không phải benchmark hiệu năng)](fastergs_merge_figures/00_techniques_overview.png)
 
-**Cập nhật:** đã có số liệu thật (scene cuộc thi HCM0539, 30 000 vòng, Colab T4) — Score 0.8579, PSNR 25.27, SSIM 0.866, LPIPS 0.136, 344K Gaussian, VRAM đỉnh 1.92 GB/14.56 GB; nhật ký phiên train ở [Chương 14](14-trien-khai-colab-nhat-ky-train.md). (Chương so sánh định lượng 3DGS vanilla/FasterGS chưa có file riêng — số 17 nay dùng cho [SAD-GS](17-sadgs-structure-aware-densification.md), so sánh trực tiếp với 3DGS gốc.)
+**Cập nhật (số liệu FastGS-lite, trước khi có SADGS thật):** scene cuộc thi HCM0539, 30 000 vòng, Colab T4 — Score 0.8579, PSNR 25.27, SSIM 0.866, LPIPS 0.136, 344K Gaussian, VRAM đỉnh 1.92 GB/14.56 GB; nhật ký phiên train ở [Chương 14](14-trien-khai-colab-nhat-ky-train.md). (Chương so sánh định lượng 3DGS vanilla/FasterGS chưa có file riêng — số 17 nay dùng cho [SAD-GS](17-sadgs-structure-aware-densification.md), so sánh trực tiếp với 3DGS gốc.)
+
+**Cập nhật mới nhất (số liệu SADGS thật, densify/prune structure-aware thật sự chạy):** cùng scene HCM0539, 30 000 vòng, Colab T4 — Score **0.8681**, PSNR **23.78 dB**, SSIM **0.8897**, LPIPS **0.0915**, **2.97 triệu** Gaussian, thời gian train **4234.8 s (~1h10p)**, VRAM đỉnh **7.21 GB**. So với FastGS-lite: score/SSIM/LPIPS đều tốt hơn nhưng PSNR thấp hơn ~1.5dB và số Gaussian/VRAM/thời gian train tăng gần 3-9 lần — phân tích đầy đủ, 7 biểu đồ matplotlib từ log thật, ảnh submission thật, và bảng `cfg_args` (phát hiện một số tham số densify/prune "chết" trong code) ở [Chương 19](19-ket-qua-sadgs-that/19-ket-qua-sadgs-that.md).
 
 ---
 

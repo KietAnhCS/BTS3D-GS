@@ -63,7 +63,7 @@
 \subsection*{A1. Project Title}
 \begin{itemize}[leftmargin=1.2em]
 
-\textbf{"High-Fidelity Digital Twin Reconstruction of Base Transceiver Stations: Enhancing Vanilla 3DGS for Accelerated Training and Superior Rendering"}
+\textbf{"Digital Twin Reconstruction of Base Transceiver Stations with 3D Gaussian Splatting: Studying Vanilla 3DGS and Building an Improved 3DGS Variant Better Suited to BTS Towers"}
 \end{itemize}
 
 \subsection*{A2. Duration}
@@ -92,24 +92,19 @@ University: & International University -- Vietnam National University Ho Chi Min
 
 \subsection*{B1. Introduction}
 
-3D Gaussian Splatting (3DGS) enables the reconstruction of 3D models of BTS towers directly from
-on-site photographs, supporting the creation of digital twins for remote monitoring and
-maintenance. However, the training process of vanilla 3DGS is still slow and generates many
-redundant Gaussians on flat surfaces (the tower body, the ground), while not focusing enough on
-complex structural details such as antennas, steel frames, and mechanical components on the
-tower. This reduces efficiency when many BTS sites need to be reconstructed quickly over a wide
-area.
+This is a course project. Its goal is to study how the original (vanilla) 3D Gaussian Splatting
+(3DGS) pipeline works, use it to reconstruct a real Base Transceiver Station (BTS) telecom tower
+as a digital twin from drone photographs, and look for a rendering method that works better than
+vanilla 3DGS for this kind of scene. A BTS scene is mostly flat surfaces (roofs, walls, sky), but
+the tower mast, antennas, and cables are thin structures that are harder to render well.
 
-This project surveys and verifies several 3DGS optimization techniques (structure-guided
-densification, smart pruning, faster optimization), then combines the most effective techniques
-into a single pipeline for BTS towers that trains faster and renders with higher fidelity than
-vanilla 3DGS.
+Figure~1 shows a real result from our pipeline: a novel view of a BTS tower rendered by the
+trained 3DGS model, from drone photographs of a rooftop site in Ho Chi Minh City.
 
 \begin{figure}[h]
 \centering
-\includegraphics[width=0.9\textwidth]{figures/input_output_3dgs.png}
-\caption{3DGS pipeline overview: a set of on-site photographs (input) is used to train a set of
-3D Gaussians, which are then rendered into novel-view images (output).}
+\includegraphics[width=0.7\textwidth]{figures/render_0001.png}
+\caption{Output example: a BTS tower rendered by the trained 3DGS model from a new camera view.}
 \end{figure}
 
 \subsection*{B2. Objectives and Research Content}
@@ -117,7 +112,9 @@ vanilla 3DGS.
 \item Study the original 3DGS pipeline and its training/density-control bottlenecks as the
 baseline.
 \item Survey multiple published techniques for faster training and better densification, and
-verify each one against its own source code.
+verify each one against its own source code. We will focus on techniques that improve rendering
+of thin structures (the tower mast, antennas, cables), such as anti-aliasing, opacity/depth
+regularization, and density control for sparse regions.
 \item Select and combine the most effective techniques into one optimized pipeline for BTS
 digital-twin reconstruction.
 \item Benchmark the combined pipeline against vanilla 3DGS using PSNR, SSIM, LPIPS, Gaussian

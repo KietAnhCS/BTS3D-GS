@@ -1,4 +1,4 @@
-This is XeTeX, Version 3.141592653-2.6-0.999997 (MiKTeX 25.12) (preloaded format=xelatex 2026.9.22)  26 SEP 2026 00:02
+This is XeTeX, Version 3.141592653-2.6-0.999997 (MiKTeX 25.12) (preloaded format=xelatex 2026.9.22)  26 SEP 2026 16:55
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -635,16 +635,16 @@ Underfull \hbox (badness 1168) in paragraph at lines 86--87
 [1
 
 ]
-File: figures/input_output_3dgs.png Graphic file (type bmp)
-<figures/input_output_3dgs.png>
+File: figures/render_0001.png Graphic file (type bmp)
+<figures/render_0001.png>
 
-Overfull \hbox (0.44196pt too wide) in paragraph at lines 123--125
+Overfull \hbox (0.44196pt too wide) in paragraph at lines 120--122
 []\TU/NotoSerif(0)/m/n/12 Benchmark the combined pipeline against vanilla 3DGS 
 using PSNR, SSIM, LPIPS,
  []
 
 [2]
-Overfull \hbox (1.3209pt too wide) in paragraph at lines 130--131
+Overfull \hbox (1.3209pt too wide) in paragraph at lines 127--128
 []\TU/NotoSerif(0)/m/n/12 An optimized 3DGS pipeline for BTS digital twins, com
 bining the best-performing
  []
@@ -659,11 +659,11 @@ Package rerunfilecheck Info: File `thuyetminh_de_tai_en.out' has not changed.
  ) 
 Here is how much of TeX's memory you used:
  13532 strings out of 402987
- 253813 string characters out of 5448524
- 721715 words of memory out of 5000000
+ 253759 string characters out of 5448524
+ 722715 words of memory out of 5000000
  42076 multiletter control sequences out of 15000+600000
  632982 words of font info for 91 fonts, out of 8000000 for 9000
  1348 hyphenation exceptions out of 8191
- 73i,6n,93p,318b,455s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 73i,6n,93p,268b,457s stack positions out of 10000i,1000n,20000p,200000b,200000s
 
 Output written on thuyetminh_de_tai_en.pdf (3 pages).

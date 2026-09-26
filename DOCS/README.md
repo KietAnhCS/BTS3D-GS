@@ -22,26 +22,28 @@ nhật dần sang tên SADGS.
 
 ## Kết quả thực nghiệm mới nhất
 
-Chạy thật trên Colab T4 (không mô phỏng), scene `HCM0539` (dữ liệu cuộc thi
-`VAI_NVS_DATA_ROUND2`, 240 ảnh train / 60 ảnh test), 30 000 iterations. Số liệu dưới đây
-là số liệu **tham khảo từ lần chạy pipeline FastGS-lite trước khi tích hợp structure-aware
-densification** (Fused Adam, 3D anti-aliasing filter, Morton reordering — xem
-[00-muc-luc.md](BOOK/00-muc-luc.md#cập-nhật-tích-hợp-cơ-chế-từ-faster-gs)); **chưa phải là
-số liệu đo lại với cơ chế densify/prune của SADGS thật** (`densify_and_split_structgs` /
-`densify_and_clone_structgs` / `densify_and_prune_structgs` / `final_prune_structgs`). Cần
-chạy lại benchmark với `SADGS/run_train.sh` trên cùng scene để có số liệu SADGS chính thức —
-giữ nguyên bảng cũ ở đây chỉ để làm mốc so sánh, không khẳng định đây là kết quả của SADGS:
+**Cập nhật: đã có số liệu SADGS thật** — chạy thật trên Colab T4 (không mô phỏng), scene
+`HCM0539` (dữ liệu cuộc thi `VAI_NVS_DATA_ROUND2`, 240 ảnh train / 60 ảnh test), 30 000
+iterations, dùng chính notebook `bts_digital_twin.ipynb` và cơ chế densify/prune structure-aware
+thật của SADGS (`densify_and_split_structgs` / `densify_and_clone_structgs` /
+`densify_and_prune_structgs` / `final_prune_structgs`, không còn phải nhánh 3DGS gốc):
 
 | Score | PSNR | SSIM | LPIPS | Gaussians cuối | Thời gian train | VRAM đỉnh |
 |---|---|---|---|---|---|---|
-| 0.8579 | 25.27 dB | 0.8659 | 0.1364 | 344 484 | 1776 s (~29.6 phút) | 1.92 GB / 14.56 GB (T4) |
+| **0.8681** | 23.778 dB | 0.8897 | 0.0915 | 2 968 520 | 4234.8 s (~1h10p) | 7.21 GB |
 
-`BOOK/00-muc-luc.md` còn ghi số liệu này là "chưa đo được" cho các cơ chế FastGS mới merge
-tại thời điểm viết — lần chạy trên lấp khoảng trống đó cho pipeline FastGS-lite, nhưng vẫn
-cần một lần chạy tương đương cho SADGS. Chi tiết đầy đủ (cấu hình, `leaderboard.csv`,
-`history.csv`) nằm trong nhật ký ở
+So với mốc tham khảo cũ của bản FastGS-lite (score 0.8579, PSNR 25.27dB, SSIM 0.8659, LPIPS
+0.1364, 344 484 Gaussian, 1776s, VRAM đỉnh 1.92GB — chạy **trước khi** tích hợp densify/prune
+SADGS thật): score/SSIM/LPIPS của SADGS đều tốt hơn (LPIPS giảm ~33%), nhưng PSNR thấp hơn
+~1.5dB và số Gaussian/thời gian train/VRAM đỉnh tăng lần lượt ~8.6×/2.4×/3.8× — một đánh đổi
+cần cân nhắc, không phải chiến thắng toàn diện. Phân tích đầy đủ (9 phần, 7 biểu đồ matplotlib
+từ log thật, ảnh submission thật, bảng `cfg_args` — phát hiện một số tham số densify/prune
+"chết" trong code khiến cơ chế prune gần như bất hoạt, giải thích vì sao số Gaussian phình to)
+nằm ở [**Chương 19 — Kết quả thực nghiệm SADGS thật**](BOOK/19-ket-qua-sadgs-that/19-ket-qua-sadgs-that.md).
+
+Nhật ký cấu hình/triển khai Colab T4 (không gắn với lần chạy SADGS thật ở trên) vẫn còn ở
 [14-trien-khai-colab-nhat-ky-train.md](BOOK/14-trien-khai-colab-nhat-ky-train.md), và phần
-so sánh chất lượng 3DGS gốc / FastGS / SADGS nằm ở
+so sánh lý thuyết 3DGS gốc / FastGS / SADGS nằm ở
 [17-sadgs-structure-aware-densification.md](BOOK/17-sadgs-structure-aware-densification.md).
 
 ## Từ tên file cũ tới chương mới
@@ -55,7 +57,7 @@ so sánh chất lượng 3DGS gốc / FastGS / SADGS nằm ở
 | `DOCS/DIGITAL-TWIN-GS-PIPELINE-2.md` | [03-vong-lap-huan-luyen-phan-2.md](BOOK/03-vong-lap-huan-luyen-phan-2.md) |
 | `DOCS/DIGITAL-TWIN-GS-PIPELINE-3.md` | [04-luu-render-cham-diem-phan-3.md](BOOK/04-luu-render-cham-diem-phan-3.md) |
 
-## Mục lục `BOOK/` (17 chương)
+## Mục lục `BOOK/` (19 chương)
 
 Xem đầy đủ tại [BOOK/00-muc-luc.md](BOOK/00-muc-luc.md); tóm tắt nhanh:
 
@@ -76,6 +78,8 @@ Xem đầy đủ tại [BOOK/00-muc-luc.md](BOOK/00-muc-luc.md); tóm tắt nhan
 15. [Phụ lục: Kiểm định số chéo, Dữ liệu & Tài nguyên](BOOK/15-phu-luc-kiem-dinh-tai-nguyen.md)
 16. [Bài toán lớn: Từ COLMAP đến `.ply` render 3D](BOOK/16-bai-toan-lon-de-bai.md) + [lời giải 8 phần](BOOK/16-loi-giai/00-muc-luc-loi-giai.md)
 17. [So sánh chất lượng: 3DGS gốc vs FastGS vs SADGS (structure-aware densification)](BOOK/17-sadgs-structure-aware-densification.md)
+18. [SADGS: Cơ chế chuyên sâu (10 mục, 82 hình matplotlib)](BOOK/18-sadgs-co-che-chuyen-sau/00-muc-luc.md)
+19. [Kết quả thực nghiệm SADGS thật — HCM0539](BOOK/19-ket-qua-sadgs-that/19-ket-qua-sadgs-that.md) — lần train thật đầu tiên với densify/prune SADGS thật, 7 biểu đồ + ảnh submission thật
 
 ## `Report/`
 
