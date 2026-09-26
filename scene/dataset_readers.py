@@ -119,10 +119,12 @@ def readColmapCameras(cam_extrinsics, cam_intrinsics, images_folder):
         image_name = os.path.basename(image_path).split(".")[0]
         image = Image.open(image_path)
         if distortion is not None and np.any(distortion != 0):
+            # undistort là biến đổi hình học thuần tuý (remap toạ độ pixel), không
+            # quan tâm thứ tự kênh màu -- không cvtColor RGB<->BGR ở đây, vì ảnh
+            # dataset có thể là RGBA (4 kênh, dùng làm mask ở utils/camera_utils.py)
+            # và cv2.COLOR_RGB2BGR chỉ nhận ảnh 3 kênh, sẽ crash trên ảnh RGBA.
             K = np.array([[focal_length_x, 0, cx], [0, focal_length_y, cy], [0, 0, 1]])
-            frame = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
-            frame = cv2.undistort(frame, K, distortion)
-            image = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+            image = Image.fromarray(cv2.undistort(np.array(image), K, distortion))
 
         cam_info = CameraInfo(uid=uid, R=R, T=T, FovY=FovY, FovX=FovX, image=image,
                               image_path=image_path, image_name=image_name, width=width, height=height)
