@@ -68,6 +68,7 @@ def getNerfppNorm(cam_info):
 
 def readColmapCameras(cam_extrinsics, cam_intrinsics, images_folder):
     cam_infos = []
+    missing = []
     for idx, key in enumerate(cam_extrinsics):
         # sys.stdout.write('\r')
         # the exact output you're looking for:
@@ -117,6 +118,11 @@ def readColmapCameras(cam_extrinsics, cam_intrinsics, images_folder):
 
         image_path = os.path.join(images_folder, os.path.basename(extr.name))
         image_name = os.path.basename(image_path).split(".")[0]
+        if not os.path.exists(image_path):
+            # Drive đồng bộ thiếu / ảnh bị xoá: bỏ qua camera này thay vì crash
+            # cả buổi train, in cảnh báo để biết cần tải lại ảnh nào.
+            missing.append(image_path)
+            continue
         image = Image.open(image_path)
         if distortion is not None and np.any(distortion != 0):
             # undistort là biến đổi hình học thuần tuý (remap toạ độ pixel), không
@@ -130,6 +136,10 @@ def readColmapCameras(cam_extrinsics, cam_intrinsics, images_folder):
                               image_path=image_path, image_name=image_name, width=width, height=height)
         cam_infos.append(cam_info)
     sys.stdout.write('\n')
+    if missing:
+        print(f"CẢNH BÁO: thiếu {len(missing)}/{len(cam_extrinsics)} ảnh trên đĩa, đã bỏ qua các camera này:")
+        for path in missing:
+            print("  -", path)
     return cam_infos
 
 def fetchPly(path):

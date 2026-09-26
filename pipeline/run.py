@@ -66,7 +66,16 @@ def run_all(cfg, scenes, iterations=None, score_submission=True):
     for index, scene in enumerate(scenes, start=1):
         print(f"\n===== [{index}/{len(scenes)}] {scene} =====")
         show_mem(f"trước {scene}")
-        result, _, _ = train_scene(cfg, scene, iterations)
+        try:
+            result, _, _ = train_scene(cfg, scene, iterations)
+        except Exception as error:
+            # OOM/lỗi giữa chừng vẫn phải cứu checkpoint local (từ save_every) lên
+            # Drive trước khi raise tiếp -- nếu không, checkpoint chỉ nằm trên đĩa
+            # /content tạm thời và mất sạch khi phiên Colab bị ngắt/khởi động lại.
+            print(f"[{scene}] LỖI giữa chừng ({error!r}) -> vẫn thử lưu checkpoint gần nhất lên Drive")
+            deliver.autosave_scene(cfg, scene)
+            free_memory(tag=f"sau lỗi {scene}")
+            raise
         results.append(result)
         deliver.autosave_scene(cfg, scene)             # .ply lên Drive trước khi làm gì khác
         free_memory(tag=f"sau train {scene}")
