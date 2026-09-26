@@ -8,7 +8,7 @@ import sys
 os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
 
 DEPS_FLAG = "/content/.deps_ok"
-PIP_PACKAGES = ["plyfile", "psutil", "pandas", "matplotlib", "tqdm", "lpips"]
+PIP_PACKAGES = ["plyfile", "psutil", "pandas", "matplotlib", "tqdm", "lpips", "opencv-python-headless"]
 SUBMODULES = [
     "submodules/diff-gaussian-rasterization_structgs",
     "submodules/fused-ssim",

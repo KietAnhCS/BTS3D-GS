@@ -11,6 +11,7 @@
 
 import os
 import sys
+import cv2
 from PIL import Image
 from typing import NamedTuple
 from scene.colmap_loader import read_extrinsics_text, read_intrinsics_text, qvec2rotmat, \
@@ -82,6 +83,7 @@ def readColmapCameras(cam_extrinsics, cam_intrinsics, images_folder):
         R = np.transpose(qvec2rotmat(extr.qvec))
         T = np.array(extr.tvec)
 
+        distortion = None
         if intr.model=="SIMPLE_PINHOLE":
             focal_length_x = intr.params[0]
             FovY = focal2fov(focal_length_x, height)
@@ -91,12 +93,36 @@ def readColmapCameras(cam_extrinsics, cam_intrinsics, images_folder):
             focal_length_y = intr.params[1]
             FovY = focal2fov(focal_length_y, height)
             FovX = focal2fov(focal_length_x, width)
+        elif intr.model in ("SIMPLE_RADIAL", "RADIAL", "OPENCV"):
+            # Camera có hệ số méo ảnh (mặc định khi tự chụp + COLMAP mapper, không
+            # phải scene benchmark đã undistort sẵn). 3DGS gốc chỉ nhận PINHOLE nên
+            # ta khử méo ảnh bằng cv2.undistort thay vì bỏ qua/raise, giữ nguyên K
+            # (fx, fy, cx, cy) để FovX/FovY vẫn đúng sau khi khử méo.
+            if intr.model == "SIMPLE_RADIAL":
+                focal_length_x = focal_length_y = intr.params[0]
+                cx, cy = intr.params[1], intr.params[2]
+                distortion = np.array([intr.params[3], 0.0, 0.0, 0.0])
+            elif intr.model == "RADIAL":
+                focal_length_x = focal_length_y = intr.params[0]
+                cx, cy = intr.params[1], intr.params[2]
+                distortion = np.array([intr.params[3], intr.params[4], 0.0, 0.0])
+            else:  # OPENCV
+                focal_length_x, focal_length_y = intr.params[0], intr.params[1]
+                cx, cy = intr.params[2], intr.params[3]
+                distortion = np.array(intr.params[4:8])
+            FovY = focal2fov(focal_length_y, height)
+            FovX = focal2fov(focal_length_x, width)
         else:
-            assert False, "Colmap camera model not handled: only undistorted datasets (PINHOLE or SIMPLE_PINHOLE cameras) supported!"
+            assert False, "Colmap camera model not handled: only PINHOLE/SIMPLE_PINHOLE/SIMPLE_RADIAL/RADIAL/OPENCV supported!"
 
         image_path = os.path.join(images_folder, os.path.basename(extr.name))
         image_name = os.path.basename(image_path).split(".")[0]
         image = Image.open(image_path)
+        if distortion is not None and np.any(distortion != 0):
+            K = np.array([[focal_length_x, 0, cx], [0, focal_length_y, cy], [0, 0, 1]])
+            frame = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
+            frame = cv2.undistort(frame, K, distortion)
+            image = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
 
         cam_info = CameraInfo(uid=uid, R=R, T=T, FovY=FovY, FovX=FovX, image=image,
                               image_path=image_path, image_name=image_name, width=width, height=height)
