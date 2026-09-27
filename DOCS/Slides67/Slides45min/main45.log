@@ -1,4 +1,4 @@
-This is XeTeX, Version 3.141592653-2.6-0.999997 (MiKTeX 25.12) (preloaded format=xelatex 2026.9.22)  26 SEP 2026 01:22
+This is XeTeX, Version 3.141592653-2.6-0.999997 (MiKTeX 25.12) (preloaded format=xelatex 2026.9.22)  27 SEP 2026 19:25
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -885,25 +885,71 @@ File: gloss-vietnamese.ldf 2026/09/11 v2.13 polyglossia: module for Vietnamese
 Package polyglossia Info: Default language is vietnamese
 
 
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/mathtools\mathtools.sty
+Package: mathtools 2024/10/04 v1.31 mathematical typesetting tools
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/tools\calc.sty
+Package: calc 2025/03/01 v4.3b Infix arithmetic (KKT,FJ)
+\calc@Acount=\count372
+\calc@Bcount=\count373
+\calc@Adimen=\dimen305
+\calc@Bdimen=\dimen306
+\calc@Askip=\skip67
+\calc@Bskip=\skip68
+LaTeX Info: Redefining \setlength on input line 86.
+LaTeX Info: Redefining \addtolength on input line 87.
+\calc@Ccount=\count374
+\calc@Cskip=\skip69
+)
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/mathtools\mhsetup.sty
+Package: mhsetup 2021/03/18 v1.4 programming setup (MH)
+)
+\g_MT_multlinerow_int=\count375
+\l_MT_multwidth_dim=\dimen307
+\origjot=\skip70
+\l_MT_shortvdotswithinadjustabove_dim=\dimen308
+\l_MT_shortvdotswithinadjustbelow_dim=\dimen309
+\l_MT_above_intertext_sep=\dimen310
+\l_MT_below_intertext_sep=\dimen311
+\l_MT_above_shortintertext_sep=\dimen312
+\l_MT_below_shortintertext_sep=\dimen313
+\xmathstrut@box=\box79
+\xmathstrut@dim=\dimen314
+) (C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/colortbl\colortbl.sty
+Package: colortbl 2026/05/01 v1.0l Color table columns (DPC)
+
+(C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/tools\array.sty
+Package: array 2025/09/25 v2.6n Tabular extension package (FMi)
+\col@sep=\dimen315
+\ar@mcellbox=\box80
+\extrarowheight=\dimen316
+\NC@list=\toks46
+\extratabsurround=\skip71
+\backup@length=\skip72
+\ar@cellbox=\box81
+)
+\everycr=\toks47
+\minrowclearance=\skip73
+\rownum=\count376
+)
 (C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/booktabs\booktabs.sty
 Package: booktabs 2020/01/12 v1.61803398 Publication quality tables
-\heavyrulewidth=\dimen305
-\lightrulewidth=\dimen306
-\cmidrulewidth=\dimen307
-\belowrulesep=\dimen308
-\belowbottomsep=\dimen309
-\aboverulesep=\dimen310
-\abovetopsep=\dimen311
-\cmidrulesep=\dimen312
-\cmidrulekern=\dimen313
-\defaultaddspace=\dimen314
-\@cmidla=\count372
-\@cmidlb=\count373
-\@aboverulesep=\dimen315
-\@belowrulesep=\dimen316
-\@thisruleclass=\count374
-\@lastruleclass=\count375
-\@thisrulewidth=\dimen317
+\heavyrulewidth=\dimen317
+\lightrulewidth=\dimen318
+\cmidrulewidth=\dimen319
+\belowrulesep=\dimen320
+\belowbottomsep=\dimen321
+\aboverulesep=\dimen322
+\abovetopsep=\dimen323
+\cmidrulesep=\dimen324
+\cmidrulekern=\dimen325
+\defaultaddspace=\dimen326
+\@cmidla=\count377
+\@cmidlb=\count378
+\@aboverulesep=\dimen327
+\@belowrulesep=\dimen328
+\@thisruleclass=\count379
+\@lastruleclass=\count380
+\@thisrulewidth=\dimen329
 )
 (C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/pgf/frontendlayer\tikz.
 sty
@@ -913,7 +959,7 @@ Package: pgf 2025-08-29 v3.1.11a (3.1.11a)
 (C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pgf/modules\pgfmodule
 shapes.code.tex
 File: pgfmoduleshapes.code.tex 2025-08-29 v3.1.11a (3.1.11a)
-\pgfnodeparttextbox=\box79
+\pgfnodeparttextbox=\box82
 )
 (C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pgf/modules\pgfmodule
 plot.code.tex
@@ -922,8 +968,8 @@ File: pgfmoduleplot.code.tex 2025-08-29 v3.1.11a (3.1.11a)
 (C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/pgf/compatibility\pgfco
 mp-version-0-65.sty
 Package: pgfcomp-version-0-65 2025-08-29 v3.1.11a (3.1.11a)
-\pgf@nodesepstart=\dimen318
-\pgf@nodesepend=\dimen319
+\pgf@nodesepstart=\dimen330
+\pgf@nodesepend=\dimen331
 )
 (C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/pgf/compatibility\pgfco
 mp-version-1-18.sty
@@ -934,10 +980,10 @@ y
 (C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pgf/utilities\pgffor.
 code.tex
 Package: pgffor 2025-08-29 v3.1.11a (3.1.11a)
-\pgffor@iter=\dimen320
-\pgffor@skip=\dimen321
-\pgffor@stack=\toks46
-\pgffor@toks=\toks47
+\pgffor@iter=\dimen332
+\pgffor@skip=\dimen333
+\pgffor@stack=\toks48
+\pgffor@toks=\toks49
 ))
 (C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pgf/frontendlayer/tik
 z\tikz.code.tex
@@ -946,34 +992,34 @@ Package: tikz 2025-08-29 v3.1.11a (3.1.11a)
 (C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pgf/libraries\pgflibr
 aryplothandlers.code.tex
 File: pgflibraryplothandlers.code.tex 2025-08-29 v3.1.11a (3.1.11a)
-\pgf@plot@mark@count=\count376
-\pgfplotmarksize=\dimen322
+\pgf@plot@mark@count=\count381
+\pgfplotmarksize=\dimen334
 )
-\tikz@lastx=\dimen323
-\tikz@lasty=\dimen324
-\tikz@lastxsaved=\dimen325
-\tikz@lastysaved=\dimen326
-\tikz@lastmovetox=\dimen327
-\tikz@lastmovetoy=\dimen328
-\tikzleveldistance=\dimen329
-\tikzsiblingdistance=\dimen330
-\tikz@figbox=\box80
-\tikz@figbox@bg=\box81
-\tikz@tempbox=\box82
-\tikz@tempbox@bg=\box83
-\tikztreelevel=\count377
-\tikznumberofchildren=\count378
-\tikznumberofcurrentchild=\count379
-\tikz@fig@count=\count380
+\tikz@lastx=\dimen335
+\tikz@lasty=\dimen336
+\tikz@lastxsaved=\dimen337
+\tikz@lastysaved=\dimen338
+\tikz@lastmovetox=\dimen339
+\tikz@lastmovetoy=\dimen340
+\tikzleveldistance=\dimen341
+\tikzsiblingdistance=\dimen342
+\tikz@figbox=\box83
+\tikz@figbox@bg=\box84
+\tikz@tempbox=\box85
+\tikz@tempbox@bg=\box86
+\tikztreelevel=\count382
+\tikznumberofchildren=\count383
+\tikznumberofcurrentchild=\count384
+\tikz@fig@count=\count385
 
 (C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pgf/modules\pgfmodule
 matrix.code.tex
 File: pgfmodulematrix.code.tex 2025-08-29 v3.1.11a (3.1.11a)
-\pgfmatrixcurrentrow=\count381
-\pgfmatrixcurrentcolumn=\count382
-\pgf@matrix@numberofcolumns=\count383
+\pgfmatrixcurrentrow=\count386
+\pgfmatrixcurrentcolumn=\count387
+\pgf@matrix@numberofcolumns=\count388
 )
-\tikz@expandcount=\count384
+\tikz@expandcount=\count389
 
 (C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pgf/frontendlayer/tik
 z/libraries\tikzlibrarytopaths.code.tex
@@ -982,10 +1028,10 @@ File: tikzlibrarytopaths.code.tex 2025-08-29 v3.1.11a (3.1.11a)
 (C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pgf/libraries\pgflibr
 aryarrows.meta.code.tex
 File: pgflibraryarrows.meta.code.tex 2025-08-29 v3.1.11a (3.1.11a)
-\pgfarrowinset=\dimen331
-\pgfarrowlength=\dimen332
-\pgfarrowwidth=\dimen333
-\pgfarrowlinewidth=\dimen334
+\pgfarrowinset=\dimen343
+\pgfarrowlength=\dimen344
+\pgfarrowwidth=\dimen345
+\pgfarrowlinewidth=\dimen346
 )
 (C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pgf/frontendlayer/tik
 z/libraries\tikzlibrarypositioning.code.tex
@@ -1038,26 +1084,26 @@ File: tikzlibraryshapes.multipart.code.tex 2025-08-29 v3.1.11a (3.1.11a)
 (C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pgf/libraries/shapes\
 pgflibraryshapes.multipart.code.tex
 File: pgflibraryshapes.multipart.code.tex 2025-08-29 v3.1.11a (3.1.11a)
-\pgfnodepartlowerbox=\box84
-\pgfnodeparttwobox=\box85
-\pgfnodepartthreebox=\box86
-\pgfnodepartfourbox=\box87
-\pgfnodeparttwentybox=\box88
-\pgfnodepartnineteenbox=\box89
-\pgfnodeparteighteenbox=\box90
-\pgfnodepartseventeenbox=\box91
-\pgfnodepartsixteenbox=\box92
-\pgfnodepartfifteenbox=\box93
-\pgfnodepartfourteenbox=\box94
-\pgfnodepartthirteenbox=\box95
-\pgfnodeparttwelvebox=\box96
-\pgfnodepartelevenbox=\box97
-\pgfnodeparttenbox=\box98
-\pgfnodepartninebox=\box99
-\pgfnodeparteightbox=\box100
-\pgfnodepartsevenbox=\box101
-\pgfnodepartsixbox=\box102
-\pgfnodepartfivebox=\box103
+\pgfnodepartlowerbox=\box87
+\pgfnodeparttwobox=\box88
+\pgfnodepartthreebox=\box89
+\pgfnodepartfourbox=\box90
+\pgfnodeparttwentybox=\box91
+\pgfnodepartnineteenbox=\box92
+\pgfnodeparteighteenbox=\box93
+\pgfnodepartseventeenbox=\box94
+\pgfnodepartsixteenbox=\box95
+\pgfnodepartfifteenbox=\box96
+\pgfnodepartfourteenbox=\box97
+\pgfnodepartthirteenbox=\box98
+\pgfnodeparttwelvebox=\box99
+\pgfnodepartelevenbox=\box100
+\pgfnodeparttenbox=\box101
+\pgfnodepartninebox=\box102
+\pgfnodeparteightbox=\box103
+\pgfnodepartsevenbox=\box104
+\pgfnodepartsixbox=\box105
+\pgfnodepartfivebox=\box106
 )))
 (C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/generic/pgf/frontendlayer/tik
 z/libraries\tikzlibraryfit.code.tex
@@ -1068,14 +1114,14 @@ Package: caption 2023/08/05 v3.6o Customizing captions (AR)
 
 (C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/caption\caption3.sty
 Package: caption3 2023/07/31 v2.4d caption3 kernel (AR)
-\caption@tempdima=\dimen335
-\captionmargin=\dimen336
-\caption@leftmargin=\dimen337
-\caption@rightmargin=\dimen338
-\caption@width=\dimen339
-\caption@indent=\dimen340
-\caption@parindent=\dimen341
-\caption@hangindent=\dimen342
+\caption@tempdima=\dimen347
+\captionmargin=\dimen348
+\caption@leftmargin=\dimen349
+\caption@rightmargin=\dimen350
+\caption@width=\dimen351
+\caption@indent=\dimen352
+\caption@parindent=\dimen353
+\caption@hangindent=\dimen354
 Package caption Info: beamer document class detected.
 
 (C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/caption\caption-beamer.
@@ -1083,8 +1129,8 @@ sto
 File: caption-beamer.sto 2022/01/06 v2.0c Adaption of the caption package to th
 e beamer document classes (AR)
 ))
-\c@caption@flags=\count385
-\c@continuedfloat=\count386
+\c@caption@flags=\count390
+\c@continuedfloat=\count391
 Package caption Info: hyperref package is loaded.
 Package caption Info: Hyperref support is turned off
 (caption)             because hyperref has stopped early.
@@ -1103,26 +1149,26 @@ infolines.sty))
 seahorse.sty) (main45.aux)
 \openout1 = `main45.aux'.
 
-LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 43.
-LaTeX Font Info:    ... okay on input line 43.
-LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 43.
-LaTeX Font Info:    ... okay on input line 43.
-LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 43.
-LaTeX Font Info:    ... okay on input line 43.
-LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 43.
-LaTeX Font Info:    ... okay on input line 43.
-LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 43.
-LaTeX Font Info:    ... okay on input line 43.
-LaTeX Font Info:    Checking defaults for TU/lmr/m/n on input line 43.
-LaTeX Font Info:    ... okay on input line 43.
-LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 43.
-LaTeX Font Info:    ... okay on input line 43.
-LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 43.
-LaTeX Font Info:    ... okay on input line 43.
-LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 43.
-LaTeX Font Info:    ... okay on input line 43.
-LaTeX Font Info:    Checking defaults for PU/pdf/m/n on input line 43.
-LaTeX Font Info:    ... okay on input line 43.
+LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 47.
+LaTeX Font Info:    ... okay on input line 47.
+LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 47.
+LaTeX Font Info:    ... okay on input line 47.
+LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 47.
+LaTeX Font Info:    ... okay on input line 47.
+LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 47.
+LaTeX Font Info:    ... okay on input line 47.
+LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 47.
+LaTeX Font Info:    ... okay on input line 47.
+LaTeX Font Info:    Checking defaults for TU/lmr/m/n on input line 47.
+LaTeX Font Info:    ... okay on input line 47.
+LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 47.
+LaTeX Font Info:    ... okay on input line 47.
+LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 47.
+LaTeX Font Info:    ... okay on input line 47.
+LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 47.
+LaTeX Font Info:    ... okay on input line 47.
+LaTeX Font Info:    Checking defaults for PU/pdf/m/n on input line 47.
+LaTeX Font Info:    ... okay on input line 47.
 
 *geometry* driver: auto-detecting
 *geometry* detected driver: xetex
@@ -1158,59 +1204,59 @@ LaTeX Font Info:    ... okay on input line 43.
 * \@reversemarginfalse
 * (1in=72.27pt=25.4mm, 1cm=28.453pt)
 
-Package hyperref Info: Link coloring OFF on input line 43.
+Package hyperref Info: Link coloring OFF on input line 47.
 (main45.out) (main45.out)
 \@outlinefile=\write5
 \openout5 = `main45.out'.
 
 LaTeX Font Info:    Overwriting symbol font `operators' in version `normal'
-(Font)                  OT1/cmr/m/n --> OT1/cmss/m/n on input line 43.
+(Font)                  OT1/cmr/m/n --> OT1/cmss/m/n on input line 47.
 LaTeX Font Info:    Overwriting symbol font `operators' in version `bold'
-(Font)                  OT1/cmr/bx/n --> OT1/cmss/b/n on input line 43.
+(Font)                  OT1/cmr/bx/n --> OT1/cmss/b/n on input line 47.
 \symnumbers=\mathgroup6
 \sympureletters=\mathgroup7
 LaTeX Font Info:    Overwriting math alphabet `\mathrm' in version `normal'
-(Font)                  OT1/cmss/m/n --> TU/NotoSerif(0)/m/n on input line 43.
-LaTeX Font Info:    Redeclaring math alphabet \mathbf on input line 43.
+(Font)                  OT1/cmss/m/n --> TU/NotoSerif(0)/m/n on input line 47.
+LaTeX Font Info:    Redeclaring math alphabet \mathbf on input line 47.
 LaTeX Font Info:    Overwriting math alphabet `\mathbf' in version `normal'
-(Font)                  OT1/cmr/bx/n --> TU/NotoSans(0)/b/n on input line 43.
+(Font)                  OT1/cmr/bx/n --> TU/NotoSans(0)/b/n on input line 47.
 LaTeX Font Info:    Overwriting math alphabet `\mathbf' in version `bold'
-(Font)                  OT1/cmr/bx/n --> TU/NotoSans(0)/b/n on input line 43.
-LaTeX Font Info:    Redeclaring math alphabet \mathsf on input line 43.
+(Font)                  OT1/cmr/bx/n --> TU/NotoSans(0)/b/n on input line 47.
+LaTeX Font Info:    Redeclaring math alphabet \mathsf on input line 47.
 LaTeX Font Info:    Overwriting math alphabet `\mathsf' in version `normal'
-(Font)                  OT1/cmss/m/n --> TU/NotoSans(0)/m/n on input line 43.
+(Font)                  OT1/cmss/m/n --> TU/NotoSans(0)/m/n on input line 47.
 LaTeX Font Info:    Overwriting math alphabet `\mathsf' in version `bold'
-(Font)                  OT1/cmss/bx/n --> TU/NotoSans(0)/m/n on input line 43.
-LaTeX Font Info:    Redeclaring math alphabet \mathit on input line 43.
+(Font)                  OT1/cmss/bx/n --> TU/NotoSans(0)/m/n on input line 47.
+LaTeX Font Info:    Redeclaring math alphabet \mathit on input line 47.
 LaTeX Font Info:    Overwriting math alphabet `\mathit' in version `normal'
-(Font)                  OT1/cmr/m/it --> TU/NotoSans(0)/m/it on input line 43.
+(Font)                  OT1/cmr/m/it --> TU/NotoSans(0)/m/it on input line 47.
 LaTeX Font Info:    Overwriting math alphabet `\mathit' in version `bold'
-(Font)                  OT1/cmr/bx/it --> TU/NotoSans(0)/m/it on input line 43.
+(Font)                  OT1/cmr/bx/it --> TU/NotoSans(0)/m/it on input line 47.
 
-LaTeX Font Info:    Redeclaring math alphabet \mathtt on input line 43.
+LaTeX Font Info:    Redeclaring math alphabet \mathtt on input line 47.
 LaTeX Font Info:    Overwriting math alphabet `\mathtt' in version `normal'
-(Font)                  OT1/cmtt/m/n --> TU/lmtt/m/n on input line 43.
+(Font)                  OT1/cmtt/m/n --> TU/lmtt/m/n on input line 47.
 LaTeX Font Info:    Overwriting math alphabet `\mathtt' in version `bold'
-(Font)                  OT1/cmtt/m/n --> TU/lmtt/m/n on input line 43.
+(Font)                  OT1/cmtt/m/n --> TU/lmtt/m/n on input line 47.
 LaTeX Font Info:    Overwriting symbol font `numbers' in version `bold'
 (Font)                  TU/NotoSans(0)/m/n --> TU/NotoSans(0)/b/n on input line
- 43.
+ 47.
 LaTeX Font Info:    Overwriting symbol font `pureletters' in version `bold'
 (Font)                  TU/NotoSans(0)/m/it --> TU/NotoSans(0)/b/it on input li
-ne 43.
+ne 47.
 LaTeX Font Info:    Overwriting math alphabet `\mathrm' in version `bold'
-(Font)                  OT1/cmss/b/n --> TU/NotoSerif(0)/b/n on input line 43.
+(Font)                  OT1/cmss/b/n --> TU/NotoSerif(0)/b/n on input line 47.
 LaTeX Font Info:    Overwriting math alphabet `\mathbf' in version `bold'
 (Font)                  TU/NotoSans(0)/b/n --> TU/NotoSans(0)/b/n on input line
- 43.
+ 47.
 LaTeX Font Info:    Overwriting math alphabet `\mathsf' in version `bold'
 (Font)                  TU/NotoSans(0)/m/n --> TU/NotoSans(0)/b/n on input line
- 43.
+ 47.
 LaTeX Font Info:    Overwriting math alphabet `\mathit' in version `bold'
 (Font)                  TU/NotoSans(0)/m/it --> TU/NotoSans(0)/b/it on input li
-ne 43.
+ne 47.
 LaTeX Font Info:    Overwriting math alphabet `\mathtt' in version `bold'
-(Font)                  TU/lmtt/m/n --> TU/lmtt/b/n on input line 43.
+(Font)                  TU/lmtt/m/n --> TU/lmtt/b/n on input line 47.
 
 (C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/translator\translator-b
 asic-dictionary-English.dict
@@ -1243,366 +1289,337 @@ Package fontspec Info:
 
 \symlegacymaths=\mathgroup8
 LaTeX Font Info:    Overwriting symbol font `legacymaths' in version `bold'
-(Font)                  OT1/cmr/m/n --> OT1/cmr/bx/n on input line 43.
-LaTeX Font Info:    Redeclaring math accent \acute on input line 43.
-LaTeX Font Info:    Redeclaring math accent \grave on input line 43.
-LaTeX Font Info:    Redeclaring math accent \ddot on input line 43.
-LaTeX Font Info:    Redeclaring math accent \tilde on input line 43.
-LaTeX Font Info:    Redeclaring math accent \bar on input line 43.
-LaTeX Font Info:    Redeclaring math accent \breve on input line 43.
-LaTeX Font Info:    Redeclaring math accent \check on input line 43.
-LaTeX Font Info:    Redeclaring math accent \hat on input line 43.
-LaTeX Font Info:    Redeclaring math accent \dot on input line 43.
-LaTeX Font Info:    Redeclaring math accent \mathring on input line 43.
-LaTeX Font Info:    Redeclaring math symbol \Gamma on input line 43.
-LaTeX Font Info:    Redeclaring math symbol \Delta on input line 43.
-LaTeX Font Info:    Redeclaring math symbol \Theta on input line 43.
-LaTeX Font Info:    Redeclaring math symbol \Lambda on input line 43.
-LaTeX Font Info:    Redeclaring math symbol \Xi on input line 43.
-LaTeX Font Info:    Redeclaring math symbol \Pi on input line 43.
-LaTeX Font Info:    Redeclaring math symbol \Sigma on input line 43.
-LaTeX Font Info:    Redeclaring math symbol \Upsilon on input line 43.
-LaTeX Font Info:    Redeclaring math symbol \Phi on input line 43.
-LaTeX Font Info:    Redeclaring math symbol \Psi on input line 43.
-LaTeX Font Info:    Redeclaring math symbol \Omega on input line 43.
-LaTeX Font Info:    Redeclaring math symbol \mathdollar on input line 43.
-LaTeX Font Info:    Redeclaring symbol font `operators' on input line 43.
+(Font)                  OT1/cmr/m/n --> OT1/cmr/bx/n on input line 47.
+LaTeX Font Info:    Redeclaring math accent \acute on input line 47.
+LaTeX Font Info:    Redeclaring math accent \grave on input line 47.
+LaTeX Font Info:    Redeclaring math accent \ddot on input line 47.
+LaTeX Font Info:    Redeclaring math accent \tilde on input line 47.
+LaTeX Font Info:    Redeclaring math accent \bar on input line 47.
+LaTeX Font Info:    Redeclaring math accent \breve on input line 47.
+LaTeX Font Info:    Redeclaring math accent \check on input line 47.
+LaTeX Font Info:    Redeclaring math accent \hat on input line 47.
+LaTeX Font Info:    Redeclaring math accent \dot on input line 47.
+LaTeX Font Info:    Redeclaring math accent \mathring on input line 47.
+LaTeX Font Info:    Redeclaring math symbol \Gamma on input line 47.
+LaTeX Font Info:    Redeclaring math symbol \Delta on input line 47.
+LaTeX Font Info:    Redeclaring math symbol \Theta on input line 47.
+LaTeX Font Info:    Redeclaring math symbol \Lambda on input line 47.
+LaTeX Font Info:    Redeclaring math symbol \Xi on input line 47.
+LaTeX Font Info:    Redeclaring math symbol \Pi on input line 47.
+LaTeX Font Info:    Redeclaring math symbol \Sigma on input line 47.
+LaTeX Font Info:    Redeclaring math symbol \Upsilon on input line 47.
+LaTeX Font Info:    Redeclaring math symbol \Phi on input line 47.
+LaTeX Font Info:    Redeclaring math symbol \Psi on input line 47.
+LaTeX Font Info:    Redeclaring math symbol \Omega on input line 47.
+LaTeX Font Info:    Redeclaring math symbol \mathdollar on input line 47.
+LaTeX Font Info:    Redeclaring symbol font `operators' on input line 47.
 LaTeX Font Info:    Encoding `OT1' has changed to `TU' for symbol font
-(Font)              `operators' in the math version `normal' on input line 43.
+(Font)              `operators' in the math version `normal' on input line 47.
 LaTeX Font Info:    Overwriting symbol font `operators' in version `normal'
-(Font)                  OT1/cmss/m/n --> TU/NotoSerif(0)/m/n on input line 43.
+(Font)                  OT1/cmss/m/n --> TU/NotoSerif(0)/m/n on input line 47.
 LaTeX Font Info:    Encoding `OT1' has changed to `TU' for symbol font
-(Font)              `operators' in the math version `bold' on input line 43.
+(Font)              `operators' in the math version `bold' on input line 47.
 LaTeX Font Info:    Overwriting symbol font `operators' in version `bold'
-(Font)                  OT1/cmss/b/n --> TU/NotoSerif(0)/m/n on input line 43.
+(Font)                  OT1/cmss/b/n --> TU/NotoSerif(0)/m/n on input line 47.
 LaTeX Font Info:    Overwriting symbol font `operators' in version `normal'
 (Font)                  TU/NotoSerif(0)/m/n --> TU/NotoSerif(0)/m/n on input li
-ne 43.
-LaTeX Font Info:    Redeclaring math alphabet \mathrm on input line 43.
+ne 47.
+LaTeX Font Info:    Redeclaring math alphabet \mathrm on input line 47.
 LaTeX Font Info:    Overwriting math alphabet `\mathit' in version `normal'
 (Font)                  TU/NotoSans(0)/m/it --> TU/NotoSerif(0)/m/it on input l
-ine 43.
+ine 47.
 LaTeX Font Info:    Overwriting math alphabet `\mathbf' in version `normal'
 (Font)                  TU/NotoSans(0)/b/n --> TU/NotoSerif(0)/b/n on input lin
-e 43.
+e 47.
 LaTeX Font Info:    Overwriting math alphabet `\mathsf' in version `normal'
 (Font)                  TU/NotoSans(0)/m/n --> TU/NotoSans(0)/m/n on input line
- 43.
+ 47.
 LaTeX Font Info:    Overwriting math alphabet `\mathtt' in version `normal'
-(Font)                  TU/lmtt/m/n --> TU/lmtt/m/n on input line 43.
+(Font)                  TU/lmtt/m/n --> TU/lmtt/m/n on input line 47.
 LaTeX Font Info:    Overwriting symbol font `operators' in version `bold'
 (Font)                  TU/NotoSerif(0)/m/n --> TU/NotoSerif(0)/b/n on input li
-ne 43.
+ne 47.
 LaTeX Font Info:    Overwriting math alphabet `\mathit' in version `bold'
 (Font)                  TU/NotoSans(0)/b/it --> TU/NotoSerif(0)/b/it on input l
-ine 43.
+ine 47.
 LaTeX Font Info:    Overwriting math alphabet `\mathsf' in version `bold'
 (Font)                  TU/NotoSans(0)/b/n --> TU/NotoSans(0)/b/n on input line
- 43.
+ 47.
 LaTeX Font Info:    Overwriting math alphabet `\mathtt' in version `bold'
-(Font)                  TU/lmtt/b/n --> TU/lmtt/b/n on input line 43.
+(Font)                  TU/lmtt/b/n --> TU/lmtt/b/n on input line 47.
 Package caption Info: Begin \AtBeginDocument code.
 Package caption Info: End \AtBeginDocument code.
  (main45.nav) (part45_01.tex [1
 
-] [2
-
 ]
-LaTeX Font Info:    Trying to load font information for U+msa on input line 45.
+LaTeX Font Info:    Trying to load font information for U+msa on input line 34.
 
 
 (C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/amsfonts\umsa.fd
 File: umsa.fd 2013/01/14 v3.01 AMS symbols A
 )
-LaTeX Font Info:    Trying to load font information for U+msb on input line 45.
+LaTeX Font Info:    Trying to load font information for U+msb on input line 34.
 
 
 (C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/amsfonts\umsb.fd
 File: umsb.fd 2013/01/14 v3.01 AMS symbols B
 )
-[3
+[2
 
 ]
 File: ../figures/ch2_gaussian_bump.png Graphic file (type bmp)
 <../figures/ch2_gaussian_bump.png>
- [4
 
-]) (part45_02.tex
+Overfull \vbox (54.53105pt too high) detected at line 58
+ []
+
+[3
+
+] [4
+
+]
 File: ../figures/ch1_scale_init.png Graphic file (type bmp)
 <../figures/ch1_scale_init.png>
- [5
+
+Overfull \vbox (85.53697pt too high) detected at line 99
+ []
+
+[5
+
+]
+File: ../figures/ch1_extent.png Graphic file (type bmp)
+<../figures/ch1_extent.png>
+
+Overfull \vbox (38.1101pt too high) detected at line 117
+ []
+
+[6
 
 ]
 File: ../figures/ch1_rgb2sh.png Graphic file (type bmp)
 <../figures/ch1_rgb2sh.png>
- [6
+
+Overfull \vbox (1.92844pt too high) detected at line 141
+ []
+
+[7
 
 ]
-File: ../figures/pipe.png Graphic file (type bmp)
-<../figures/pipe.png>
- [7
-
-]
-File: ../figures/ch3_ewa_projection.png Graphic file (type bmp)
-<../figures/ch3_ewa_projection.png>
+File: ../figures/ch2_sh_degree_schedule.png Graphic file (type bmp)
+<../figures/ch2_sh_degree_schedule.png>
  [8
 
-]) (part45_03.tex
-File: ../figures/ch3_compact_box.png Graphic file (type bmp)
-<../figures/ch3_compact_box.png>
+]) (part45_02.tex
+File: ../figures/ch3_pinhole_projection.png Graphic file (type bmp)
+<../figures/ch3_pinhole_projection.png>
 
-Overfull \vbox (20.81544pt too high) detected at line 18
+Overfull \vbox (41.06242pt too high) detected at line 29
  []
 
 [9
 
 ]
-File: ../figures/ch4_alpha_blend_stack.png Graphic file (type bmp)
-<../figures/ch4_alpha_blend_stack.png>
+File: ../figures/ch3_ewa_projection.png Graphic file (type bmp)
+<../figures/ch3_ewa_projection.png>
  [10
 
-] [11
+]
+File: ../figures/ch3_compact_box.png Graphic file (type bmp)
+<../figures/ch3_compact_box.png>
+
+Overfull \vbox (13.75085pt too high) detected at line 74
+ []
+
+[11
 
 ]
+File: ../figures/ch4_alpha_field.png Graphic file (type bmp)
+<../figures/ch4_alpha_field.png>
+
+Overfull \vbox (1.23082pt too high) detected at line 95
+ []
+
+[12
+
+]
+File: ../figures/ch4_alpha_blend_stack.png Graphic file (type bmp)
+<../figures/ch4_alpha_blend_stack.png>
+ [13
+
+]
+File: ../figures/ch4_transmittance_decay.png Graphic file (type bmp)
+<../figures/ch4_transmittance_decay.png>
+ [14
+
+]) (part45_03.tex [15
+
+]
+LaTeX Font Info:    Font shape `TU/lmtt/bx/n' in size <6> not available
+(Font)              Font shape `TU/lmtt/b/n' tried instead on input line 49.
 File: ../figures/ch5_loss_mix.png Graphic file (type bmp)
 <../figures/ch5_loss_mix.png>
- [12
+
+Overfull \vbox (0.5943pt too high) detected at line 49
+ []
+
+[16
+
+]
+File: ../figures/ch5_psnr.png Graphic file (type bmp)
+<../figures/ch5_psnr.png>
+ [17
+
+]
+File: ../figures/ch5_ssim_window.png Graphic file (type bmp)
+<../figures/ch5_ssim_window.png>
+ [18
+
+]
+File: ../figures/ch5_score_decomp.png Graphic file (type bmp)
+<../figures/ch5_score_decomp.png>
+ [19
 
 ]) (part45_04.tex
 File: ../figures/ch6_edge_gradient.png Graphic file (type bmp)
 <../figures/ch6_edge_gradient.png>
- [13
 
-]
+Overfull \vbox (23.9716pt too high) detected at line 28
+ []
 
-Package pgf Warning: Returning node center instead of a point on node border. D
-id you specify a point identical to the center of node ``render''? on input lin
-e 48.
-
-[14
-
-] [15
+[20
 
 ]
 File: ../figures/fig_02_accum_denom.png Graphic file (type bmp)
 <../figures/fig_02_accum_denom.png>
- [16
 
-]) (part45_05.tex
+Overfull \vbox (42.49614pt too high) detected at line 55
+ []
+
+[21
+
+]
 File: ../figures/fig_03_grad_cancel.png Graphic file (type bmp)
 <../figures/fig_03_grad_cancel.png>
- [17
+ [22
+
+] [23
 
 ]
 File: ../figures/fig_08_clone_before_after.png Graphic file (type bmp)
 <../figures/fig_08_clone_before_after.png>
-File: ../figures/ch7_clone_region.png Graphic file (type bmp)
-<../figures/ch7_clone_region.png>
-
-Overfull \vbox (4.49615pt too high) detected at line 32
- []
-
-[18
-
-]
-File: ../figures/fig_09_split_geometry.png Graphic file (type bmp)
-<../figures/fig_09_split_geometry.png>
-File: ../figures/ch7_split_sampling.png Graphic file (type bmp)
-<../figures/ch7_split_sampling.png>
- [19
-
-]
-File: ../figures/ch7_importance_pruning.png Graphic file (type bmp)
-<../figures/ch7_importance_pruning.png>
- [20
-
-]) (part45_06.tex
-File: ../figures/fig_17_opacity_trajectory.png Graphic file (type bmp)
-<../figures/fig_17_opacity_trajectory.png>
-File: ../figures/fig_18_hist_reset.png Graphic file (type bmp)
-<../figures/fig_18_hist_reset.png>
- [21
-
-]
-File: ../figures/4_6_decision-diagram.png Graphic file (type bmp)
-<../figures/4_6_decision-diagram.png>
- [22
-
-]) (part45_07.tex
-File: ../figures/5_3_topk-vs-multinomial.png Graphic file (type bmp)
-<../figures/5_3_topk-vs-multinomial.png>
- [23
-
-]
-File: ../figures/6_1_muc-tieu-va-gaussian-2d.png Graphic file (type bmp)
-<../figures/6_1_muc-tieu-va-gaussian-2d.png>
  [24
 
-]
-File: ../figures/6_10_khong-adc-vs-co-adc.png Graphic file (type bmp)
-<../figures/6_10_khong-adc-vs-co-adc.png>
+]) (part45_05.tex
+File: ../figures/fig_09_split_geometry.png Graphic file (type bmp)
+<../figures/fig_09_split_geometry.png>
  [25
 
 ]
-File: ../figures/7_5_cuoi-3dgs-fastgs-khong-adc.png Graphic file (type bmp)
-<../figures/7_5_cuoi-3dgs-fastgs-khong-adc.png>
-
-Overfull \vbox (15.43213pt too high) detected at line 80
- []
-
-[26
-
-]) (part45_08.tex [27
-
-] [28
-
-] [29
+File: ../figures/fig_16_sigmoid_inverse.png Graphic file (type bmp)
+<../figures/fig_16_sigmoid_inverse.png>
+ [26
 
 ]
-File: ../figures/ch8_levers_waterfall.png Graphic file (type bmp)
-<../figures/ch8_levers_waterfall.png>
+File: ../figures/fig_17_opacity_trajectory.png Graphic file (type bmp)
+<../figures/fig_17_opacity_trajectory.png>
+ [27
 
-Overfull \vbox (13.01228pt too high) detected at line 84
- []
+]
+File: ../figures/fig_18_hist_reset.png Graphic file (type bmp)
+<../figures/fig_18_hist_reset.png>
+ [28
 
+]
+File: ../figures/samples_train.png Graphic file (type bmp)
+<../figures/samples_train.png>
+ [29
+
+]) (part45_06.tex
 [30
 
-]) (part45_09.tex [31
+]
+File: ../figures/sadgsx/01_pyramid_levels.png Graphic file (type bmp)
+<../figures/sadgsx/01_pyramid_levels.png>
 
-] [32
+Overfull \vbox (21.0875pt too high) detected at line 47
+ []
 
-] [33
+[31
 
 ]
-File: ../figures/leaderboard.png Graphic file (type bmp)
-<../figures/leaderboard.png>
+File: ../figures/sadgsx/01_structure_tensor_channels.png Graphic file (type bmp
+)
+<../figures/sadgsx/01_structure_tensor_channels.png>
+ [32
+
+]
+File: ../figures/sadgsx/02_wavelength_eigen.png Graphic file (type bmp)
+<../figures/sadgsx/02_wavelength_eigen.png>
+ [33
+
+]
+File: ../figures/sadgsx/02_jacobian_axes.png Graphic file (type bmp)
+<../figures/sadgsx/02_jacobian_axes.png>
  [34
 
-] [35
-
-] [36
-
-]) (part45_11.tex
-LaTeX Font Info:    Font shape `TU/lmtt/bx/n' in size <7> not available
-(Font)              Font shape `TU/lmtt/b/n' tried instead on input line 27.
- [37
-
-])
-(part45_sadgsx_00.tex
-File: ../figures/sadgsx/16_flow_tensor_to_adc.png Graphic file (type bmp)
-<../figures/sadgsx/16_flow_tensor_to_adc.png>
-
-Overfull \vbox (1.99556pt too high) detected at line 13
- []
-
-[38
+]) (part45_07.tex
+File: ../figures/sadgsx/02_nyquist.png Graphic file (type bmp)
+<../figures/sadgsx/02_nyquist.png>
+ [35
 
 ]
-File: ../figures/sadgsx/16_adc_actions.png Graphic file (type bmp)
-<../figures/sadgsx/16_adc_actions.png>
- [39
-
-]) (part45_sadgsx_01.tex
-File: ../figures/sadgsx/01_eigen_coherence.png Graphic file (type bmp)
-<../figures/sadgsx/01_eigen_coherence.png>
-File: ../figures/sadgsx/01_v1_vs_v2.png Graphic file (type bmp)
-<../figures/sadgsx/01_v1_vs_v2.png>
- [40
-
-]) (part45_sadgsx_02.tex
-File: ../figures/sadgsx/02_eta_heatmap.png Graphic file (type bmp)
-<../figures/sadgsx/02_eta_heatmap.png>
- [41
-
-])
-(part45_sadgsx_03.tex
-File: ../figures/sadgsx/03_ratio_hist.png Graphic file (type bmp)
-<../figures/sadgsx/03_ratio_hist.png>
 File: ../figures/sadgsx/03_timeline_reset.png Graphic file (type bmp)
 <../figures/sadgsx/03_timeline_reset.png>
+ [36
 
-Overfull \vbox (48.45781pt too high) detected at line 33
- []
+]
+File: ../figures/sadgsx/04_split_grid_2d.png Graphic file (type bmp)
+<../figures/sadgsx/04_split_grid_2d.png>
+ [37
 
-[42
+]
+File: ../figures/sadgsx/04_k_eta_stair.png Graphic file (type bmp)
+<../figures/sadgsx/04_k_eta_stair.png>
+ [38
 
-]) (part45_sadgsx_04.tex
-File: ../figures/sadgsx/04_3dgs_vs_sadgs.png Graphic file (type bmp)
-<../figures/sadgsx/04_3dgs_vs_sadgs.png>
- [43
+]
+File: ../figures/sadgsx/07_mat_na_prune_or.png Graphic file (type bmp)
+<../figures/sadgsx/07_mat_na_prune_or.png>
+ [39
 
-]) (part45_sadgsx_05.tex
+]) (part45_08.tex
+[40
+
+] [41
+
+]
 File: ../figures/sadgsx/05_cat_tensor_optimizer.png Graphic file (type bmp)
 <../figures/sadgsx/05_cat_tensor_optimizer.png>
- [44
+ [42
 
-])
-(part45_sadgsx_06.tex
-File: ../figures/sadgsx/06_scale_ratio_eta.png Graphic file (type bmp)
-<../figures/sadgsx/06_scale_ratio_eta.png>
- [45
+]
+File: ../figures/sadgsx/09_lr_xyz_schedule.png Graphic file (type bmp)
+<../figures/sadgsx/09_lr_xyz_schedule.png>
+ [43
 
-]) (part45_sadgsx_07.tex
-File: ../figures/sadgsx/07_so_do_khoi_luong.png Graphic file (type bmp)
-<../figures/sadgsx/07_so_do_khoi_luong.png>
- [46
-
-]) (part45_sadgsx_08.tex
-File: ../figures/sadgsx/08_score_hist.png Graphic file (type bmp)
-<../figures/sadgsx/08_score_hist.png>
-
-[47
-
-]) (part45_sadgsx_09.tex
-File: ../figures/sadgsx/09_opacity_reset_traj.png Graphic file (type bmp)
-<../figures/sadgsx/09_opacity_reset_traj.png>
- [48
-
-]) (part45_sadgsx_10.tex
-File: ../figures/sadgsx/10_opacity_coef.png Graphic file (type bmp)
-<../figures/sadgsx/10_opacity_coef.png>
- [49
-
-])
-(part45_sadgsx_11.tex
-File: ../figures/sadgsx/11_frequency_loss.png Graphic file (type bmp)
-<../figures/sadgsx/11_frequency_loss.png>
- [50
-
-]) (part45_sadgsx_12.tex
-LaTeX Font Info:    Font shape `TU/lmtt/bx/n' in size <6> not available
-(Font)              Font shape `TU/lmtt/b/n' tried instead on input line 22.
-File: ../figures/sadgsx/12_fps_selection.png Graphic file (type bmp)
-<../figures/sadgsx/12_fps_selection.png>
-
-Overfull \vbox (21.20366pt too high) detected at line 22
- []
-
-[51
-
-]) (part45_sadgsx_13.tex
+]
 File: ../figures/sadgsx/13_lich_trinh.png Graphic file (type bmp)
 <../figures/sadgsx/13_lich_trinh.png>
- [52
+ [44
 
-]) (part45_sadgsx_14.tex
-File: ../figures/sadgsx/14_mult_vs_3sigma.png Graphic file (type bmp)
-<../figures/sadgsx/14_mult_vs_3sigma.png>
- [53
+]) (part45_09.tex [45
 
-])
-(part45_sadgsx_15.tex
-File: ../figures/sadgsx/15_pipeline_blocks.png Graphic file (type bmp)
-<../figures/sadgsx/15_pipeline_blocks.png>
- [54
+] [46
 
-]) (part45_10.tex [55
+] [47
 
-] [56
+] [48
 
-] [57
+] [49
 
-] [58
+] [50
+
+] [51
 
 ])
 \tf@nav=\write6
@@ -1614,21 +1631,22 @@ File: ../figures/sadgsx/15_pipeline_blocks.png Graphic file (type bmp)
 \tf@snm=\write8
 \openout8 = `main45.snm'.
 
- (main45.aux)
+
+(main45.aux)
  ***********
 LaTeX2e <2025-11-01>
 L3 programming layer <2025-12-24>
  ***********
 Package rerunfilecheck Info: File `main45.out' has not changed.
-(rerunfilecheck)             Checksum: 1579031282A6108F3EFD69E4BE54AB08;849.
+(rerunfilecheck)             Checksum: C1B8A5EC674BC5EEA51EEAAAA182CBE4;1040.
  ) 
 Here is how much of TeX's memory you used:
- 32245 strings out of 402987
- 706416 string characters out of 5448524
- 1134819 words of memory out of 5000000
- 60202 multiletter control sequences out of 15000+600000
- 637942 words of font info for 144 fonts, out of 8000000 for 9000
+ 32510 strings out of 402987
+ 707143 string characters out of 5448524
+ 1159768 words of memory out of 5000000
+ 60544 multiletter control sequences out of 15000+600000
+ 634412 words of font info for 114 fonts, out of 8000000 for 9000
  1348 hyphenation exceptions out of 8191
- 128i,15n,123p,481b,938s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 128i,16n,123p,421b,669s stack positions out of 10000i,1000n,20000p,200000b,200000s
 
-Output written on main45.pdf (58 pages).
+Output written on main45.pdf (51 pages).

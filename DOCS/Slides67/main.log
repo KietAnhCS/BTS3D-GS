@@ -1,4 +1,4 @@
-This is XeTeX, Version 3.141592653-2.6-0.999997 (MiKTeX 25.12) (preloaded format=xelatex 2026.9.22)  26 SEP 2026 01:21
+This is XeTeX, Version 3.141592653-2.6-0.999997 (MiKTeX 25.12) (preloaded format=xelatex 2026.9.22)  27 SEP 2026 18:27
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -2411,7 +2411,7 @@ File: figures/sadgsx/02_nyquist.png Graphic file (type bmp)
 File: figures/sadgsx/02_eta_heatmap.png Graphic file (type bmp)
 <figures/sadgsx/02_eta_heatmap.png>
 
-Overfull \vbox (8.8945pt too high) detected at line 159
+Overfull \vbox (8.8945pt too high) detected at line 161
  []
 
 [188
@@ -2617,7 +2617,7 @@ Overfull \vbox (18.44531pt too high) detected at line 106
 File: figures/sadgsx/06_memory_expand_vs_clone.png Graphic file (type bmp)
 <figures/sadgsx/06_memory_expand_vs_clone.png>
 
-Overfull \vbox (15.69753pt too high) detected at line 140
+Overfull \vbox (75.09097pt too high) detected at line 147
  []
 
 [222
@@ -3587,7 +3587,7 @@ Package rerunfilecheck Info: File `main.out' has not changed.
 Here is how much of TeX's memory you used:
  35304 strings out of 402987
  797610 string characters out of 5448524
- 1181690 words of memory out of 5000000
+ 1181688 words of memory out of 5000000
  62981 multiletter control sequences out of 15000+600000
  636117 words of font info for 140 fonts, out of 8000000 for 9000
  1348 hyphenation exceptions out of 8191

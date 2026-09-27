@@ -1,128 +1,142 @@
-% ============================================================
-% PHẦN 9 (Slide 33--38, bản 45 phút): Cơ chế lõi SADGS, Tổng kết & kết quả
-% Rút gọn từ part5.tex (Slide "Tổng kết") và part6.tex (Slide 51, 55, 59, 60)
-% Slide 33 mới: cơ chế structure-aware densification (eta, split dị hướng)
-% -- bổ sung vì đây là đóng góp cốt lõi của SADGS, chưa được nêu định lượng
-% ở các phần trước (phần trước mô tả khung ADC/importance đa view chung).
-% ============================================================
+% ===== FILE 9/9: Toàn cảnh lịch trình, Chi phí trung thực, Bảng đang chạy, Bảng so sánh, Ưu điểm, Tổng kết, Cảm ơn =====
 
-% --- Slide 33 (MỚI) ---
-\begin{frame}{Cơ chế lõi SADGS: densify theo cấu trúc (structure-aware)}
-\footnotesize
-\begin{itemize}
-    \item \textbf{Ý tưởng cốt lõi}: khớp kích thước hình chiếu của Gaussian với \textbf{bước sóng cục bộ của texture} trong ảnh -- Gaussian không nên to hơn hoặc nhỏ hơn chi tiết mà nó biểu diễn.
-    \item \textbf{Tỉ số cấu trúc} $\eta = \dfrac{\text{trục Gaussian chiếu lên màn hình}}{\text{bước sóng cục bộ (structure tensor đa tỉ lệ)}}$.
-    \item Phân loại theo từng view, tích luỹ qua nhiều view trước khi quyết định (so \texttt{high\_ratio}/\texttt{low\_ratio} với ngưỡng $0.8$):
+% --- Slide: Toàn cảnh lịch trình huấn luyện ---
+\begin{frame}{Toàn cảnh lịch trình huấn luyện ($30\,000$ iteration)}
+\scriptsize
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+\textbf{Mốc} & \textbf{Sự kiện} & \textbf{Ghi chú}\\
+\midrule
+iter $1\to3$ & tăng bậc SH tới $D_{\max}=3$ & mỗi iteration\\
+iter $500$ & bắt đầu densify & \texttt{densify\_from\_iter}\\
+iter $600,700,\dots$ & clone/split/prune ($\eta$ OR gradient) & mỗi $100$, tới iter $15\,000$\\
+iter $3\text{k},6\text{k},9\text{k},12\text{k}$ & reset opacity ($\times0.1$) & đúng $4$ lần, chỉ khi $<15\,000$\\
+iter $4\,000$, $8\,000$ & prune cứng thêm ($\alpha<0.1$) & \texttt{prune\_iterations}\\
+iter $15\,000$ & \textbf{dừng hẳn} densify/prune/reset & \texttt{densify\_until\_iter}\\
+iter $15\,000\to30\,000$ & chỉ còn tối ưu Adam, $N$ không đổi & ---\\
+\bottomrule
+\end{tabular}
+\end{center}
+\begin{itemize}\itemsep1pt
+    \item \textbf{Không có} cơ chế nào chủ động thay đổi $N$ sau iteration $15\,000$ --- toàn bộ số lượng Gaussian đạt
+    được tại mốc đó được giữ nguyên cho tới hết quá trình train, chỉ còn tối ưu giá trị tham số.
+    \item Đây là điểm quan trọng khi so sánh 3DGS gốc với SADGS: khác biệt về \textbf{chất lượng/tốc độ hội tụ} chủ yếu
+    xảy ra trong $15\,000$ iteration đầu, không phải "số Gaussian cuối cùng khác nhau nhờ tiếp tục tỉa về sau".
+\end{itemize}
+\end{frame}
+
+% --- Slide: Mô hình chi phí — trung thực ---
+\begin{frame}{Chi phí tính toán: mô hình định tính, KHÔNG có số đo thật}
+\scriptsize
+Repo này \textbf{không chứa} script benchmark thời gian thực (wall-clock) nào đo trực tiếp và so sánh SADGS với 3DGS
+gốc trên cùng phần cứng, cùng scene, cùng số lần lặp lại đo. Một mô hình \textbf{định tính} hợp lý (không phải số đo
+thực nghiệm) cho chi phí mỗi iteration:
+\[
+T_{\text{iter}} \approx a\,N \;+\; b\,N\,K \;+\; c\,N\cdot\mathbb{1}[\text{Adam step}] \;+\; F
+\]
+với $N$ số Gaussian, $K$ số tile trung bình/Gaussian (bị chi phối bởi \texttt{mult} của compact box), $F$ chi phí cố
+định mỗi khung hình (forward pass loss, sắp xếp, v.v.).
+\begin{itemize}\itemsep1pt
+    \item Thành phần \textbf{có thể làm tăng} chi phí/iteration so với đường cơ sở: cập nhật $\eta$ mỗi $10$ iteration
+    (thêm một lượt tính structure tensor và chiếu trục), hai optimizer chạy song song trong chế độ \texttt{hybrid}.
+    \item Thành phần \textbf{có thể làm giảm} chi phí: \texttt{mult}$=0.7<1$ giảm $K$ so với SnugBox nguyên bản
+    (\texttt{mult}$=1$) --- ít tile hơn cho mỗi Gaussian.
+    \item \textbf{Nguyên tắc trình bày của bài giảng này:} bất kỳ con số "nhanh hơn $X$ lần", "giây/iteration" nào không
+    đi kèm phương pháp đo rõ ràng (phần cứng cụ thể, scene cụ thể, số lần lặp lại đo) sẽ \textbf{không được trích dẫn}
+    như một kết quả benchmark đã kiểm chứng.
+\end{itemize}
+\end{frame}
+
+% --- Slide: Bảng những gì đang thật sự chạy mặc định ---
+\begin{frame}{Tóm tắt: những gì ĐANG CHẠY mặc định trong repo này}
+\scriptsize
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+\textbf{Cơ chế} & \textbf{Vị trí trong code}\\
+\midrule
+Structure tensor đa tỉ lệ $\to\eta\to$ split/clone/prune & \texttt{utils/freq\_utils.py}, \texttt{train.py:276,341--372}\\
+Split dị hướng $k_x k_y k_z$ theo từng trục & \texttt{scene/gaussian\_model.py:638}\\
+Tích luỹ nhất quán đa view (high/low ratio) & \texttt{train.py:341--353}\\
+Reset opacity $\times0.1$, đúng $4$ lần & \texttt{scene/gaussian\_model.py:415}\\
+Trần opacity $\min(\alpha,0.8)$ & \texttt{scene/gaussian\_model.py:1043}\\
+Optimizer hybrid (Adam thường $+$ Sparse/Fused Adam) & \texttt{train.py:429--434}\\
+Compact box SnugBox, \texttt{mult}$=0.7$ & \texttt{cuda\_rasterizer/auxiliary.h:313}\\
+Bộ lọc low-pass 2D, $\kappa=0.1$ & \texttt{cuda\_rasterizer/forward.cu:113}\\
+\bottomrule
+\end{tabular}
+\end{center}
+\footnotesize Đây là danh sách đầy đủ những gì bài giảng này đã trình bày chi tiết --- các nhánh tuỳ chọn khác trong
+code (nhánh 3DGS gốc dùng làm baseline so sánh ở phần đầu, và một vài cơ chế được thiết kế nhưng hiện đang tắt theo
+mặc định) không được đào sâu thêm ở đây vì không ảnh hưởng tới hành vi mặc định của pipeline.
+\end{frame}
+
+% --- Slide: Bảng so sánh 3DGS gốc / SADGS (chỉ những khác biệt đang thật sự chạy) ---
+\begin{frame}{Bảng so sánh 3DGS gốc vs.\ SADGS (chỉ những khác biệt ĐANG CHẠY)}
+\scriptsize
+\begin{center}
+\begin{tabular}{p{4.6cm}p{3.6cm}p{4.4cm}}
+\toprule
+\textbf{Tiêu chí} & \textbf{3DGS gốc (baseline)} & \textbf{SADGS (mặc định)}\\
+\midrule
+Tín hiệu densify chính & gradient vị trí & gradient \textbf{OR} $\eta$ tần số đa tỉ lệ\\
+Split dị hướng theo trục & không có (luôn $N{=}2$, mọi trục $/1.6$) & có, $k_{\text{axis}}=\lceil\sqrt{\max(\eta,1)}\rceil$ riêng từng trục\\
+Tích luỹ đa view trước quyết định & không (đọc gradient tại 1 lần cuối) & có (\texttt{high\_ratio}/\texttt{low\_ratio}$>0.8$ qua nhiều view)\\
+Vị trí Gaussian con khi split & ngẫu nhiên $\mathcal{N}(0,\mathrm{diag}(s)^2)$ & lưới tất định, cách đều $\sqrt{12}\sigma$\\
+\bottomrule
+\end{tabular}
+\end{center}
+\footnotesize\textit{Compact box, bộ lọc low-pass 2D và optimizer hybrid là các cơ chế \textbf{chạy giống nhau} ở cả hai
+nhánh (xem slide "kế thừa vs mới") --- không đưa vào bảng so sánh vì không phải điểm khác biệt.}
+\end{frame}
+
+% --- Slide: Ưu điểm cốt lõi ---
+\begin{frame}{Ưu điểm cốt lõi của SADGS: hội tụ đúng chỗ, không phải "ít Gaussian hơn"}
+\scriptsize
+\begin{itemize}\itemsep2pt
+    \item \textbf{Đừng diễn giải sai:} không có bằng chứng trong repo cho thấy SADGS tạo ra \textbf{ít Gaussian hơn} so
+    với 3DGS gốc ở cùng mức chất lượng --- cơ chế duy nhất có khả năng chủ động giảm mạnh $N$ ở giai đoạn cuối không
+    nằm trong phạm vi những gì đang chạy mặc định (xem slide "đang chạy mặc định").
+    \item \textbf{Lợi ích thực sự, có căn cứ trực tiếp từ công thức đã trình bày:}
     \begin{itemize}
-        \item $\eta \ge \tau_{\text{high}} = 1.0$: Gaussian \textbf{quá to} so với chi tiết $\Rightarrow$ ứng viên \textbf{SPLIT}.
-        \item $\eta \le \tau_{\text{low}} = 0.1$: Gaussian \textbf{quá nhỏ} $\Rightarrow$ ứng viên \textbf{PRUNE}.
+        \item Phân bổ ngân sách split \textbf{đúng trục, đúng mức độ} ($k_{\text{axis}}$ tính riêng từng trục, tăng
+        theo bậc thang tương xứng với mức độ vi phạm) thay vì luôn chia đôi đều mọi trục như cơ chế gốc.
+        \item Quyết định dựa trên \textbf{đa số view đồng thuận} ($>80\%$), giảm hẳn nguy cơ phản ứng theo nhiễu của một
+        góc chụp đơn lẻ bất thường.
+        \item Tín hiệu $\eta$ đo trực tiếp \textbf{tỉ lệ kích thước Gaussian / chi tiết ảnh}, bổ sung cho gradient (vốn
+        chỉ phản ánh trạng thái hội tụ hiện tại, và có thể bị triệt tiêu nội-ảnh giữa các pixel như đã học).
     \end{itemize}
-    \item \textbf{Split dị hướng theo trục} (khác với minh hoạ "tách 2 ngẫu nhiên" ở phần trước): mỗi trục $x,y,z$ tách riêng với $k_{\text{axis}} = \lceil \sqrt{\eta_{\text{axis}}} \rceil$, sinh $N_{\text{con}} = k_x \cdot k_y \cdot k_z$ Gaussian con -- mật độ con bám theo mức "quá to" thực tế của từng hướng, không cố định là 2.
-    \item[$\Rightarrow$] Hàm thực thi: \texttt{densify\_and\_clone\_structgs}, \texttt{densify\_and\_split\_structgs} (\texttt{gaussian\_model.py}).
-\end{itemize}
-\vspace{0.2em}
-\textit{Lưu ý}: 2 cơ chế liên quan -- \texttt{expand\_undersized\_gs} (giãn giải tích Gaussian dưới cỡ, $\Delta\log(\text{scale}) = -0.5\log\eta$) và \texttt{final\_prune\_structgs} (prune cuối theo multi-view consistency) -- được cài đặt đúng trong code nhưng lời gọi đang \textbf{bị comment out trong train.py}, nên \textbf{không chạy mặc định} ở lịch huấn luyện hiện tại.
-\end{frame}
-
-% --- Slide 34 (trước đây Slide 33) ---
-\begin{frame}{Tổng kết: từ 3DGS gốc đến SADGS}
-\centering
-\footnotesize
-\begin{tabular}{lll}
-\toprule
-\textbf{Tham số} & \textbf{3DGS gốc} & \textbf{SADGS} \\
-\midrule
-\texttt{loss\_thresh} & không có & mới, 0.02 \\
-\texttt{grad\_abs\_thresh} & gradient thường & Abs-GS, 0.0002 \\
-\texttt{--dense} & cố định & 0.001 (nhân scene extent) \\
-\texttt{--highfeature\_lr} & lr chuẩn & 0.005 (chia thêm /20) \\
-\texttt{--mult} (box multiplier) & 3.0 & 0.7 \\
-\bottomrule
-\end{tabular}
-\vspace{0.4cm}
-\begin{itemize}
-    \item SADGS không đổi mô hình biểu diễn cảnh, mà tối ưu \textbf{tham số hoá} và \textbf{lịch huấn luyện} $\Rightarrow$ tăng tốc mà PSNR/SSIM gần như không đổi.
+    \item \textbf{Còn bỏ ngỏ, cần nói rõ khi trình bày kết quả:} repo không có số đo PSNR/SSIM/LPIPS hay wall-clock nào
+    so sánh trực tiếp hai nhánh trên cùng scene/checkpoint để \textbf{định lượng} các lợi ích lý thuyết vừa nêu.
 \end{itemize}
 \end{frame}
 
-% --- Slide 35 ---
-\begin{frame}{SADGS: từ 24GB RTX 4090 xuống Colab T4 miễn phí}
-\begin{itemize}
-    \item \textbf{SADGS}: fork giữ nguyên thuật toán SADGS gốc, chỉ đóng gói lại để chạy trên Colab T4 free tier -- không đổi công thức toán hay pipeline huấn luyện.
-\end{itemize}
-\vspace{0.3em}
-\footnotesize
-\begin{table}
-\centering
-\begin{tabular}{lll}
-\toprule
-\textbf{Tiêu chí} & \textbf{SADGS gốc} & \textbf{SADGS} \\
-\midrule
-Phần cứng mục tiêu & 24GB RTX 4090 & T4 ($\sim$15GB VRAM) + 12.7GB RAM \\
-CUDA extension & git submodule & vendor sẵn trong repo (\texttt{git clone}) \\
-Entry point & train.py + shell script & train.py + notebook có instrumentation \\
-Tín hiệu tiến trình & L1 + EMA & Score tổng hợp, log mỗi 1000 iter \\
-\bottomrule
-\end{tabular}
-\end{table}
+% --- Slide: Tổng kết ---
+\begin{frame}{Tổng kết: từ 3DGS gốc tới SADGS}
+\scriptsize
+\begin{enumerate}\itemsep2pt
+    \item \textbf{Biểu diễn \& render:} Gaussian 3D tường minh, EWA splatting, alpha blending, rasterizer theo tile ---
+    nền tảng chung, giữ nguyên giữa hai nhánh.
+    \item \textbf{Gradient:} tích luỹ đúng cách (chuẩn trước, cộng sau) tránh triệt tiêu giữa các view; vấn đề triệt
+    tiêu thật nằm giữa các pixel trong cùng một ảnh, được xử lý bằng một kênh gradient trị tuyệt đối riêng.
+    \item \textbf{ADC gốc:} clone/split/prune dựa thuần trên gradient --- khung sườn chung mà SADGS kế thừa nguyên vẹn.
+    \item \textbf{SADGS:} bổ sung tín hiệu $\eta$ (tỉ số kích thước Gaussian / bước sóng texture cục bộ), tích luỹ nhất
+    quán qua nhiều view, split dị hướng theo đúng trục vi phạm --- kết hợp \texttt{OR} với gradient chứ không thay thế,
+    và đây là phần \textbf{đang chạy mặc định}.
+    \item \textbf{Trung thực về hiệu năng:} không có số đo wall-clock/chất lượng nào trong repo để khẳng định "nhanh
+    hơn" hay "ít Gaussian hơn" một cách định lượng --- bài giảng này trình bày đúng những gì công thức và code thể
+    hiện, không suy diễn thêm ngoài đó.
+\end{enumerate}
 \end{frame}
 
-% --- Slide 36 ---
-\begin{frame}{Bảng 1: Chất lượng cuối cùng theo scene}
-\footnotesize
-\begin{table}
+% --- Slide: Cảm ơn / Q&A ---
+\begin{frame}{Cảm ơn}
 \centering
-\begin{tabular}{lccccc}
-\toprule
-\textbf{Scene} & \textbf{Score} & \textbf{PSNR (dB)} & \textbf{SSIM} & \textbf{LPIPS} & \textbf{\#Gaussian} \\
-\midrule
-playroom  & 0.8198 & -- & -- & -- & $\sim$129k \\
-drjohnson & 0.8027 & 27.41 & -- & -- & $\sim$174k \\
-truck     & 0.7482 & -- & -- & -- & $\sim$187k \\
-train     & 0.6867 & 19.75 & -- & -- & $\sim$201k \\
-\midrule
-\textbf{Mean} & \textbf{0.7643} & \textbf{24.46} & & & \\
-\bottomrule
-\end{tabular}
-\end{table}
-\begin{itemize}
-    \item 2 scene indoor vượt 2 scene outdoor dù dùng \textbf{ít Gaussian hơn} (129k--174k so với 187k--201k).
-\end{itemize}
-\centering
-\includegraphics[width=0.5\linewidth]{leaderboard.png}
-\captionof{figure}{Leaderboard Score theo scene}
-\end{frame}
-
-% --- Slide 37 ---
-\begin{frame}{Bảng 3: Chi phí \& lưu trữ}
-\begin{itemize}
-    \item Tổng train 4 scene: \textbf{327.6s} ($\sim$5.5 phút), \textbf{85.5 iter/s} trung bình, VRAM đỉnh chỉ \textbf{0.88GB} (max 1.16GB).
-    \item \texttt{.ply} trung bình \textbf{171.6MB}, đúng \textbf{248 byte/Gaussian} = record 3DGS không nén.
-\end{itemize}
-\vspace{0.3em}
+\vspace{1cm}
+{\Large Câu hỏi \& thảo luận}\\[0.8cm]
 \footnotesize
-\centering
-\begin{tabular}{lcc}
-\toprule
-\textbf{Chỉ số} & \textbf{Trung bình} & \textbf{Ghi chú} \\
-\midrule
-Thời gian train (4 scene) & 327.6 s & $\sim$5.5 phút tổng \\
-Tốc độ & 85.5 iter/s & \\
-VRAM peak & 0.88 GB & max 1.16GB (drjohnson) \\
-Kích thước .ply & 171.6 MB & 248 byte/Gaussian \\
-\bottomrule
-\end{tabular}
-\end{frame}
-
-% --- Slide 38 ---
-\begin{frame}{Khả năng tái lập \& giới hạn phép đo}
-\footnotesize
-\texttt{Config(resolution=2, iterations=7000, score\_every=1000,\\
-\hspace{2em}eval\_views=6, psnr\_max=30.0, submission\_resolution=1)}
-\normalsize
-\vspace{0.5em}
-\begin{itemize}
-    \item \textbf{Giới hạn}: chạy \textbf{một lần duy nhất} (không seed/lặp lại), chỉ \textbf{4 scene} từ 2 dataset, ngân sách 7k iteration chỉ bằng \textbf{1/3} lịch 30k thiết kế gốc; \texttt{expand\_undersized\_gs} và \texttt{final\_prune\_structgs} đang bị comment out trong \texttt{train.py} nên không chạy trong lần đo này (không riêng do ngân sách 7k).
-    \item[$\Rightarrow$] \textbf{Kết luận}: Bảng 1 là \emph{baseline có thể tái lập của repo này}, \textbf{không phải} benchmark chính thức để so sánh với SADGS/3DGS gốc.
-\end{itemize}
+Toàn bộ công thức trong bài giảng này được đối chiếu trực tiếp với:\\
+\texttt{train.py}, \texttt{scene/gaussian\_model.py}, \texttt{utils/freq\_utils.py}, \texttt{utils/loss\_utils.py},\\
+\texttt{arguments/\_\_init\_\_.py}, \texttt{cuda\_rasterizer/\{forward.cu, auxiliary.h\}} và \texttt{DOCS/BOOK/}.
 \end{frame}

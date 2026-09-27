@@ -1,66 +1,114 @@
-\begin{frame}{Vấn đề triệt tiêu gradient (gradient cancellation)}
-    \begin{itemize}
-        \item Khi lấy trung bình vector gradient từ \textbf{nhiều view có hướng ngược nhau}, chúng có thể \textbf{triệt tiêu lẫn nhau}.
-        \item Hệ quả: dù mỗi view riêng lẻ báo lỗi lớn, $\bar g$ trung bình vẫn nhỏ $\Rightarrow$ Gaussian \textbf{bị bỏ sót}, không được densify.
-        \item SADGS cải thiện bằng \textbf{multi-view consistency score} thay vì chỉ dựa vào gradient trung bình.
-    \end{itemize}
-    \vspace{0.2cm}
-    \centering
-    \includegraphics[width=0.7\linewidth]{fig_03_grad_cancel.png}
+% ===== FILE 5/9: Split nguyên bản, Sigmoid nghịch đảo, Quỹ đạo opacity reset, Histogram reset, Tổng kết pipeline gốc =====
+
+% --- Slide: Split (3DGS nguyên bản) ---
+\begin{frame}{Split nguyên bản: lấy mẫu ngẫu nhiên quanh Gaussian cha}
+\scriptsize
+Khi một Gaussian \textbf{to} (trục dài nhất $>$ ngưỡng \texttt{percent\_dense}$\times$extent) vẫn còn gradient trị
+tuyệt đối cao, cơ chế \textbf{split nguyên bản} (\texttt{densify\_and\_split}, \texttt{gaussian\_model.py:866--889})
+sinh ra $N=2$ Gaussian con để "chia việc" khớp chi tiết:
+\[
+x_{\text{con}} = \mu_{\text{cha}} + R(q)\,\varepsilon,\qquad \varepsilon\sim\mathcal{N}(0,\mathrm{diag}(s_{\text{cha}})^2),
+\qquad s_{\text{con}} = \frac{s_{\text{cha}}}{0.8\,N} = \frac{s_{\text{cha}}}{1.6}
+\]
+\begin{itemize}\itemsep1pt
+    \item Vị trí mỗi con được \textbf{lấy mẫu ngẫu nhiên} từ một phân phối Gaussian có độ lệch chuẩn chính bằng scale
+    của cha, sau đó xoay theo hướng $R(q)$ của cha --- tức là các con rải rác quanh cha, theo đúng hình dạng ellipsoid
+    của cha (không rải đều hình cầu).
+    \item Cả $N=2$ con đều bị chia scale cho \textbf{cùng một hệ số $1.6$ trên cả 3 trục}, bất kể trục nào mới thực sự
+    là trục "quá to" gây ra vấn đề --- đây là điểm mà cơ chế split dị hướng của SADGS (phần sau bài giảng) cải tiến.
+    \item Gaussian cha bị xoá ngay sau khi sinh $2$ con --- tổng số Gaussian tăng thêm đúng $1$ đơn vị mỗi lần một điểm
+    bị split.
+\end{itemize}
+\begin{center}
+\includegraphics[width=0.4\linewidth]{fig_09_split_geometry.png}
+\end{center}
 \end{frame}
 
-% --- Slide 36 ---
-\begin{frame}{Clone (nhân bản)}
-    \footnotesize
-    \begin{itemize}
-        \item Áp dụng cho Gaussian \textbf{nhỏ nhưng thiếu hình học} (under-reconstruction).
-        \item Nhân đôi Gaussian theo \textbf{hướng gradient vị trí} $\bar g$, đặt bản sao lệch một khoảng nhỏ.
-        \item \textbf{Không} thay đổi kích thước/covariance -- chỉ lấp đầy vùng thiếu chi tiết bằng tăng mật độ.
-    \end{itemize}
-    \begin{columns}
-        \begin{column}{0.48\linewidth}
-            \centering
-            \includegraphics[width=\linewidth]{fig_08_clone_before_after.png}
-            \captionof{figure}{Trước/sau clone}
-        \end{column}
-        \begin{column}{0.48\linewidth}
-            \centering
-            \includegraphics[width=\linewidth]{ch7_clone_region.png}
-            \captionof{figure}{Vùng được clone}
-        \end{column}
-    \end{columns}
+% --- Slide: Sigmoid nghịch đảo & opacity reset ---
+\begin{frame}{Vì sao lưu opacity dưới dạng logit? Và cơ chế reset định kỳ}
+\scriptsize
+Opacity $\alpha\in(0,1)$ được lưu nội bộ dưới dạng \textbf{logit} $o=\sigma^{-1}(\alpha)=\ln\!\frac{\alpha}{1-\alpha}$
+(giá trị thực bất kỳ), rồi đi qua sigmoid $\alpha=\sigma(o)$ khi cần dùng --- giống hệt lý do dùng $\exp$ cho scale: để
+mọi số thực đều tương ứng với một giá trị $\alpha$ \textbf{hợp lệ}, không cần ràng buộc \texttt{clamp} thủ công trong
+quá trình tối ưu bằng gradient descent.
+\begin{itemize}\itemsep1pt
+    \item \textbf{Vì sao cần reset opacity định kỳ?} Nếu để tự nhiên, nhiều Gaussian "chết dần" (opacity giảm về rất
+    thấp) vẫn tồn tại lâu, chiếm bộ nhớ mà không đóng góp gì đáng kể. Mỗi \texttt{opacity\_reset\_interval}$=3000$
+    iteration (\emph{với điều kiện} $\texttt{iteration}<\texttt{densify\_until\_iter}=15\,000$, tức \textbf{chỉ đúng
+    $4$ lần}: tại $3\text{k},6\text{k},9\text{k},12\text{k}$), toàn bộ opacity bị \textbf{giảm mạnh}:
+    \[
+    \alpha \leftarrow \alpha_{\text{cũ}} \times \texttt{opacity\_reset\_decay} = \alpha_{\text{cũ}}\times 0.1
+    \]
+    \item \textbf{Cơ chế "sàng lọc":} Gaussian nào thực sự hữu ích (đang đóng góp giảm loss) sẽ nhanh chóng \textbf{hồi
+    phục} opacity qua vài trăm bước gradient tiếp theo; Gaussian nào không còn đóng góp thì opacity vẫn ở mức thấp và
+    sẽ bị prune ở đợt dọn dẹp kế tiếp (slide sau).
+    \item Vì reset \textbf{dừng hẳn} sau iteration $15\,000$, nửa sau của quá trình train không còn cơ chế chủ động nào
+    "sàng lọc lại" opacity định kỳ nữa.
+\end{itemize}
+\begin{center}
+\includegraphics[width=0.30\linewidth]{fig_16_sigmoid_inverse.png}
+\end{center}
 \end{frame}
 
-% --- Slide 37 ---
-\begin{frame}{Split (tách)}
-    \footnotesize
-    \begin{itemize}
-        \item Áp dụng cho Gaussian \textbf{quá to} (over-reconstruction), vượt ngưỡng \texttt{--dense} theo scene extent.
-        \item Tách thành \textbf{2 Gaussian con} nhỏ hơn (giảm scale theo hệ số cố định).
-        \item Vị trí Gaussian con được \textbf{lấy mẫu ngẫu nhiên} theo phân phối chuẩn dựa trên covariance gốc của Gaussian cha.
-    \end{itemize}
-    \begin{columns}
-        \begin{column}{0.48\linewidth}
-            \centering
-            \includegraphics[width=\linewidth]{fig_09_split_geometry.png}
-            \captionof{figure}{Hình học split}
-        \end{column}
-        \begin{column}{0.48\linewidth}
-            \centering
-            \includegraphics[width=\linewidth]{ch7_split_sampling.png}
-            \captionof{figure}{Lấy mẫu theo covariance}
-        \end{column}
-    \end{columns}
+% --- Slide: Quỹ đạo opacity qua các lần reset ---
+\begin{frame}{Quan sát quỹ đạo opacity của một Gaussian qua nhiều lần reset}
+\scriptsize
+Theo dõi $\alpha(t)$ của một Gaussian cụ thể xuyên suốt quá trình train cho thấy rõ "nhịp điệu" của cơ chế reset: mỗi
+lần chạm mốc reset ($3\text{k},6\text{k},9\text{k},12\text{k}$), $\alpha$ bị "đập" xuống còn $10\%$ giá trị trước đó,
+sau đó \textbf{leo dần trở lại} nếu Adam vẫn còn nhận được gradient khuyến khích tăng opacity tại vị trí đó.
+\begin{itemize}\itemsep1pt
+    \item Một Gaussian \textbf{quan trọng} (đang giúp giảm loss thật sự): sau mỗi lần reset, $\alpha$ hồi phục nhanh,
+    thường vượt lại mức trước khi reset trong vòng vài trăm iteration.
+    \item Một Gaussian \textbf{dư thừa} (không còn đóng góp rõ rệt, ví dụ đã bị Gaussian khác lân cận "lấn sân"): sau
+    reset, $\alpha$ hồi phục rất chậm hoặc gần như không hồi phục --- nó sẽ nằm dưới ngưỡng prune ở lần dọn tiếp theo.
+    \item Cơ chế này về bản chất là một dạng \textbf{"kiểm tra sức khỏe" định kỳ} cho toàn bộ quần thể Gaussian, tách
+    biệt hẳn với cơ chế clone/split/prune dựa trên gradient/kích thước đã nói ở các slide trước.
+\end{itemize}
+\begin{center}
+\includegraphics[width=0.36\linewidth]{fig_17_opacity_trajectory.png}
+\end{center}
 \end{frame}
 
-% --- Slide 38 ---
-\begin{frame}{Prune theo độ quan trọng đa góc nhìn (SADGS)}
-    \begin{itemize}
-        \item 3DGS gốc: prune đơn thuần theo ngưỡng \textbf{opacity thấp} hoặc \textbf{kích thước quá lớn}.
-        \item \textbf{SADGS}: bổ sung tiêu chí \emph{đa góc nhìn} -- prune khi $\texttt{low\_ratio} = \texttt{eta\_low\_count}/\texttt{accum\_view\_count} > 0.8$ (\texttt{train.py:353}).
-        \item Kết quả: mô hình \textbf{gọn hơn} nhưng vẫn giữ chất lượng tái tạo -- đây là \textbf{đòn bẩy chính} giúp SADGS tăng tốc.
-    \end{itemize}
-    \vspace{0.2cm}
-    \centering
-    \includegraphics[width=0.7\linewidth]{ch7_importance_pruning.png}
+% --- Slide: Histogram trước/sau reset ---
+\begin{frame}{Nhìn trên toàn bộ quần thể: phân bố opacity trước và sau reset}
+\scriptsize
+Thay vì theo dõi một Gaussian, hãy nhìn \textbf{toàn bộ phân bố} opacity của mọi Gaussian ngay trước và ngay sau một
+lần reset. Ngay sau reset, toàn bộ phân bố bị "nén" mạnh về phía các giá trị thấp (do nhân với $0.1$) --- gần như mọi
+Gaussian đều tạm thời "mờ đi" đồng loạt.
+\begin{itemize}\itemsep1pt
+    \item Điều thú vị xảy ra ở các iteration \textbf{sau} reset: phân bố dần \textbf{tách thành hai nhóm} --- một nhóm
+    hồi phục nhanh trở lại vùng opacity cao (Gaussian hữu ích), một nhóm tiếp tục nằm lại vùng thấp (ứng viên prune).
+    \item Đây chính là hiệu ứng "sàng lọc" đã mô tả ở hai slide trước, nhưng nhìn dưới góc độ \textbf{thống kê quần
+    thể} thay vì một cá thể --- một cách trực quan để kiểm chứng cơ chế reset có thực sự đang "phân loại" Gaussian hữu
+    ích/dư thừa hay không trong một lần chạy huấn luyện cụ thể.
+\end{itemize}
+\begin{center}
+\includegraphics[width=0.36\linewidth]{fig_18_hist_reset.png}
+\end{center}
+\end{frame}
+
+% --- Slide: Tổng kết pipeline 3DGS gốc ---
+\begin{frame}{Tổng kết: pipeline 3DGS gốc, đầu-cuối}
+\scriptsize
+Gộp lại toàn bộ phần vừa trình bày thành một vòng lặp duy nhất:
+\[
+\text{SfM/COLMAP} \to \{\mu,\Sigma,\alpha,c\}_{i=1}^N \xrightarrow{\text{EWA}} \text{ellipse 2D}
+\xrightarrow{\text{compact box}} \text{tile} \xrightarrow{\text{blend}} C(x)
+\xrightarrow{\mathcal{L}} \nabla\theta \xrightarrow{\text{Adam}} \theta_{\text{mới}}
+\]
+lặp lại hàng chục nghìn lần, với riêng mỗi $100$ iteration lại chen thêm bước \textbf{ADC} (clone/split/prune) dựa trên
+gradient tích luỹ, và mỗi $3000$ iteration (tới $15\,000$) lại reset opacity một lần.
+\begin{itemize}\itemsep1pt
+    \item \textbf{Điểm mạnh của thiết kế này:} hoàn toàn tường minh và khả vi từ đầu đến cuối --- không hộp đen, mọi
+    bước đều có thể kiểm tra, gỡ lỗi; render thời gian thực ngay sau khi train xong.
+    \item \textbf{Điểm còn hạn chế, là động lực cho phần tiếp theo của bài giảng:} tín hiệu densify \textbf{chỉ dựa vào
+    gradient} --- một đại lượng phản ánh \emph{trạng thái hội tụ hiện tại} của loss, chứ không trực tiếp đo "ảnh này còn
+    thiếu bao nhiêu \% chi tiết tần số cao chưa được biểu diễn, theo tỉ lệ nào". Hai Gaussian có cùng độ lớn gradient có
+    thể đang thiếu hụt hình học ở hai \emph{quy mô} rất khác nhau (một cái thiếu chi tiết rất mịn, một cái thiếu cấu
+    trúc thô hơn nhiều) --- gradient một mình không phân biệt được điều này.
+\end{itemize}
+\begin{center}
+\includegraphics[width=0.34\linewidth]{samples_train.png}\\
+\captionof{figure}{\footnotesize Ảnh render minh hoạ (định tính, không kèm số đo benchmark).}
+\end{center}
 \end{frame}

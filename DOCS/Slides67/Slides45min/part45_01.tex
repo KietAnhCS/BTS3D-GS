@@ -1,70 +1,160 @@
-% ===================== part45_01.tex : Slide 1-4 =====================
-% Bìa / Agenda / Động lực / 3D Gaussian là gì (rút gọn từ part1.tex, bản 45 phút)
+% ===== FILE 1/9: Bìa, Động lực, 3D Gaussian, Hiệp phương sai, Scale khởi tạo, Scene extent, Màu SH, Lịch tăng bậc SH =====
 
-% --- Slide 1: Trang bìa ---
+% --- Slide: Bìa ---
 \begin{frame}
 \titlepage
 \end{frame}
 
-% --- Slide 2: Agenda (viết mới, rút gọn) ---
-\begin{frame}{Nội dung trình bày (45 phút)}
-\begin{itemize}
-    \item \textbf{1.} Nền tảng: 3D Gaussian \& Spherical Harmonics (lược gọn)
-    \item \textbf{2.} Chiếu phối cảnh \& Rasterizer khả vi
-    \item \textbf{3.} Hàm mất mát, Gradient \& Optimizer
-    \item \textbf{4.} \textbf{Trọng tâm:} Adaptive Density Control -- cải tiến đề xuất
-    \item \textbf{5.} Ba đòn bẩy tăng tốc của SADGS
-    \item \textbf{6.} Kết quả thực nghiệm: SADGS trên Colab T4
-    \item \textbf{7.} Quan sát, giới hạn \& kết luận
-\end{itemize}
-\vspace{0.3cm}
-\small
-Phần nền tảng toán học sẽ lược gọn tối đa, dành thời gian cho đóng góp chính và số liệu thực nghiệm.
-\end{frame}
-
-% --- Slide 3: Động lực: vì sao cần một biểu diễn cảnh mới? (cắt gọn từ part1.tex) ---
-\begin{frame}{Động lực: vì sao cần một biểu diễn cảnh mới?}
-\begin{itemize}
-    \item NeRF: biểu diễn \textbf{implicit} bằng MLP, chất lượng cao nhưng render chậm (giây/khung hình) do ray-marching.
-    \item 3D Gaussian Splatting (3DGS): biểu diễn \textbf{explicit} bằng hàng trăm nghìn Gaussian mờ, render bằng \textbf{rasterization khả vi}.
-    \item Kết quả: hàng chục--hàng trăm FPS, gần thời gian thực.
-\end{itemize}
-\vspace{0.3cm}
-\small
-\centering
-\begin{tabular}{lll}
-\toprule
-\textbf{Tiêu chí} & \textbf{NeRF} & \textbf{3D Gaussian Splatting} \\
-\midrule
-Biểu diễn & Implicit (MLP) & Explicit (tập Gaussian) \\
-Render & Ray-marching, chậm & Rasterization, nhanh \\
-Tốc độ & $\sim$giây/khung hình & Hàng chục--hàng trăm FPS \\
-Huấn luyện & Backprop qua MLP & Backprop qua tham số Gaussian \\
-\bottomrule
-\end{tabular}
-\end{frame}
-
-% --- Slide 4: 3D Gaussian là gì? (cắt gọn từ part1.tex) ---
-\begin{frame}{3D Gaussian là gì?}
-\begin{columns}
-\begin{column}{0.55\textwidth}
+% --- Slide: Động lực ---
+\begin{frame}{Vì sao 3D Gaussian Splatting?}
 \footnotesize
-Hàm mật độ Gaussian 3D:
-\[
-G(x) = \exp\left( -\frac{1}{2} (x-\mu)^T \Sigma^{-1} (x-\mu) \right)
-\]
-Bốn nhóm tham số học được:
 \begin{itemize}
-    \item Vị trí $\mu \in \mathbb{R}^3$
-    \item Hiệp phương sai $\Sigma$ (hình dạng, hướng)
-    \item Độ mờ (opacity) $\alpha$
-    \item Màu qua hệ số Spherical Harmonics
+    \item \textbf{Bài toán đặt ra:} cho một tập ảnh chụp một cảnh từ nhiều góc, cùng camera pose ước lượng sẵn bởi
+    SfM/COLMAP, hãy dựng lại một biểu diễn 3D sao cho có thể \textbf{render lại ảnh từ bất kỳ góc nhìn mới nào}
+    (novel view synthesis) một cách chân thực.
+    \item \textbf{NeRF (2020)} giải bài này bằng một mạng MLP ẩn ánh xạ (vị trí, hướng nhìn) $\to$ (màu, mật độ), rồi
+    \textbf{ray-marching}: bắn hàng trăm điểm mẫu dọc mỗi tia sáng, gọi mạng hàng trăm lần cho mỗi pixel. Chất lượng
+    cao nhưng cực chậm --- train mất hàng giờ/ngày, render cũng mất giây/khung hình vì phải lặp lại forward pass qua mạng cho từng điểm mẫu.
+    \item \textbf{3D Gaussian Splatting} (Kerbl, Kopanas, Leimkühler, Drettakis --- SIGGRAPH 2023) đổi hẳn cách biểu diễn:
+    thay mạng ẩn bằng \textbf{hàng trăm nghìn tới hàng triệu "Gaussian 3D" tường minh}, mỗi Gaussian là một đối tượng
+    có tham số cụ thể $\{\mu,\Sigma,\alpha,c\}$ (Slide sau). Render không cần mạng nơ-ron, không cần ray-marching --- chỉ
+    cần \textbf{chiếu (project) và tô (rasterize)} trực tiếp các Gaussian lên màn hình, giống hệt cách GPU vẽ tam giác
+    trong đồ hoạ game truyền thống. Kết quả: train nhanh hơn nhiều lần, và quan trọng nhất --- render \textbf{thời gian thực}
+    (hàng chục--hàng trăm khung hình/giây) sau khi train xong.
+    \item \textbf{Nhưng còn một vấn đề chưa giải quyết trọn vẹn:} số lượng Gaussian $N$ cần bao nhiêu, đặt ở đâu, kích
+    thước ra sao --- không biết trước, phải \textbf{tự động điều chỉnh trong lúc train} (đây gọi là \emph{Adaptive Density
+    Control}, viết tắt ADC). Cơ chế ADC gốc chỉ dựa vào \textbf{gradient} để quyết định thêm/bớt Gaussian --- và đây
+    chính là chỗ \textbf{SADGS} (Structure-Aware Densification for Gaussian Splatting) can thiệp: bổ sung thêm một tín
+    hiệu đo trực tiếp \textbf{cấu trúc tần số cục bộ} của ảnh, để quyết định "đúng chỗ, đúng lúc, đúng trục" hơn.
 \end{itemize}
-\end{column}
-\begin{column}{0.45\textwidth}
-\centering
-\includegraphics[width=0.95\linewidth]{ch2_gaussian_bump.png}
-\captionof{figure}{\footnotesize Quả chuông mật độ Gaussian 3D}
-\end{column}
-\end{columns}
+\vspace{2pt}
+\footnotesize\textbf{Lộ trình bài giảng:} (1) Biểu diễn Gaussian \& pipeline render $\to$ (2) Loss, gradient, ADC nguyên
+bản của 3DGS $\to$ (3) SADGS: xây dựng tín hiệu tần số $\eta$ từ đầu, cơ chế densify/prune mới $\to$ (4) Nhìn lại một
+cách trung thực: cái gì đang thật sự chạy, so sánh với bản gốc.
+\end{frame}
+
+% --- Slide: 3D Gaussian là gì ---
+\begin{frame}{3D Gaussian: đơn vị biểu diễn cơ bản}
+\scriptsize
+Toàn bộ cảnh được biểu diễn bằng một \textbf{tập hợp các Gaussian 3D} --- mỗi Gaussian là một hàm mật độ liên tục
+trong không gian, tâm tại $\mu\in\mathbb{R}^3$, "độ loang" theo ma trận hiệp phương sai $\Sigma\in\mathbb{R}^{3\times3}$:
+\[
+\boxed{\;G(x)=\exp\!\Big(-\tfrac12(x-\mu)^\top\Sigma^{-1}(x-\mu)\Big)\;}
+\]
+Có thể hình dung mỗi Gaussian như một \textbf{"cục mây mờ" hình ellipsoid}: đậm đặc nhất ở tâm $\mu$, mờ dần ra biên
+theo hình dạng do $\Sigma$ quyết định. Mỗi Gaussian mang theo $4$ nhóm tham số \textbf{học được bằng gradient descent}
+(tổng $59$ số thực: xyz 3 $+$ scaling 3 $+$ rotation 4 $+$ opacity 1 $+$ \texttt{f\_dc} 3 $+$ \texttt{f\_rest} 45):
+\begin{itemize}\itemsep1pt
+    \item $\mu$ --- vị trí tâm trong không gian 3D (3 số).
+    \item $\Sigma$ --- hình dạng và hướng của ellipsoid, không lưu trực tiếp mà tham số hoá qua scale $s\in\mathbb{R}^3$
+    và quaternion (hướng quay) $q\in\mathbb{R}^4$ --- lý do tại sao xem ở slide tiếp theo.
+    \item $\alpha\in(0,1)$ --- độ mờ đục (opacity): Gaussian "đặc" hay "trong suốt", lưu dưới dạng logit rồi đi qua sigmoid để luôn nằm trong khoảng hợp lệ.
+    \item $c$ --- màu sắc, nhưng \textbf{không phải một màu RGB cố định} mà biểu diễn bằng hệ số Spherical Harmonics
+    (Slide sau) để màu có thể \emph{đổi theo góc nhìn} --- mô phỏng hiệu ứng phản chiếu, ánh kim, specular thực tế.
+\end{itemize}
+\begin{center}
+\includegraphics[width=0.4\linewidth]{ch2_gaussian_bump.png}
+\end{center}
+\end{frame}
+
+% --- Slide: Tham số hoá hiệp phương sai ---
+\begin{frame}{Tham số hoá hiệp phương sai: luôn xác định dương}
+\scriptsize
+Về mặt toán học, $\Sigma$ phải \textbf{đối xứng và xác định dương} mới là một ma trận hiệp phương sai hợp lệ (nếu
+không, $G(x)$ ở trên có thể phát tán vô nghĩa). Nếu tối ưu trực tiếp $6$ số độc lập của $\Sigma$ bằng gradient descent,
+rất dễ trong quá trình huấn luyện đi lệch khỏi vùng hợp lệ. Giải pháp của 3DGS là \textbf{phân rã} $\Sigma$ thành tích
+của một ma trận quay và một ma trận scale:
+\[
+\boxed{\;\Sigma=RSS^\top R^\top\;},\qquad S=\mathrm{diag}(s_x,s_y,s_z),\qquad R=R\!\left(\frac{q}{\lVert q\rVert}\right)
+\]
+\begin{itemize}\itemsep1pt
+    \item $S$: ma trận đường chéo với $s=\exp(\texttt{\_scaling})$ --- vì hàm mũ luôn dương, $s$ \textbf{tự động dương}
+    với mọi giá trị thực của \texttt{\_scaling}, không cần ràng buộc (constraint) nào thêm khi tối ưu.
+    \item $R$: ma trận quay $3\times3$ dựng từ quaternion $q$ đã \textbf{chuẩn hoá về độ dài 1} --- luôn là ma trận trực giao hợp lệ.
+    \item Nhờ vậy $\Sigma=RSS^\top R^\top$ \textbf{tự động} đối xứng, xác định dương với \emph{bất kỳ} $s,q$ nào --- ta có
+    thể tối ưu $s,q$ tự do bằng gradient descent mà không sợ vi phạm ràng buộc toán học.
+    \item Về mặt hình học: ellipsoid của Gaussian có \textbf{bán trục theo mỗi hướng chính $= s_j$} (không phải trị riêng
+    của $\Sigma$ --- trị riêng thực ra là $s_j^2$, vì $\Sigma$ là bình phương của $S$ sau khi quay).
+\end{itemize}
+\end{frame}
+
+% --- Slide: Scale khởi tạo ---
+\begin{frame}{Khởi tạo (1/2): scale ban đầu theo mật độ điểm SfM}
+\scriptsize
+Trước khi train, mỗi Gaussian được đặt \textbf{đúng tại vị trí} một điểm 3D thưa mà SfM/COLMAP đã tái dựng được từ các
+ảnh input (\emph{sparse point cloud}). Nhưng vị trí thôi chưa đủ --- cần một \textbf{kích thước ban đầu hợp lý} cho mỗi
+Gaussian: quá nhỏ thì để hở nhiều khoảng trống giữa các điểm, quá to thì các Gaussian chồng lấn nhau ngay từ đầu, làm
+nhiễu tín hiệu học. Giải pháp: lấy khoảng cách tới các điểm lân cận làm thước đo mật độ cục bộ:
+\[
+\tilde s = \log\sqrt{\overline{d^2_{\mathrm{knn3}}}}
+\]
+tức là: với mỗi điểm, tính khoảng cách bình phương tới $3$ điểm gần nhất (knn3), lấy trung bình, rồi căn bậc hai --- ra
+một ước lượng "khoảng cách điển hình giữa các điểm lân cận" tại vị trí đó. Lấy \texttt{log} vì scale được lưu và tối
+ưu trong không gian log (nhất quán với $s=\exp(\texttt{\_scaling})$ ở slide trước). Kết quả: vùng point cloud dày đặc
+(nhiều chi tiết hình học) sẽ có Gaussian khởi tạo \textbf{nhỏ}, vùng thưa sẽ có Gaussian khởi tạo \textbf{to} hơn ---
+một cách tự nhiên để phủ kín cảnh mà không cần biết trước hình dạng vật thể.
+\begin{center}
+\includegraphics[width=0.42\linewidth]{ch1_scale_init.png}
+\end{center}
+\end{frame}
+
+% --- Slide: Scene extent ---
+\begin{frame}{Khởi tạo (2/2): scene extent --- thước đo "to/nhỏ" dùng xuyên suốt}
+\scriptsize
+Nhiều quyết định sau này trong ADC (Adaptive Density Control) cần biết "Gaussian này to hay nhỏ \textbf{so với quy mô
+của cả cảnh}" --- ví dụ ngưỡng \texttt{percent\_dense}$\times$\texttt{extent} để phân biệt clone/split (sẽ nói ở phần
+sau). Đại lượng dùng làm đơn vị đo lường này là \textbf{scene extent}, tính \textbf{một lần duy nhất} lúc khởi tạo:
+\[
+\boxed{\;\mathrm{extent}=1.1\cdot\max_v\lVert c_v-\bar c\rVert\;}
+\]
+với $c_v$ là vị trí của camera train thứ $v$, $\bar c$ là tâm trung bình của tất cả camera train. Nói cách khác, đây là
+\textbf{bán kính} (nhân thêm hệ số an toàn $1.1$) của một khối cầu tưởng tượng bao quanh toàn bộ vị trí các camera ---
+\textbf{không phải} đường chéo của hộp bao (bounding box) quanh point cloud như đôi khi bị hiểu nhầm. Vì cảnh thường
+được quay quanh một đối tượng trung tâm, "bán kính vòng camera" là một ước lượng hợp lý cho kích thước tổng thể của cảnh.
+\begin{center}
+\includegraphics[width=0.42\linewidth]{ch1_extent.png}
+\end{center}
+\end{frame}
+
+% --- Slide: Màu qua Spherical Harmonics ---
+\begin{frame}{Màu phụ thuộc góc nhìn: hệ số Spherical Harmonics}
+\scriptsize
+Vật liệu thực tế (kim loại, nước, sứ bóng...) phản chiếu ánh sáng khác nhau tuỳ góc nhìn --- một màu RGB cố định không
+mô phỏng được hiệu ứng này. 3DGS giải quyết bằng cách biểu diễn màu như một \textbf{hàm của hướng nhìn} $d$, khai triển
+theo cơ sở \textbf{Spherical Harmonics} (SH) --- một họ hàm trực giao trên mặt cầu, tương tự chuỗi Fourier nhưng cho dữ
+liệu định nghĩa trên hình cầu thay vì trên một đường thẳng:
+\[
+c(d)=\sum_{\ell=0}^{D}\sum_{m=-\ell}^{\ell} k_{\ell m}\,Y_{\ell}^{m}(d)
+\]
+mỗi Gaussian lưu các \textbf{hệ số} $k_{\ell m}$ (học được), không lưu trực tiếp màu.
+\begin{itemize}\itemsep1pt
+    \item Hệ số bậc $0$ ($\ell=0$, gọi là \textbf{hệ số DC}) chính là \textbf{màu trung bình theo mọi góc nhìn}: khởi tạo
+    $k_{00}=\mathrm{RGB2SH}(c)=(c-0.5)/C_0$ với hằng số chuẩn hoá $C_0=\tfrac{1}{2\sqrt\pi}\approx0.282$.
+    \item Các hệ số bậc cao hơn ($\ell\ge1$) mã hoá \textbf{độ thay đổi màu theo hướng nhìn} --- càng nhiều bậc, hiệu ứng
+    phản chiếu/specular càng chi tiết, nhưng cũng càng nhiều tham số phải học.
+    \item Tổng số hệ số cần học nếu dùng tới bậc $D$: $(D+1)^2$ hệ số cho mỗi kênh màu; với $D=3$ (giá trị dùng phổ biến)
+    là $16$ hệ số/kênh $\times3$ kênh $=48$ số ($3$ số DC $+$ $45$ số bậc cao, tên biến \texttt{f\_rest}).
+\end{itemize}
+\begin{center}
+\includegraphics[width=0.30\linewidth]{ch1_rgb2sh.png}
+\end{center}
+\end{frame}
+
+% --- Slide: Lịch tăng bậc SH ---
+\begin{frame}{Lịch tăng bậc SH: vì sao không học bậc cao ngay từ đầu?}
+\scriptsize
+Học ngay $48$ hệ số SH từ những iteration đầu tiên, khi vị trí/hình dạng Gaussian còn rất chưa ổn định, dễ làm mô hình
+"khớp" (overfit) vào những biến thiên màu do \textbf{sai vị trí hình học} gây ra, chứ không phải phản chiếu thật ---
+gây nhiễu và bất ổn cho quá trình tối ưu. Giải pháp: \textbf{tăng bậc SH dần dần}, để hình học ổn định trước, chi tiết
+phản chiếu học sau. Trong code (\texttt{train.py:216--217}):
+\[
+\texttt{if iteration \% 1 == 0: gaussians.oneupSHdegree()}
+\]
+tức bậc \textbf{tăng thêm 1 sau mỗi iteration}, cho tới khi chạm bậc tối đa $D_{\max}=3$ --- nghĩa là chỉ sau \textbf{3
+iteration đầu tiên} của cả quá trình train ($30\,000$ iteration), toàn bộ Gaussian đã dùng bậc SH tối đa. Đây là một
+điểm dễ hiểu lầm: nhiều tài liệu khác về 3DGS mô tả lịch tăng bậc là "mỗi vài nghìn iteration tăng 1 bậc" --- con số đó
+\textbf{không khớp} với đoạn code thực tế của chính pipeline này.
+\begin{center}
+\includegraphics[width=0.42\linewidth]{ch2_sh_degree_schedule.png}
+\end{center}
 \end{frame}

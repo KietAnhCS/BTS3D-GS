@@ -273,33 +273,48 @@ def fig5():
 
 
 # ---------------------------------------------------------------- FIG 6
-# Truc giac Nyquist: sine lay mau boi Gaussian to / vua / nho
+# Truc giac Nyquist: MOT kich thuoc Gaussian co dinh (ell), so voi 3 vung
+# anh co buoc song cuc bo w_min khac nhau (chi tiet min / vua / gan phang).
+# Day la so sanh KICH THUOC (hinh hoc), khong phai mo hinh suy hao bien do:
+# khong co exp(-.. eta^2) nao trong code that (freq_utils.py).
 def fig6():
-    x = np.linspace(-12, 12, 2000)
-    lam = 4.0                          # buoc song texture (pixel)
-    sig = 2.0 * np.pi / lam
-    f = np.sin(2 * np.pi * x / lam)
+    ell = 2.0                                  # kich thuoc hinh chieu Gaussian, co dinh
+    w_mins = [1.0, 3.0, 25.0]                  # buoc song cuc bo: min / vua / gan phang
+    labels_vn = ["chi tiet min (tan so cao)", "chi tiet vua khop", "vung gan phang"]
 
-    sizes = [6.0, 1.6, 0.3]
     fig, axs = plt.subplots(1, 3, figsize=(13, 3.6), sharey=True)
-    for ax, s in zip(axs, sizes):
-        g = np.exp(-0.5 * (x / s) ** 2) / (s * np.sqrt(2 * np.pi))
-        # ket qua loc: Gaussian lam mo sine => bien do nhan exp(-0.5 s^2 omega^2)
-        atten = np.exp(-0.5 * (s * sig) ** 2)
-        ax.plot(x, f, color="#bbbbbb", lw=1.2, label="texture")
-        ax.plot(x, atten * f, color="#1f77b4", lw=2.2,
-                label=f"sau khi Gaussian lay mau (x{atten:.2f})")
-        ax.plot(x, g / g.max(), color="#E45756", lw=1.8, ls="--",
-                label=r"Gaussian $\|a\|=%.2f$" % s)
-        eta = s / lam
-        lab = ("QUA TO $\\Rightarrow$ SPLIT" if eta > 1.0 else
-               ("VUA $\\Rightarrow$ GIU" if eta > 0.1 else "QUA NHO $\\Rightarrow$ PRUNE"))
-        ax.set_title(r"$\eta=\|a\|/\lambda_{\min}=%.2f$  —  %s" % (eta, lab), fontsize=9)
-        ax.set_xlabel("pixel"); ax.grid(alpha=0.3); ax.set_ylim(-1.3, 1.3)
-        ax.legend(fontsize=6.5, loc="lower right")
-    axs[0].set_ylabel("cuong do")
-    fig.suptitle(r"Nyquist: Gaussian rong hon $\lambda_{\min}$ thi lam mat chi tiet $\Rightarrow$ can SPLIT",
-                 fontsize=10)
+    for ax, w_min, lab_vn in zip(axs, w_mins, labels_vn):
+        eta = ell / w_min
+        x_half = max(3.0 * w_min, 3.0 * ell, 8.0)
+        x = np.linspace(-x_half, x_half, 2000)
+        texture = np.sin(2 * np.pi * x / w_min)
+        # "footprint" cua Gaussian: chi de so sanh KICH THUOC, khong phai bo loc
+        footprint = np.exp(-0.5 * (x / (ell / 2.355)) ** 2)  # ell ~ FWHM
+
+        ax.plot(x, texture, color="#bbbbbb", lw=1.3, label=r"chi tiết ảnh, $w_{\min}=%.1f$" % w_min)
+        ax.plot(x, footprint, color="#E45756", lw=2.0, ls="--",
+                label=r"footprint Gaussian, $\ell=%.1f$" % ell)
+        ax.axvspan(-ell / 2, ell / 2, color="#E45756", alpha=0.12)
+
+        if eta > 1.0:
+            lab = "SPLIT\n($\\eta>\\tau_{high}=1$)"
+            col = "#8c1010"
+        elif eta > 0.1:
+            lab = "GIỮ\n($\\tau_{low}<\\eta\\leq\\tau_{high}$)"
+            col = "#0b4a0b"
+        else:
+            lab = "PRUNE\n($\\eta\\leq\\tau_{low}=0.1$)"
+            col = "#7a5c00"
+        ax.set_title(r"%s" % lab_vn + "\n" + r"$\eta=\ell/w_{\min}=%.2f$" % eta,
+                     fontsize=9)
+        ax.text(0.03, 0.06, lab, transform=ax.transAxes, fontsize=10, weight="bold",
+                color=col)
+        ax.set_xlabel("pixel"); ax.grid(alpha=0.3); ax.set_ylim(-1.35, 1.35)
+        ax.legend(fontsize=6.5, loc="upper right")
+    axs[0].set_ylabel("cường độ / biên độ (chuẩn hoá)")
+    fig.suptitle(r"$\eta=\ell/w_{\min}$: so sánh KÍCH THƯỚC Gaussian với bước sóng cục bộ "
+                 r"(không phải bộ lọc suy hao)", fontsize=10, y=1.08)
+    fig.tight_layout(rect=[0, 0, 1, 0.90])
     save(fig, "02_nyquist.png")
 
 

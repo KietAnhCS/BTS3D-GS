@@ -1,83 +1,109 @@
-% --- Slide 9 (từ part2.tex: Compact Box) ---
-\begin{frame}{Compact Box -- đòn bẩy tăng tốc \#1 của SADGS}
-\begin{columns}[T]
-\begin{column}{0.52\textwidth}
-\footnotesize
-    \begin{itemize}
-        \item Mặc định: bounding-box $3\sigma$ -- khá rộng, chạm nhiều tile không cần thiết
-        \item SADGS thay bằng \textbf{compact box}: vùng ảnh hưởng 2D nhỏ hơn, điều chỉnh bằng hệ số \texttt{-{}-mult}
-        \item Kết quả: giảm đáng kể số tile mỗi Gaussian phải rasterize
-    \end{itemize}
-\end{column}
-\begin{column}{0.48\textwidth}
-    \centering
-    \includegraphics[width=0.95\linewidth]{ch3_compact_box.png}
-    \captionof{figure}{\footnotesize So sánh bounding-box mặc định và compact box}
-\end{column}
-\end{columns}
+% ===== FILE 3/9: Tile rasterizer, Loss, PSNR, SSIM, Score tổng hợp =====
+
+% --- Slide: Tile-based rasterizer ---
+\begin{frame}{Kiến trúc rasterizer theo tile: vì sao render nhanh}
+\scriptsize
+Với hàng triệu Gaussian và hàng triệu pixel, việc lặp "cho mỗi pixel, quét qua mọi Gaussian" là bất khả thi về tốc độ.
+3DGS giải quyết bằng kiến trúc \textbf{song song hoá theo tile}, chia màn hình thành các ô $16\times16$ pixel:
+\begin{enumerate}\itemsep2pt
+    \item \textbf{Xác định phạm vi:} với mỗi Gaussian, dùng compact box (slide trước) để biết nó phủ tới những tile
+    nào $\Rightarrow$ sinh ra các cặp khoá $(\text{chỉ số tile}, \text{độ sâu})$ --- một Gaussian phủ nhiều tile thì sinh
+    nhiều cặp khoá, mỗi cặp ứng với một tile.
+    \item \textbf{Sắp xếp một lần duy nhất:} toàn bộ danh sách cặp khoá được sắp theo $(\text{tile}, \text{depth})$ ---
+    đây là bước tốn kém nhất về mặt lý thuyết, nhưng chỉ thực hiện \textbf{một lần cho cả khung hình}, không phải một
+    lần riêng cho từng pixel như cách làm ngây thơ.
+    \item \textbf{Xử lý song song theo tile:} mỗi \emph{thread block} trên GPU phụ trách đúng một tile; vì danh sách đã
+    sắp sẵn theo depth, mỗi thread chỉ cần blend tuần tự (công thức alpha blending, slide trước) theo đúng thứ tự, dừng
+    sớm khi $T$ đủ nhỏ.
+\end{enumerate}
+\textbf{Kết quả:} tổng chi phí gần với $O(N\cdot K)$, với $K$ là số tile trung bình mà mỗi Gaussian chạm tới (bị chi
+phối trực tiếp bởi \texttt{mult} của compact box) --- thay vì $O(N\cdot H\cdot W)$ nếu phải quét toàn ảnh cho mỗi
+Gaussian. Đây là lý do cốt lõi giúp 3DGS render \textbf{thời gian thực}.
 \end{frame}
 
-% --- Slide 10 (từ part2.tex: Alpha blending front-to-back) ---
-\begin{frame}{Alpha blending (front-to-back)}
-    \begin{itemize}
-        \item Màu pixel là tổng có trọng số của các Gaussian chồng nhau theo thứ tự độ sâu
-        \item Công thức blend:
-        \[
-            C = \sum_i c_i\,\alpha_i\,T_i, \qquad T_i = \prod_{j<i}(1-\alpha_j)
-        \]
-        \item $T_i$: độ truyền sáng còn lại (transmittance) trước Gaussian thứ $i$
-    \end{itemize}
-    \vspace{0.2cm}
-    \centering
-    \includegraphics[width=0.55\linewidth]{ch4_alpha_blend_stack.png}
-    \captionof{figure}{Chồng lớp alpha blending theo độ sâu}
+% --- Slide: Hàm mất mát ---
+\begin{frame}{Hàm mất mát: so khớp ảnh render với ảnh thật}
+\scriptsize
+Sau khi render ra ảnh $I_{\text{render}}$, cần một hàm đo "khác biệt" với ảnh thật $I_{gt}$ để lấy gradient huấn luyện.
+Trong repo này (\texttt{train.py:256--259}):
+\[
+\boxed{\;\mathcal{L} = (1-\lambda_{\text{dssim}})\,L_1 + \lambda_{\text{dssim}}\,(1-\mathrm{SSIM}) + \lambda_{L2}\,L_2\;}
+\]
+với $\lambda_{\text{dssim}}=0.2$, $\lambda_{L2}=2.0$ --- so với 3DGS gốc (chỉ có hai số hạng đầu), bản này \textbf{cộng
+thêm} một số hạng $L_2$ (bình phương sai số theo pixel, \texttt{utils/loss\_utils.py:25}).
+\begin{itemize}\itemsep1pt
+    \item $L_1=\overline{|I_{\text{render}}-I_{gt}|}$: ổn định, ít bị kéo lệch bởi vài pixel ngoại lệ (outlier) --- một
+    vài pixel sai rất nhiều (do noise, occlusion...) không làm gradient tổng thể "hoảng loạn".
+    \item $\mathrm{SSIM}$ (Structural Similarity, cửa sổ Gaussian $11\times11$, $\sigma=1.5$): so khớp \textbf{cấu trúc
+    cục bộ} --- độ tương phản, độ chói theo từng vùng nhỏ --- gần với cảm nhận thị giác con người hơn so sánh từng pixel riêng lẻ.
+    \item $L_2$ (bình phương): phạt \textbf{nặng hơn} với sai số lớn, giúp mô hình hội tụ nhanh ở giai đoạn đầu khi ảnh
+    render còn rất khác ảnh thật.
+    \item \textbf{Ghi chú quan trọng:} \texttt{loss\_utils.py} còn định nghĩa hai hàm \texttt{tone\_curve\_loss} và
+    \texttt{frequency\_loss} (dựa trên structure tensor sẽ nói ở phần SADGS) --- nhưng \textbf{không có dòng nào trong
+    \texttt{train.py} gọi tới hai hàm này}. Đây là \emph{dead code}: tồn tại trong file nhưng không ảnh hưởng gì tới
+    loss thật sự đang được tối ưu.
+\end{itemize}
+\begin{center}
+\includegraphics[width=0.34\linewidth]{ch5_loss_mix.png}
+\end{center}
 \end{frame}
 
-% --- Slide 11 (từ part2.tex: Tổng kết phương trình render) ---
-\begin{frame}{Tổng kết phương trình render}
-    \begin{itemize}
-        \item Phương trình render đầy đủ:
-        \[
-            C(p) = \sum_i c_i\,\alpha_i \prod_{j<i}(1-\alpha_j)
-        \]
-        \item Khả vi theo mọi tham số: vị trí $\mu$, hiệp phương sai $\Sigma$, độ mờ $\alpha$, hệ số SH
-    \end{itemize}
-    \vspace{0.4cm}
-    \centering
-    \begin{tikzpicture}[node distance=1.1cm, every node/.style={font=\footnotesize}]
-        \node (g3d) {Gaussian 3D};
-        \node (proj) [right=of g3d] {Chiếu 2D};
-        \node (alpha) [right=of proj] {Trường alpha};
-        \node (blend) [right=of alpha] {Blend};
-        \node (pixel) [right=of blend] {Pixel};
-        \draw[-Latex] (g3d) -- (proj);
-        \draw[-Latex] (proj) -- (alpha);
-        \draw[-Latex] (alpha) -- (blend);
-        \draw[-Latex] (blend) -- (pixel);
-    \end{tikzpicture}
+% --- Slide: PSNR ---
+\begin{frame}{Đánh giá chất lượng (1/3): PSNR}
+\scriptsize
+Sau khi train xong, cần các chỉ số \textbf{độc lập với loss} để đánh giá khách quan chất lượng render trên tập test
+(ảnh chưa dùng để train). Chỉ số đầu tiên và đơn giản nhất là \textbf{PSNR} (Peak Signal-to-Noise Ratio):
+\[
+\mathrm{PSNR}=10\log_{10}\!\left(\frac{1}{\mathrm{MSE}}\right)\quad\text{(dB, với ảnh chuẩn hoá về }[0,1]\text{)}
+\]
+\begin{itemize}\itemsep1pt
+    \item PSNR càng \textbf{cao} nghĩa là sai số bình phương trung bình theo pixel càng \textbf{thấp} --- là thang đo
+    logarit nên chênh lệch vài dB đã tương ứng với chênh lệch sai số đáng kể.
+    \item \textbf{Hạn chế:} PSNR đối xử với mọi pixel như nhau, không phân biệt "sai ở vùng chi tiết phức tạp" hay "sai ở
+    vùng phẳng đơn giản" --- hai ảnh có cùng PSNR có thể trông rất khác nhau về mặt cảm nhận thị giác (một ảnh mờ đều,
+    một ảnh có vài vệt lỗi rõ rệt nhưng phần còn lại rất sắc nét).
+    \item Vì hạn chế này, PSNR thường được báo cáo \textbf{cùng với} SSIM và LPIPS (hai slide tiếp theo), không dùng một mình.
+\end{itemize}
+\begin{center}
+\includegraphics[width=0.36\linewidth]{ch5_psnr.png}
+\end{center}
 \end{frame}
 
-% --- Slide 12 (từ part3.tex: Hàm mất mát L1 + D-SSIM) ---
-\begin{frame}{Hàm mất mát: kết hợp L1 và D-SSIM}
-    \begin{columns}[T]
-        \begin{column}{0.5\textwidth}
-            \begin{itemize}
-                \item Loss huấn luyện kết hợp hai thành phần bổ trợ nhau:
-                \begin{itemize}
-                    \item \textbf{L1}: sai khác trung bình theo từng pixel.
-                    \item \textbf{D-SSIM}: $1-\text{SSIM}$, phản ánh sai lệch \textbf{cấu trúc}.
-                \end{itemize}
-                \item Công thức tổng:
-                \[
-                    \mathcal{L} = (1-\lambda)\,\mathcal{L}_1 + \lambda\,(1-\text{SSIM})
-                \]
-                \item Hệ số $\lambda = $ \texttt{lambda\_dssim} $= 0.2$ (\texttt{arguments/\_\_init\_\_.py:86})
-            \end{itemize}
-        \end{column}
-        \begin{column}{0.5\textwidth}
-            \centering
-            \includegraphics[width=0.95\linewidth]{ch5_loss_mix.png}
-            \captionof{figure}{Tỉ trọng L1 và D-SSIM trong loss}
-        \end{column}
-    \end{columns}
+% --- Slide: SSIM ---
+\begin{frame}{Đánh giá chất lượng (2/3): SSIM}
+\scriptsize
+\textbf{SSIM} (Structural Similarity Index) --- cùng công thức đã dùng làm một phần của loss (slide trước) --- nhưng ở
+đây dùng để \textbf{đánh giá}, không phải để lấy gradient. So sánh ảnh theo \textbf{cửa sổ trượt cục bộ} (Gaussian
+$11\times11$, $\sigma=1.5$), kết hợp ba thành phần: độ chói (luminance), độ tương phản (contrast), và cấu trúc
+(structure) giữa hai ảnh trong mỗi cửa sổ.
+\begin{itemize}\itemsep1pt
+    \item Giá trị nằm trong $[-1,1]$ (thường báo cáo trong $[0,1]$ với ảnh tự nhiên), $1$ là khớp hoàn hảo.
+    \item Vì so sánh theo \textbf{vùng cục bộ} thay vì từng pixel riêng lẻ, SSIM nhạy với sai lệch về \textbf{cấu trúc}
+    (đường nét, hoạ tiết bị mờ/lệch) hơn là sai lệch nhỏ về độ sáng tổng thể --- gần với cách mắt người đánh giá "ảnh này
+    có giống ảnh kia không" hơn PSNR thuần.
+    \item Trong 3DGS, SSIM đóng vai trò \textbf{kép}: vừa là một phần của hàm loss lúc train (khuyến khích khớp cấu
+    trúc), vừa là chỉ số đánh giá lúc test.
+\end{itemize}
+\begin{center}
+\includegraphics[width=0.36\linewidth]{ch5_ssim_window.png}
+\end{center}
+\end{frame}
+
+% --- Slide: Score tổng hợp ---
+\begin{frame}{Đánh giá chất lượng (3/3): kết hợp nhiều chỉ số}
+\scriptsize
+Ba chỉ số PSNR, SSIM, và \textbf{LPIPS} (Learned Perceptual Image Patch Similarity --- khoảng cách giữa hai ảnh đo
+trong không gian đặc trưng của một mạng CNN đã huấn luyện trước trên dữ liệu thị giác con người) đo những khía cạnh
+\textbf{khác nhau và bổ sung cho nhau}:
+\begin{itemize}\itemsep1pt
+    \item PSNR: sai số pixel thô, dễ tính, dễ hiểu, nhưng ít tương quan với cảm nhận thị giác.
+    \item SSIM: cấu trúc cục bộ, tương quan tốt hơn với cảm nhận, nhưng vẫn là một công thức toán học tường minh, không "học" từ dữ liệu thị giác người.
+    \item LPIPS: học trực tiếp từ dữ liệu đánh giá của con người, bắt được các khác biệt "nhìn thấy rõ" mà PSNR/SSIM có
+    thể bỏ sót (ví dụ: một chi tiết bị làm mờ nhẹ nhưng vẫn giữ đúng cấu trúc trung bình).
+    \item Không chỉ số nào là "đủ một mình" --- một báo cáo kết quả nghiêm túc nên nêu \textbf{cả ba}, kèm rõ scene,
+    checkpoint (số iteration), và cấu hình đo, để tránh so sánh khập khiễng giữa các thiết lập khác nhau.
+\end{itemize}
+\begin{center}
+\includegraphics[width=0.36\linewidth]{ch5_score_decomp.png}
+\end{center}
 \end{frame}

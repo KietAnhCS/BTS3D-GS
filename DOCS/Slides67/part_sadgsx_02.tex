@@ -112,23 +112,25 @@ Nhờ vậy SADGS biết Gaussian vi phạm \emph{theo hướng nào} $\Rightarr
 \end{frame}
 
 
-\begin{frame}{Trực giác Nyquist: vì sao tỉ số này là đúng đại lượng cần đo}
+\begin{frame}{Trực giác Nyquist: vì sao tỉ số $\eta=\ell/w_{\min}$ là đại lượng cần đo}
 \scriptsize
-Một Gaussian đóng vai trò \textbf{bộ lọc thông thấp} khi tô lên ảnh. Với texture tần số
-$\omega=2\pi/\lambda_{\min}$, biên độ còn lại sau khi Gaussian "lấy mẫu" là
-\[
-A_{\text{out}}=A_{\text{in}}\exp\!\Big(-\tfrac{1}{2}\|a\|^2\omega^2\Big)
-=A_{\text{in}}\exp\!\big(-2\pi^2\eta^2\big)
-\]
-$\eta$ là biến duy nhất điều khiển việc chi tiết bị mất:
+$\eta$ so sánh \textbf{kích thước hình chiếu $\ell$ của Gaussian} với \textbf{bước sóng cục bộ $w_{\min}$}
+của chi tiết ảnh tại đúng vị trí đó (không phải một phép lọc/suy hao biên độ --- không có công thức
+$\exp(-\cdot\,\eta^2)$ nào trong code). Đây là nguyên lý Nyquist ở dạng hình học: để bám được một dao động
+chu kỳ $w_{\min}$, "ô vẽ" (footprint) phải nhỏ hơn đáng kể so với $w_{\min}$:
 \begin{itemize}\itemsep0pt
-\item $\eta>1$: Gaussian rộng hơn cả chu kỳ texture $\Rightarrow$ chi tiết bị xoá/alias $\Rightarrow$ \textbf{SPLIT}.
-\item $\eta\approx 0.1\ldots 1$: vừa khớp $\Rightarrow$ \textbf{GIỮ}.
-\item $\eta\le 0.1$: Gaussian nhỏ hơn chi tiết hàng chục lần $\Rightarrow$ dư thừa $\Rightarrow$ ứng viên \textbf{PRUNE}.
+\item $\eta>\tau_{high}=1$: $\ell$ \textbf{rộng hơn cả một chu kỳ} texture $\Rightarrow$ một Gaussian không đủ
+độ phân giải để theo kịp dao động đó $\Rightarrow$ \textbf{SPLIT} thành các Gaussian nhỏ hơn.
+\item $\tau_{low}=0.1<\eta\le\tau_{high}=1$: kích thước Gaussian tương xứng với chi tiết cần biểu diễn
+$\Rightarrow$ \textbf{GIỮ NGUYÊN}.
+\item $\eta\le\tau_{low}=0.1$: $\ell$ nhỏ hơn $w_{\min}$ hơn 10 lần, tức đang dùng một Gaussian rất nhỏ để
+phủ một vùng gần như phẳng $\Rightarrow$ độ phân giải thừa, lãng phí $\Rightarrow$ ứng viên \textbf{PRUNE}.
 \end{itemize}
 \begin{center}
 \includegraphics[width=0.76\linewidth]{sadgsx/02_nyquist.png}\\
-\captionof{figure}{\tiny Cùng một texture, 3 kích thước Gaussian: chỉ cái ở giữa/nhỏ giữ được sóng.}
+\captionof{figure}{\tiny Cùng một kích thước Gaussian $\ell$, ba vùng ảnh có bước sóng cục bộ $w_{\min}$
+khác nhau: $\eta>1$ Gaussian quá thô so với chi tiết mịn (SPLIT); $\eta\in(0.1,1]$ vừa khớp (GIỮ);
+$\eta\le0.1$ Gaussian quá nhỏ so với vùng gần phẳng (PRUNE, lãng phí).}
 \end{center}
 \end{frame}
 

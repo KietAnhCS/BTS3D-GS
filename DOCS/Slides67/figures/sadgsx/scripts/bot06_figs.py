@@ -176,35 +176,41 @@ def fig4():
 def fig5():
     # 1 Gaussian = 59 float32 = 236 B
     # (xyz 3 + scaling 3 + rotation 4 + opacity 1 + f_dc 3 + f_rest 45)
+    # LUU Y: day la UOC LUONG BAC DO LON minh hoa (khong phai code that).
+    # densify_and_split_structgs chi chay khi eta>1 (Gaussian qua to), KHONG
+    # chay cho Gaussian duoi co (eta<1). "Tile bang ban sao cu" o day nghia la:
+    # neu KHONG co expand, phai xep nhieu ban sao GIU NGUYEN kich thuoc cu de
+    # lap day cung mot the tich ma expand lam duoc bang cach gian mot Gaussian.
+    # eta la ti so TUYEN TINH theo scale (Frame 5 cua slide), nen he so can
+    # nhan la 1/eta (khong phai eta^-0.5), va luy thua 3 vi lap mot THE TICH 3D.
     B = 59 * 4
     N0 = 1_000_000
     eta = np.logspace(-4, 0, 200)
-    gain = eta ** -0.5                       # he so gian moi truc
-    k = np.ceil(gain)                        # so con moi truc neu dung clone/split
-    n_child = k ** 3                         # densify_and_split_structgs: N = kx*ky*kz
+    gain = 1.0 / eta                         # he so can nhan moi truc (tuyen tinh)
+    k = np.ceil(gain)                        # so ban sao cu moi truc de lap day
+    n_tile = k ** 3                          # lap day the tich 3D
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(9.4, 4.0))
 
-    ax1.loglog(eta, N0 * n_child * B / 1e9, color="#d62728", lw=2.4,
-               label=r"Clone/split: $N\cdot k^3$, $k=\lceil\eta^{-1/2}\rceil$")
+    ax1.loglog(eta, N0 * n_tile * B / 1e9, color="#d62728", lw=2.4,
+               label=r"Tile bằng bản sao cũ: $N\cdot k^3$, $k=\lceil 1/\eta\rceil$")
     ax1.loglog(eta, np.full_like(eta, N0 * B / 1e9), color="#2ca02c", lw=2.4,
-               label="expand_undersized_gs: $N$ khong doi")
-    ax1.set_xlabel(r"$\eta$ cua Gaussian duoi co")
-    ax1.set_ylabel("Bo nho tham so (GB), $N=10^6$")
-    ax1.set_title("Chi phi de dat cung do phu", fontsize=10)
+               label="expand_undersized_gs: $N$ không đổi")
+    ax1.set_xlabel(r"$\eta$ của Gaussian dưới cỡ")
+    ax1.set_ylabel("Bộ nhớ tham số (GB), $N=10^6$")
+    ax1.set_title("Ước lượng bậc độ lớn để lấp cùng thể tích", fontsize=10)
     ax1.grid(True, which="both", alpha=0.3)
     ax1.legend(fontsize=8)
 
-    etas = [0.5, 0.25, 0.04, 0.01]
+    etas = [0.5, 0.25, 0.1, 0.01]
     xs = np.arange(len(etas))
-    gg = np.array([e ** -0.5 for e in etas])
-    kk = np.ceil(gg)
-    mem_clone = N0 * (kk ** 3) * B / 1e9
+    kk = np.ceil(1.0 / np.array(etas))
+    mem_tile = N0 * (kk ** 3) * B / 1e9
     mem_exp = np.full(len(etas), N0 * B / 1e9)
-    ax2.bar(xs - 0.19, mem_clone, 0.38, color="#d62728", label="clone/split")
+    ax2.bar(xs - 0.19, mem_tile, 0.38, color="#d62728", label="tile bằng bản sao cũ")
     ax2.bar(xs + 0.19, mem_exp, 0.38, color="#2ca02c", label="expand")
-    for i, (mc, kv) in enumerate(zip(mem_clone, kk)):
-        ax2.text(i - 0.19, mc * 1.1, r"$\times%d$" % (kv ** 3), ha="center", fontsize=8)
+    for i, (mt, kv) in enumerate(zip(mem_tile, kk)):
+        ax2.text(i - 0.19, mt * 1.1, r"$\times%d$" % (kv ** 3), ha="center", fontsize=8)
     ax2.set_yscale("log")
     ax2.set_xticks(xs)
     ax2.set_xticklabels([r"$\eta=%g$" % e for e in etas], fontsize=9)
@@ -213,6 +219,9 @@ def fig5():
     ax2.grid(True, axis="y", alpha=0.3)
     ax2.legend(fontsize=8)
 
+    fig.suptitle("Ước lượng bậc độ lớn (minh hoạ) — không phải hành vi thật của\n"
+                 "densify_and_split_structgs, hàm này không chạy khi $\\eta<1$",
+                 fontsize=9, y=1.05)
     fig.tight_layout()
     save(fig, "06_memory_expand_vs_clone.png")
 

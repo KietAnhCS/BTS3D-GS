@@ -1,81 +1,135 @@
-% ============================================================
-% Slide 5-8 (bản 45 phút) -- rút gọn từ part1.tex và part2.tex
-% ============================================================
+% ===== FILE 2/9: Pinhole, EWA projection, Compact box, Trường alpha, Alpha blending, Transmittance decay =====
 
-% --- Slide 5 (nguồn: part1.tex, "Tham số hoá hiệp phương sai") ---
-\begin{frame}{Tham số hoá hiệp phương sai}
-\begin{columns}
-\begin{column}{0.55\textwidth}
-\footnotesize
-\begin{itemize}
-    \item Không học trực tiếp $\Sigma$ để đảm bảo tính \textbf{positive semi-definite} khi tối ưu.
-    \item Thay vào đó học scale $s \in \mathbb{R}^3$ và quaternion xoay $q \in \mathbb{R}^4$:
-    \[
-    \Sigma = R S S^T R^T
-    \]
-    với $S = \mathrm{diag}(s)$, $R = R(q)$.
+% --- Slide: Chiếu camera pinhole ---
+\begin{frame}{Chiếu điểm 3D lên màn hình: mô hình pinhole}
+\scriptsize
+Để vẽ một Gaussian 3D lên ảnh 2D, bước đầu tiên là biết \textbf{tâm của nó rơi vào pixel nào}. Camera pinhole (mô hình
+camera tiêu chuẩn trong thị giác máy tính) chiếu một điểm $(x,y,z)$ trong hệ toạ độ camera thành pixel $(u,v)$ theo
+phép chiếu phối cảnh cổ điển:
+\[
+\boxed{\;u=f_x\frac{x}{z}+c_x,\qquad v=f_y\frac{y}{z}+c_y\;}
+\]
+với $(f_x,f_y)$ là tiêu cự tính theo đơn vị pixel (phụ thuộc độ phân giải ảnh và góc nhìn của camera), $(c_x,c_y)$ là
+\textbf{điểm chính} (thường là chính giữa ảnh, $W/2,H/2$).
+\begin{itemize}\itemsep1pt
+    \item Đây là phép chiếu \textbf{phi tuyến} vì có phép chia cho $z$ (độ sâu) --- vật càng xa càng nhỏ lại, đúng như
+    cảm nhận thị giác thông thường.
+    \item Vấn đề: Gaussian không phải một điểm mà là cả một \textbf{ellipsoid 3D} --- phép chiếu phi tuyến của cả một
+    khối hình không cho ra một ellipse đẹp một cách chính xác. Giải pháp thực dụng: \textbf{tuyến tính hoá cục bộ} quanh
+    tâm Gaussian bằng ma trận Jacobian $J$ (đạo hàm riêng của phép chiếu tại đúng điểm đó):
 \end{itemize}
-\end{column}
-\begin{column}{0.45\textwidth}
-\centering
-\includegraphics[width=0.78\linewidth]{ch1_scale_init.png}
-\captionof{figure}{\footnotesize Khởi tạo scale từ khoảng cách lân cận}
-\end{column}
-\end{columns}
+\[
+J=\begin{pmatrix} f_x/z & 0 & -f_x x/z^2\\ 0 & f_y/z & -f_y y/z^2\end{pmatrix}
+\]
+Ma trận $J$ này sẽ được dùng lại ở \textbf{cả hai nơi}: chiếu hiệp phương sai sang 2D ngay sau đây, và chiếu trục
+Gaussian của cơ chế SADGS về sau.
+\begin{center}
+\includegraphics[width=0.34\linewidth]{ch3_pinhole_projection.png}
+\end{center}
 \end{frame}
 
-% --- Slide 6 (nguồn: part1.tex, "Màu sắc qua Spherical Harmonics (SH)") ---
-\begin{frame}{Màu sắc qua Spherical Harmonics (SH)}
-\begin{columns}
-\begin{column}{0.55\textwidth}
-\footnotesize
-\begin{itemize}
-    \item Mỗi Gaussian không lưu 1 màu RGB cố định, mà lưu hệ số \textbf{SH}.
-    \item Biểu diễn màu \textbf{phụ thuộc góc nhìn} (view-dependent), đặc tả hiệu ứng phản xạ/specular.
-    \item Hệ số SH bậc 0 (DC) khởi tạo trực tiếp từ màu RGB quan sát được:
-    \[
-    f_{dc} = \mathrm{RGB2SH}(\text{color})
-    \]
+% --- Slide: EWA covariance projection ---
+\begin{frame}{EWA splatting: chiếu ellipsoid 3D thành ellipse 2D}
+\scriptsize
+Dùng Jacobian $J$ ở slide trước, ta xấp xỉ tuyến tính phép chiếu của toàn bộ hiệp phương sai $\Sigma$ (kỹ thuật
+\emph{Elliptical Weighted Average}, Zwicker et al. 2001 --- nền tảng toán học cho mọi hệ splatting hiện đại):
+\[
+\boxed{\;\Sigma' = \big[\,J\,W\,\Sigma\,W^\top J^\top\,\big]_{2\times2} + \kappa\, I\;}
+\]
+$W$ là ma trận quay world$\to$camera; $[\cdot]_{2\times2}$ nghĩa là chỉ giữ lại khối $2{\times}2$ trên-trái của kết quả
+(bỏ chiều depth, vì ta chỉ cần ellipse trên mặt phẳng ảnh).
+\begin{itemize}\itemsep1pt
+    \item \textbf{Vì sao cần $+\kappa I$?} Khi Gaussian ở rất xa camera hoặc bị nhìn gần như từ cạnh, ellipse chiếu ra
+    có thể suy biến thành một đường gần như không có bề rộng --- gây chia cho $0$ và alias (răng cưa). Cộng thêm
+    $\kappa I$ đảm bảo ellipse luôn rộng \textbf{ít nhất khoảng 1 pixel} theo mọi hướng --- một bộ lọc low-pass đơn giản, \textbf{luôn được áp dụng}, không phải tuỳ chọn.
+    \item Trong CUDA kernel thực tế của repo này (\texttt{cuda\_rasterizer/forward.cu:113--117}), $\kappa=0.1$ --- khác
+    với con số $0.3$ vẫn thường thấy trong một số tài liệu 3DGS khác.
+    \item Vì "phồng" hiệp phương sai làm sai lệch tổng năng lượng của Gaussian, renderer nhân bù ngược một \textbf{hệ số
+    hiệu chỉnh} $\mathrm{coef}=\sqrt{\det\Sigma'_{\text{trước}}/\det\Sigma'_{\text{sau}}}$ vào $\alpha$ để giữ năng lượng gần đúng.
 \end{itemize}
-\end{column}
-\begin{column}{0.45\textwidth}
-\centering
-\includegraphics[width=0.95\linewidth]{ch1_rgb2sh.png}
-\captionof{figure}{\footnotesize Chuyển đổi RGB $\to$ hệ số SH bậc 0}
-\end{column}
-\end{columns}
-\vspace{0.15cm}
-\footnotesize
-\textit{(Phần suy diễn toán học đầy đủ của SH được trình bày chi tiết trong bản đầy đủ, không đọc trong bản 45 phút.)}
+\begin{center}
+\includegraphics[width=0.34\linewidth]{ch3_ewa_projection.png}
+\end{center}
 \end{frame}
 
-% --- Slide 7 (nguồn: part2.tex, "Tổng quan pipeline render") ---
-\begin{frame}{Tổng quan pipeline render}
-    \begin{itemize}
-        \item World $\to$ Camera: biến đổi hệ toạ độ bằng view transform $(R, t)$
-        \item Projection: chiếu các Gaussian 3D xuống mặt phẳng ảnh 2D
-        \item Tiling + Sorting: xác định tile ảnh hưởng và sắp theo depth
-        \item Alpha blending tuần tự $\to$ màu pixel cuối cùng
-    \end{itemize}
-    \vspace{0.3cm}
-    \centering
-    \includegraphics[width=0.95\linewidth]{pipe.png}
-    \captionof{figure}{Pipeline render 3D Gaussian Splatting}
+% --- Slide: Compact box ---
+\begin{frame}{Compact box: xác định Gaussian phủ những tile nào}
+\scriptsize
+Sau khi có ellipse 2D, renderer cần biết nó \textbf{chạm tới những tile $16\times16$ pixel nào} trên màn hình --- đây
+là bước quyết định renderer nhanh hay chậm (Gaussian chạm càng nhiều tile, càng tốn công xử lý). Repo này dùng kỹ thuật
+\textbf{SnugBox} (\texttt{cuda\_rasterizer/auxiliary.h:313--340}, kỹ thuật kế thừa từ dòng nghiên cứu Taming/Speedy-Splat,
+\textbf{không phải điểm mới của SADGS}) --- thay vì bao Gaussian bằng một hình vuông cố định $3\sigma$ như 3DGS gốc,
+SnugBox dựng một hộp bao \textbf{khít sát theo đúng hình dạng ellipse thật}, tại ngưỡng nơi $\alpha\cdot G=1/255$ (dưới
+mức này coi như không nhìn thấy được nữa), có thể siết chặt hơn nữa bằng một hệ số điều chỉnh \texttt{mult}:
+\[
+\boxed{\;t=\texttt{mult}\cdot 2\ln(255\,\alpha)\;}\qquad(\texttt{mult}=0.7\text{ mặc định}, \texttt{arguments/\_\_init\_\_.py:114})
+\]
+\begin{itemize}\itemsep1pt
+    \item $\texttt{mult}=1$: khớp đúng ngưỡng $1/255$ gốc (SnugBox nguyên bản, không cắt xén thêm gì).
+    \item $\texttt{mult}<1$: cắt \textbf{sớm hơn} $1/255$ --- ngưỡng cắt thật trở thành $\alpha_{\text{biên}}=\sigma_o(255\sigma_o)^{-\texttt{mult}}>1/255$, nghĩa là đánh đổi một phần đuôi Gaussian \emph{vẫn còn nhìn thấy được} để lấy tốc độ (ít tile hơn/Gaussian $\Rightarrow$ ít công tính hơn).
+\end{itemize}
+\begin{center}
+\includegraphics[width=0.30\linewidth]{ch3_compact_box.png}
+\end{center}
 \end{frame}
 
-% --- Slide 8 (nguồn: part2.tex, "Chiếu hiệp phương sai (EWA splatting)") ---
-\begin{frame}{Chiếu hiệp phương sai (EWA splatting)}
-    \begin{itemize}
-        \item Phép chiếu phối cảnh phi tuyến $\to$ xấp xỉ tuyến tính cục bộ bằng Jacobian $J$ tại tâm Gaussian
-        \item Hiệp phương sai 2D sau chiếu:
-        \[
-            \Sigma' = J\,W\,\Sigma\,W^{T}J^{T}
-        \]
-        trong đó $W$ là phần quay của view matrix
-        \item Kỹ thuật này gọi là \textbf{Elliptical Weighted Average (EWA) splatting}
-    \end{itemize}
-    \vspace{0.2cm}
-    \centering
-    \includegraphics[width=0.6\linewidth]{ch3_ewa_projection.png}
-    \captionof{figure}{Chiếu hiệp phương sai theo EWA splatting}
+% --- Slide: Trường alpha ---
+\begin{frame}{Trường alpha: mỗi Gaussian che phủ pixel bao nhiêu?}
+\scriptsize
+Một Gaussian không "đặc" đều --- độ che phủ giảm dần từ tâm ra biên theo đúng hàm $G(x)$. Tại một pixel cụ thể $x$
+trên màn hình, độ mờ đục hiệu dụng của Gaussian thứ $n$ là:
+\[
+\boxed{\;\alpha_n(x)=\min\big(0.99,\ \alpha_n\, G_n(x)\big)\;}
+\]
+\begin{itemize}\itemsep1pt
+    \item $\alpha_n$ (tham số học được, cố định cho cả Gaussian) nhân với $G_n(x)$ (giá trị hàm Gaussian 2D đã chiếu,
+    \textbf{thay đổi theo từng pixel} $x$ --- cao nhất tại tâm ellipse, giảm dần ra ngoài).
+    \item Chặn trên $0.99$ (không phải $1.0$): tránh một Gaussian duy nhất "che kín hoàn toàn" khiến gradient của mọi
+    Gaussian phía sau nó biến mất hẳn --- luôn để lại một khe hở rất nhỏ cho tín hiệu gradient lan truyền.
+    \item Đây chính là đại lượng $\alpha_n(x)$ sẽ được dùng trong công thức alpha blending ở slide tiếp theo --- lưu ý nó
+    phụ thuộc pixel, khác với $\alpha_n$ hằng số của riêng Gaussian.
+\end{itemize}
+\begin{center}
+\includegraphics[width=0.36\linewidth]{ch4_alpha_field.png}
+\end{center}
+\end{frame}
+
+% --- Slide: Alpha blending ---
+\begin{frame}{Alpha blending: trộn nhiều lớp Gaussian theo thứ tự trước-sau}
+\scriptsize
+Tại một pixel, có thể có \textbf{nhiều Gaussian} chồng lên nhau theo chiều sâu. Màu cuối cùng là kết quả trộn tuần tự
+từ Gaussian gần camera nhất ra xa nhất (front-to-back alpha blending, giống cách vẽ các lớp trong suốt chồng lên nhau):
+\[
+\boxed{\;C(x)=\sum_{n} c_n\,\alpha_n(x)\,T_n(x) \;+\; T_{\text{final}}(x)\,C_{bg}\;},\qquad
+T_n(x)=\prod_{j<n}\big(1-\alpha_j(x)\big)
+\]
+\begin{itemize}\itemsep1pt
+    \item $T_n$ (\textbf{transmittance}): tỉ lệ ánh sáng \emph{còn lại}, chưa bị các Gaussian phía trước "hấp thụ" ---
+    Gaussian thứ $n$ chỉ đóng góp đúng phần ánh sáng nó nhận được sau khi đã đi qua $n-1$ lớp trước nó.
+    \item Số hạng $T_{\text{final}}C_{bg}$ (màu \textbf{nền}) là bắt buộc, không được bỏ qua: nếu tổng $\alpha_n(x)$ dọc
+    một tia không phủ hết $1$ (ví dụ vùng thưa Gaussian), phần còn thiếu phải được lấp bằng màu nền, nếu không ảnh sẽ bị
+    tối sai so với thực tế.
+\end{itemize}
+\begin{center}
+\includegraphics[width=0.36\linewidth]{ch4_alpha_blend_stack.png}
+\end{center}
+\end{frame}
+
+% --- Slide: Transmittance decay & early stop ---
+\begin{frame}{Transmittance suy giảm: cơ sở cho việc dừng sớm}
+\scriptsize
+Vì $T_n=\prod_{j<n}(1-\alpha_j(x))$ là tích của các thừa số $\le1$, $T_n$ \textbf{giảm dần theo cấp số nhân} khi đi qua
+ngày càng nhiều lớp Gaussian (đặc biệt rõ khi từng $\alpha_j(x)$ đều đáng kể). Sau một số lớp đủ nhiều, $T_n$ trở nên
+cực nhỏ --- các Gaussian tiếp theo dù có màu gì cũng gần như \textbf{không còn ảnh hưởng} tới $C(x)$ nữa vì bị nhân với
+một hệ số gần $0$.
+\begin{itemize}\itemsep1pt
+    \item Renderer tận dụng điều này để \textbf{dừng sớm} (early termination): ngay khi $T\cdot(1-\alpha)<10^{-4}$ tại
+    một pixel, ngừng xử lý thêm Gaussian cho pixel đó --- tiết kiệm đáng kể thời gian tính toán mà hầu như không ảnh
+    hưởng chất lượng ảnh (sai số dưới ngưỡng nhận biết được).
+    \item Đây cũng là lý do vì sao \textbf{thứ tự depth} (Gaussian nào gần camera hơn) rất quan trọng: nếu sắp sai thứ
+    tự, dừng sớm có thể bỏ lỡ một Gaussian đáng lẽ vẫn còn đóng góp đáng kể.
+\end{itemize}
+\begin{center}
+\includegraphics[width=0.36\linewidth]{ch4_transmittance_decay.png}
+\end{center}
 \end{frame}

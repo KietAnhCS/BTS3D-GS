@@ -120,22 +120,29 @@ Nhưng \texttt{freq\_utils.py:348} tính $\eta=\ell_{\text{truc}}/\lambda_{\min}
 \end{frame}
 
 % --- Frame 7: chi phí bộ nhớ ---
-\begin{frame}{Expand vs.\ clone/split: cùng độ phủ, chênh lệch bộ nhớ bậc ba}
+\begin{frame}{Expand vs.\ "tile bằng bản sao cũ": chênh lệch bộ nhớ bậc ba}
 \scriptsize
-Để phủ một chi tiết lớn gấp $\eta^{-1/2}$ lần Gaussian hiện tại, có hai đường:
+\texttt{densify\_and\_split\_structgs} chỉ kích hoạt khi $\eta>1$ (Gaussian \emph{quá to}) --- nó
+\textbf{không hề chạy} cho Gaussian dưới cỡ ($\eta<1$). Vậy nếu tắt \texttt{expand}, cách duy nhất để một
+vùng dưới cỡ đạt cùng độ phủ là \textbf{xếp nhiều bản sao giữ nguyên kích thước cũ} lấp đầy chỗ đó --- đây
+là một phép \emph{ước lượng bậc độ lớn} minh hoạ, \textbf{không phải} hành vi thật của bất kỳ hàm nào trong code:
 \[
-\text{expand: } N\mapsto N \quad(\Delta=0)
+\text{expand: } N\mapsto N\ (\Delta=0)
 \qquad\text{vs.}\qquad
-\text{split: } N\mapsto N\cdot k_xk_yk_z,\quad k=\lceil \eta^{-1/2}\rceil
+\text{"tile bằng bản sao cũ": } N\mapsto N\cdot k^3,\quad k=\Big\lceil\frac{1}{\eta}\Big\rceil
 \]
+(hệ số $1/\eta$, \textbf{không phải} $\eta^{-1/2}$: theo Frame 5, $\eta$ đo được là tỉ số \emph{tuyến tính}
+theo scale, nên cần nhân đúng $1/\eta$ để đưa $\eta_{\text{mới}}\to 1$; luỹ thừa $3$ vì đang lấp một \emph{thể tích} 3D theo cả 3 trục.)
 \begin{itemize}\itemsep1pt
     \item Mỗi Gaussian chiếm $59$ float32 $=236$\,B (\texttt{xyz}\,3 $+$ \texttt{scaling}\,3 $+$ \texttt{rotation}\,4 $+$ \texttt{opacity}\,1 $+$ \texttt{f\_dc}\,3 $+$ \texttt{f\_rest}\,45), chưa kể trạng thái Adam.
-    \item $\eta=0.01\Rightarrow k=10\Rightarrow$ gấp $1000\times$ số Gaussian; expand đạt cùng bề rộng phủ với $0$ byte thêm.
-    \item Đây chính là lý do thiết kế: nhánh expand là \textbf{van giảm áp VRAM} của SADGS --- và nó đang bị tắt.
+    \item $\eta=0.1\Rightarrow k=10\Rightarrow k^3=1000\times$ số Gaussian để lấp cùng thể tích; $\eta=0.01\Rightarrow k=100\Rightarrow k^3=10^6\times$.
+    \item Đây là lý do thiết kế cho \texttt{expand}: một \textbf{van giảm áp VRAM tiềm năng} của SADGS --- nhưng vì nó đang bị tắt (Frame 1), lợi ích này \textbf{không có thật} trong pipeline đang chạy.
 \end{itemize}
 \begin{center}
 \includegraphics[width=0.82\linewidth]{sadgsx/06_memory_expand_vs_clone.png}\\
-\captionof{figure}{\footnotesize Bộ nhớ tham số để đạt cùng độ phủ ($N=10^6$): expand phẳng, clone/split tăng theo $k^3$.}
+\captionof{figure}{\footnotesize Ước lượng bậc độ lớn: bộ nhớ tham số để lấp cùng một thể tích bằng bản sao
+kích thước cũ ($N\cdot k^3$, $k=\lceil 1/\eta\rceil$) so với expand ($\Delta N=0$). Đây không phải hành vi
+của \texttt{densify\_and\_split\_structgs}, vốn không chạy khi $\eta<1$.}
 \end{center}
 \end{frame}
 

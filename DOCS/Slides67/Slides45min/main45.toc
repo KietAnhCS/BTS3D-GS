@@ -1,7 +1,6 @@
 \xpg@aux {}{vietnamese}
-\beamer@sectionintoc {1}{Nền tảng \& Render}{1}{0}{1}
-\beamer@sectionintoc {2}{Training \& Gradient}{13}{0}{2}
-\beamer@sectionintoc {3}{Adaptive Density Control}{17}{0}{3}
-\beamer@sectionintoc {4}{Tăng tốc \& Kết quả}{27}{0}{4}
-\beamer@sectionintoc {5}{SADGS chuyên sâu}{38}{0}{5}
-\beamer@sectionintoc {6}{Tổng kết}{55}{0}{6}
+\beamer@sectionintoc {1}{Nền tảng biểu diễn}{1}{0}{1}
+\beamer@sectionintoc {2}{Rasterization, Loss, Gradient}{15}{0}{2}
+\beamer@sectionintoc {3}{Adaptive Density Control (3DGS gốc)}{25}{0}{3}
+\beamer@sectionintoc {4}{SADGS: Structure-Aware Densification}{30}{0}{4}
+\beamer@sectionintoc {5}{Tối ưu hoá, chi phí, tổng kết}{40}{0}{5}

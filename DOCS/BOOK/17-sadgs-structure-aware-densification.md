@@ -35,6 +35,8 @@
 
 > "The method accelerates 3D Gaussian Splatting convergence by using multiscale image structure to guide Gaussian densification. Instead of relying only on screen-space positional gradients, it compares each Gaussian's projected screen-space extent with local texture structure, then performs anisotropic splitting with multiview consistency."
 
+> "Phương pháp này tăng tốc độ hội tụ của 3D Gaussian Splatting bằng cách sử dụng cấu trúc ảnh đa tỷ lệ (multiscale) để định hướng quá trình làm dày đặc (densification) các Gaussian. Thay vì chỉ dựa vào gradient vị trí trong không gian màn hình (screen-space), phương pháp so sánh phạm vi chiếu của mỗi Gaussian trên không gian màn hình với cấu trúc kết cấu (texture) cục bộ, sau đó thực hiện phép tách dị hướng (anisotropic splitting) có tính nhất quán đa góc nhìn (multiview consistency)."
+
 Ba cụm từ khoá trong câu này ánh xạ trực tiếp sang ba cơ chế có code cụ thể, không phải khẩu hiệu marketing:
 
 | Cụm từ README | Cơ chế trong code | Mục |

@@ -1,84 +1,125 @@
-% ============================================================
-% Bản 45 phút -- Slide 29-32
-% Nguồn: partADC_7.tex (Slide 29) + part5.tex (Slide 30-32)
-% CHỈ TẠO MỚI trong Slides45min/, không sửa file gốc.
-% ============================================================
+% ===== FILE 8/9: Luồng quyết định đầy đủ, Kế thừa vs mới (đang chạy), Optimizer hybrid, Lịch LR, Lịch trình reset =====
 
-% --- Slide 29 (gốc: partADC_7.tex, "Cải tiến 5: final prune trên toy — khép lại chương ADC") ---
-% Đã bỏ minh hoạ "final prune trên toy" + kết luận N nhỏ hơn: cả prune multinomial
-% (pruning_score=None) và final_prune_structgs (lời gọi bị comment, train.py:419)
-% KHÔNG chạy trong pipeline thật, nên không được trình bày như kết quả huấn luyện.
-\begin{frame}{Tổng kết cải tiến ADC của SADGS}
-\footnotesize
-\begin{itemize}
-  \item \textbf{Đang chạy trong pipeline thật}: (1) Importance đa view AND với gradient; (2) split theo gradient tuyệt đối; (3) trần opacity $\alpha\leftarrow\min(\alpha,0.8)$ sau mỗi vòng densify+prune.
-  \item \textbf{Không chạy trong pipeline thật} (có trong code nhưng vô hiệu): prune theo lấy mẫu multinomial -- \texttt{train.py} luôn truyền \texttt{pruning\_score=None}; và \texttt{final\_prune\_structgs} -- lời gọi bị \textbf{comment out} tại \texttt{train.py:419}. Tại \texttt{prune\_iterations}, code thật chỉ xoá theo $\alpha<0.1$.
-\end{itemize}
+% --- Slide: Luồng quyết định đầy đủ ---
+\begin{frame}{Luồng quyết định đầy đủ: \texttt{densify\_and\_prune\_structgs}}
+\scriptsize
+Đây là hàm \textbf{thật sự đang chạy mặc định} mỗi $100$ iteration (\texttt{gaussian\_model.py:957--1050}), ghép tín
+hiệu $\eta$ (5 slide trước) \textbf{OR} với tín hiệu gradient (đã học ở phần ADC gốc) thành một luồng quyết định duy nhất:
+\[
+\text{split\_qual}=\max(s)>\texttt{dense}\cdot\texttt{extent},\qquad \text{clone\_qual}=\max(s)\le\texttt{dense}\cdot\texttt{extent}
+\quad(\texttt{dense}=0.001)
+\]
+\[
+\boxed{\;\text{final\_split} = \big(\text{split\_mask}_\eta \lor \lVert\bar g_{\text{abs}}\rVert\ge\texttt{grad\_abs\_thresh}\big)\ \land\ \text{split\_qual}\;}
+\]
+\[
+\boxed{\;\text{final\_clone} = \big(\text{split\_mask}_\eta \lor \lVert\bar g\rVert\ge\texttt{grad\_thresh}\big)\ \land\ \text{clone\_qual}\;}
+\]
+với \texttt{grad\_thresh}$=$\texttt{grad\_abs\_thresh}$=0.0002$ trong nhánh này (khác với cặp giá trị $0.0002/0.0004$
+chỉ dùng ở nhánh 3DGS gốc). Cả hai luồng còn bị \texttt{AND} thêm với \texttt{metric\_mask} (đã học ở slide trước) rồi
+mới thực thi. Sau clone/split: chạy prune (đã học), rồi áp \textbf{trần opacity} $\alpha\leftarrow\min(\alpha,0.8)$ lên
+\textbf{toàn bộ} Gaussian còn lại --- giới hạn opacity tối đa để tránh một vài Gaussian trở nên quá "đặc", che khuất
+hoàn toàn các Gaussian phía sau và cản trở gradient của chúng.
 \end{frame}
 
-% --- Slide 30 (gốc: part5.tex, "Vì sao 3DGS gốc chậm?") ---
-\begin{frame}{Vì sao 3DGS gốc chậm?}
-\begin{itemize}
-    \item Mỗi iteration gồm: \textbf{render} (rasterize), \textbf{tính loss}, \textbf{backward}, định kỳ \textbf{densify/prune}.
-    \item Với hàng trăm nghìn -- hàng triệu Gaussian, \textbf{rasterize} và \textbf{backward} chiếm phần lớn thời gian mỗi bước.
-\end{itemize}
-\vspace{0.3cm}
-\centering
-\footnotesize
-\begin{tabular}{lcc}
+% --- Slide: Cơ chế kế thừa vs mới (đang chạy) ---
+\begin{frame}{Đâu là điểm MỚI của SADGS, đâu là KẾ THỪA --- trong số những gì ĐANG CHẠY}
+\scriptsize
+\begin{center}
+\begin{tabular}{ll}
 \toprule
-\textbf{Khâu} & \textbf{Tần suất} & \textbf{Tỉ trọng thời gian} \\
+\textbf{Cơ chế đang chạy mặc định} & \textbf{Nguồn gốc}\\
 \midrule
-Render (project + rasterize) & mỗi iteration & \textasciitilde 45\% \\
-Backward (gradient) & mỗi iteration & \textasciitilde 35\% \\
-Tính loss & mỗi iteration & \textasciitilde 10\% \\
-Densify/Prune & định kỳ & \textasciitilde 10\% (đột biến) \\
+Compact box (SnugBox, \texttt{mult}$=0.7$) & kế thừa (Taming/Speedy-Splat)\\
+Bộ lọc low-pass 2D ($\kappa I$, $\kappa=0.1$) & kế thừa (Zwicker et al., EWA splatting)\\
+Optimizer hybrid (Adam thường $+$ Sparse/Fused Adam) & kế thừa (Taming), \textbf{mặc định}, không tắt\\
+\midrule
+Structure tensor đa tỉ lệ $\to$ bước sóng $w_{\min}$ $\to$ $\eta$ & \textbf{mới (SADGS)}\\
+Tích luỹ nhất quán đa view (\texttt{high\_ratio}/\texttt{low\_ratio}) & \textbf{mới (SADGS)}\\
+Split dị hướng theo từng trục ($k_x,k_y,k_z$ riêng biệt) & \textbf{mới (SADGS)}\\
+Prune theo cấu trúc (kết hợp OR với tiêu chí gốc) & \textbf{mới (SADGS)}\\
 \bottomrule
 \end{tabular}
-\end{frame}
-
-% --- Slide 31 (gốc: part5.tex, "Ba đòn bẩy tăng tốc của SADGS (tổng quan)") ---
-\begin{frame}{Ba đòn bẩy tăng tốc của SADGS (tổng quan)}
-\begin{columns}[t]
-\column{0.33\linewidth}
-\centering
-\textbf{1. Multi-view score}
-\begin{itemize}
-    \footnotesize
-    \item Đánh giá Gaussian qua nhiều góc nhìn
-    \item Pruning thông minh hơn
-\end{itemize}
-\column{0.33\linewidth}
-\centering
-\textbf{2. Compact Box}
-\begin{itemize}
-    \footnotesize
-    \item Giảm hệ số nhân bounding-box
-    \item Giảm số tile chạm
-\end{itemize}
-\column{0.33\linewidth}
-\centering
-\textbf{3. Sparse Adam}
-\begin{itemize}
-    \footnotesize
-    \item Lịch cập nhật phân tầng
-    \item Giảm tần suất optimizer.step()
-\end{itemize}
-\end{columns}
-\vspace{0.4cm}
-\begin{itemize}
-    \item Cả ba đòn bẩy nhắm đúng khâu chiếm tỉ trọng lớn nhất: rasterize, densify/prune, cập nhật tham số.
+\end{center}
+\begin{itemize}\itemsep1pt
+    \item \textbf{Thông điệp chính:} phần "mới" thực sự của SADGS nằm ở \textbf{toàn bộ chuỗi xây dựng và sử dụng
+    $\eta$} --- không phải ở compact box hay optimizer, vốn là các kỹ thuật tăng tốc \textbf{kế thừa} từ các công trình
+    khác và đã có sẵn trước khi SADGS được thêm vào.
+    \item Ba slide tiếp theo đi sâu vào phần \textbf{tối ưu hoá} (optimizer, learning rate, lịch reset) --- các cơ chế
+    này áp dụng như nhau cho cả nhánh 3DGS gốc lẫn nhánh SADGS, không phải điểm phân biệt giữa hai nhánh.
 \end{itemize}
 \end{frame}
 
-% --- Slide 32 (gốc: part5.tex, "Hiệu năng tích luỹ: Biểu đồ thác nước") ---
-\begin{frame}{Hiệu năng tích luỹ: Biểu đồ thác nước}
-\footnotesize
-\begin{itemize}
-    \item Waterfall chart minh hoạ tăng tốc \textbf{tích luỹ} khi bật lần lượt từng đòn bẩy lên baseline 3DGS gốc.
-    \item Thứ tự: baseline $\to$ + Compact Box $\to$ + Multi-view score $\to$ + Sparse Adam $\to$ SADGS đầy đủ.
+% --- Slide: Optimizer hybrid ---
+\begin{frame}{Optimizer: \texttt{hybrid} là MẶC ĐỊNH --- chạy song song hai bộ tối ưu}
+\scriptsize
+\texttt{arguments/\_\_init\_\_.py:128}: \texttt{self.optimizer\_type = "hybrid"}. Mỗi iteration
+(\texttt{train.py:429--434}), \textbf{cả hai} dòng sau đều chạy:
+\begin{enumerate}\itemsep1pt
+    \item \texttt{gaussians.optimizer.step()} --- Adam \textbf{thường} (với \texttt{amsgrad=True}) cập nhật các nhóm
+    tham số chính: xyz, opacity, scaling, rotation, \texttt{f\_dc}.
+    \item \texttt{gaussians.shoptimizer.step(visible, radii.shape[0])} --- một \textbf{Sparse/Fused Gaussian Adam}
+    riêng, chỉ cập nhật tham số của các Gaussian \textbf{đang nhìn thấy được} trong view hiện tại
+    (\texttt{visible = radii>0}) --- tiết kiệm phép tính vì phần lớn Gaussian trong một cảnh lớn thường nằm \textbf{ngoài
+    khung hình} của bất kỳ camera đơn lẻ nào tại một thời điểm.
+\end{enumerate}
+\begin{itemize}\itemsep1pt
+    \item Hai chế độ khác cũng tồn tại trong code nhưng \textbf{không phải mặc định}: \texttt{"default"} (chỉ chạy
+    \texttt{optimizer\_step} với lịch cập nhật thưa dần $1\to32\to64$ iteration/lần) và \texttt{"sparse\_adam"} (chỉ
+    chạy phần sparse, bỏ hẳn Adam thường).
+    \item \textbf{Kết luận thực dụng:} optimizer không phải là chỗ để so sánh 3DGS gốc với SADGS --- cả hai nhánh dùng
+    chung cùng một cấu hình optimizer \texttt{hybrid} này.
 \end{itemize}
 \begin{center}
-\includegraphics[width=0.68\linewidth]{ch8_levers_waterfall.png}
+\includegraphics[width=0.4\linewidth]{05_cat_tensor_optimizer.png}
+\end{center}
+\end{frame}
+
+% --- Slide: Lịch learning rate ---
+\begin{frame}{Lịch learning rate: mỗi nhóm tham số một tốc độ riêng}
+\scriptsize
+Vị trí $\mu$ dùng lịch \textbf{suy giảm mũ có trễ khởi động}, từ \texttt{position\_lr\_init}$=1.6\times10^{-4}$ giảm
+dần về \texttt{position\_lr\_final}$=1.6\times10^{-6}$ qua $30\,000$ bước; các nhóm tham số còn lại dùng learning rate
+\textbf{cố định} suốt quá trình train:
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+Nhóm & lr & Nhóm & lr\\
+\midrule
+opacity & $0.05$ & rotation & $0.002$\\
+scaling & $0.01$ & \texttt{f\_dc} (màu trung bình) & $0.0025$\\
+\texttt{f\_rest} (SH bậc cao) & $0.00025$ & & \\
+\bottomrule
+\end{tabular}
+\end{center}
+\begin{itemize}\itemsep1pt
+    \item \textbf{f\_rest} (chi tiết màu phụ thuộc góc nhìn, SH bậc cao) học \textbf{chậm hơn 10 lần} \texttt{f\_dc}
+    (màu trung bình) --- nguyên tắc chung: học các tham số "thô, quan trọng nền tảng" nhanh và ổn định trước, các tham
+    số "tinh chỉnh chi tiết" học chậm và thận trọng hơn để tránh nhiễu loạn sớm.
+    \item Vị trí $\mu$ được ưu tiên lr \textbf{lớn nhất lúc đầu} rồi giảm dần rất mạnh (giảm $100$ lần qua $30\,000$
+    bước) --- hình học cần thay đổi mạnh ở giai đoạn đầu để "định hình" cảnh, rồi ổn định dần khi đã gần hội tụ.
+\end{itemize}
+\begin{center}
+\includegraphics[width=0.4\linewidth]{09_lr_xyz_schedule.png}
+\end{center}
+\end{frame}
+
+% --- Slide: Lịch trình reset opacity (đúng số lần) ---
+\begin{frame}{Xác nhận lại: lịch reset opacity đúng $4$ lần, không hơn}
+\scriptsize
+Ghép lại tất cả các mốc thời gian liên quan tới reset opacity đã học (phần ADC gốc) thành một dòng thời gian trực quan:
+reset chỉ xảy ra khi \texttt{iteration}$<$\texttt{densify\_until\_iter}$=15\,000$, tại đúng bốn mốc $3000, 6000, 9000,
+12000$ --- \textbf{không phải} một con số khác thường thấy trong một vài tài liệu tổng hợp trước đây (ví dụ "$10$
+chu kỳ trải đều tới $30\,000$" --- con số này \textbf{không khớp} với điều kiện \texttt{iteration}$<15\,000$ nằm ngay
+trong đoạn code gọi \texttt{reset\_opacity}).
+\begin{itemize}\itemsep1pt
+    \item Việc xác nhận trực tiếp trên dòng thời gian thực tế (thay vì suy luận hay chép lại từ tài liệu khác) là một
+    ví dụ cụ thể cho nguyên tắc xuyên suốt bài giảng này: \textbf{luôn đối chiếu với code thật} trước khi phát biểu một
+    con số cụ thể nào đó.
+    \item Cả nhánh 3DGS gốc lẫn nhánh SADGS đều dùng \textbf{chung} lịch reset này --- đây không phải là điểm khác biệt
+    giữa hai cơ chế densify.
+\end{itemize}
+\begin{center}
+\includegraphics[width=0.42\linewidth]{13_lich_trinh.png}
 \end{center}
 \end{frame}
