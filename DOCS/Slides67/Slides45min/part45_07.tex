@@ -1,120 +1,120 @@
-% ===== FILE 7/9: Eta (Nyquist), Ngưỡng & đa view, Split dị hướng (lưới), Split dị hướng (bậc thang k), Prune đa view =====
+    % ===== FILE 7/9: Eta (Nyquist), Ngưỡng & đa view, Split dị hướng (lưới), Split dị hướng (bậc thang k), Prune đa view =====
 
-% --- Slide: Tỉ số eta — trực giác Nyquist ---
-\begin{frame}{Bước 5: $\eta=\ell/w_{\min}$ --- trực giác Nyquist}
-\scriptsize
-Giờ đã có cả tử số ($\ell$, kích thước Gaussian đã chiếu) lẫn mẫu số ($w_{\min}$, bước sóng chi tiết cục bộ), định nghĩa
-tỉ số cấu trúc:
-\[
-\boxed{\;\eta_j=\dfrac{\ell_j}{w_{\min}}\;}\qquad(\texttt{eta\_compute\_mode="wavelength"}\text{, mặc định}, \texttt{freq\_utils.py:348})
-\]
-Đây là một ngưỡng \textbf{hình học thuần tuý} (so sánh hai độ dài), \textbf{không phải} một mô hình vật lý về suy hao
-biên độ tín hiệu --- tên gọi "trực giác Nyquist" chỉ mượn ý tưởng chung của lý thuyết lấy mẫu: muốn biểu diễn đúng một
-dao động, "đơn vị lấy mẫu" (ở đây là Gaussian) phải đủ nhỏ so với chu kỳ của dao động đó.
-\begin{itemize}\itemsep1pt
-    \item $\eta>1$: $\ell$ \textbf{rộng hơn cả một chu kỳ} chi tiết $\Rightarrow$ một Gaussian không đủ khả năng bám
-    theo dao động đó $\Rightarrow$ ứng viên \textbf{SPLIT}.
-    \item $0.1<\eta\le1$: kích thước tương xứng với chi tiết cần biểu diễn $\Rightarrow$ \textbf{GIỮ NGUYÊN}.
-    \item $\eta\le0.1$: $\ell$ nhỏ hơn $w_{\min}$ tới hơn $10$ lần --- Gaussian đang "phủ thừa" một vùng gần như không
-    đổi $\Rightarrow$ ứng viên \textbf{PRUNE}.
-    \item \textbf{Lưu ý về tài liệu nội bộ code:} một số dòng docstring (\texttt{gaussian\_model.py:837--840}) mô tả
-    $\eta\sim(\sigma\omega)^2$ (quan hệ \emph{bậc hai}) --- nhưng công thức \textbf{thực sự được tính và dùng} ở trên là
-    quan hệ \textbf{tuyến tính} theo kích thước. Toàn bộ bài giảng này bám theo công thức \emph{thực chạy}, không theo
-    docstring (vốn có thể là tài liệu chưa cập nhật theo code).
-\end{itemize}
-\begin{center}
-\includegraphics[width=0.62\linewidth]{02_nyquist.png}
-\end{center}
-\end{frame}
+    % --- Slide: Tỉ số eta — trực giác Nyquist ---
+    \begin{frame}{Bước 5: $\eta=\ell/w_{\min}$ --- trực giác Nyquist}
+    \scriptsize
+    Giờ đã có cả tử số ($\ell$, kích thước Gaussian đã chiếu) lẫn mẫu số ($w_{\min}$, bước sóng chi tiết cục bộ), định nghĩa
+    tỉ số cấu trúc:
+    \[
+    \boxed{\;\eta_j=\dfrac{\ell_j}{w_{\min}}\;}\qquad(\texttt{eta\_compute\_mode="wavelength"}\text{, mặc định}, \texttt{freq\_utils.py:348})
+    \]
+    Đây là một ngưỡng \textbf{hình học thuần tuý} (so sánh hai độ dài), \textbf{không phải} một mô hình vật lý về suy hao
+    biên độ tín hiệu --- tên gọi "trực giác Nyquist" chỉ mượn ý tưởng chung của lý thuyết lấy mẫu: muốn biểu diễn đúng một
+    dao động, "đơn vị lấy mẫu" (ở đây là Gaussian) phải đủ nhỏ so với chu kỳ của dao động đó.
+    \begin{itemize}\itemsep1pt
+        \item $\eta>1$: $\ell$ \textbf{rộng hơn cả một chu kỳ} chi tiết $\Rightarrow$ một Gaussian không đủ khả năng bám
+        theo dao động đó $\Rightarrow$ ứng viên \textbf{SPLIT}.
+        \item $0.1<\eta\le1$: kích thước tương xứng với chi tiết cần biểu diễn $\Rightarrow$ \textbf{GIỮ NGUYÊN}.
+        \item $\eta\le0.1$: $\ell$ nhỏ hơn $w_{\min}$ tới hơn $10$ lần --- Gaussian đang "phủ thừa" một vùng gần như không
+        đổi $\Rightarrow$ ứng viên \textbf{PRUNE}.
+        \item \textbf{Lưu ý về tài liệu nội bộ code:} một số dòng docstring (\texttt{gaussian\_model.py:837--840}) mô tả
+        $\eta\sim(\sigma\omega)^2$ (quan hệ \emph{bậc hai}) --- nhưng công thức \textbf{thực sự được tính và dùng} ở trên là
+        quan hệ \textbf{tuyến tính} theo kích thước. Toàn bộ bài giảng này bám theo công thức \emph{thực chạy}, không theo
+        docstring (vốn có thể là tài liệu chưa cập nhật theo code).
+    \end{itemize}
+    \begin{center}
+    \includegraphics[width=0.62\linewidth]{02_nyquist.png}
+    \end{center}
+    \end{frame}
 
-% --- Slide: Ngưỡng phân loại & tích luỹ đa view ---
-\begin{frame}{Bước 6: ngưỡng phân loại và tích luỹ NHẤT QUÁN ĐA VIEW}
-\scriptsize
-Ngưỡng cố định trong code: \texttt{TAU\_HIGH=1.0}, \texttt{TAU\_LOW=0.1} (\texttt{freq\_utils.py:395--396}). Mỗi lần
-render một view, lấy $\eta_{\max}=\max_j\eta_j$ (giá trị lớn nhất trong 3 trục) và cộng $1$ vào đúng một trong ba bộ đếm:
-\[
-\texttt{eta\_high\_count} \;(\eta_{\max}>1)\qquad
-\texttt{eta\_mid\_count}\qquad
-\texttt{eta\_low\_count}\;(\eta_{\max}\le0.1)
-\]
-Tới kỳ densify (mỗi $100$ iteration), các bộ đếm này được quy ra \textbf{tỉ lệ nhất quán qua nhiều view}
-(\texttt{train.py:341--353}) --- đây chính là điểm khác biệt lớn nhất về \emph{triết lý} so với 3DGS gốc, vốn chỉ nhìn
-vào gradient tích luỹ tại \textbf{một} thời điểm cuối cùng để quyết định, không phân biệt rõ ràng "có bao nhiêu góc
-nhìn đồng ý với nhau":
-\[
-\text{high\_ratio}=\frac{\texttt{eta\_high\_count}}{\texttt{accum\_view\_count}}>0.8\qquad
-\text{low\_ratio}=\frac{\texttt{eta\_low\_count}}{\texttt{accum\_view\_count}}>0.8
-\]
-\begin{itemize}\itemsep1pt
-    \item \textbf{Trực giác:} chỉ khi \textbf{đa số áp đảo} ($>80\%$) các góc nhìn quan sát được đều đồng thuận rằng
-    Gaussian "quá to" (hoặc "quá nhỏ"), quyết định split/prune mới được kích hoạt --- giúp tránh phản ứng thái quá theo
-    nhiễu của một góc chụp bất thường (ví dụ do occlusion, ánh sáng loá, hay góc nhìn gần như cạnh của ellipsoid).
-\end{itemize}
-\begin{center}
-\includegraphics[width=0.4\linewidth]{03_timeline_reset.png}
-\end{center}
-\end{frame}
+    % --- Slide: Ngưỡng phân loại & tích luỹ đa view ---
+    \begin{frame}{Bước 6: ngưỡng phân loại và tích luỹ NHẤT QUÁN ĐA VIEW}
+    \scriptsize
+    Ngưỡng cố định trong code: \texttt{TAU\_HIGH=1.0}, \texttt{TAU\_LOW=0.1} (\texttt{freq\_utils.py:395--396}). Mỗi lần
+    render một view, lấy $\eta_{\max}=\max_j\eta_j$ (giá trị lớn nhất trong 3 trục) và cộng $1$ vào đúng một trong ba bộ đếm:
+    \[
+    \texttt{eta\_high\_count} \;(\eta_{\max}>1)\qquad
+    \texttt{eta\_mid\_count}\qquad
+    \texttt{eta\_low\_count}\;(\eta_{\max}\le0.1)
+    \]
+    Tới kỳ densify (mỗi $100$ iteration), các bộ đếm này được quy ra \textbf{tỉ lệ nhất quán qua nhiều view}
+    (\texttt{train.py:341--353}) --- đây chính là điểm khác biệt lớn nhất về \emph{triết lý} so với 3DGS gốc, vốn chỉ nhìn
+    vào gradient tích luỹ tại \textbf{một} thời điểm cuối cùng để quyết định, không phân biệt rõ ràng "có bao nhiêu góc
+    nhìn đồng ý với nhau":
+    \[
+    \text{high\_ratio}=\frac{\texttt{eta\_high\_count}}{\texttt{accum\_view\_count}}>0.8\qquad
+    \text{low\_ratio}=\frac{\texttt{eta\_low\_count}}{\texttt{accum\_view\_count}}>0.8
+    \]
+    \begin{itemize}\itemsep1pt
+        \item \textbf{Trực giác:} chỉ khi \textbf{đa số áp đảo} ($>80\%$) các góc nhìn quan sát được đều đồng thuận rằng
+        Gaussian "quá to" (hoặc "quá nhỏ"), quyết định split/prune mới được kích hoạt --- giúp tránh phản ứng thái quá theo
+        nhiễu của một góc chụp bất thường (ví dụ do occlusion, ánh sáng loá, hay góc nhìn gần như cạnh của ellipsoid).
+    \end{itemize}
+    \begin{center}
+    \includegraphics[width=0.4\linewidth]{03_timeline_reset.png}
+    \end{center}
+    \end{frame}
 
-% --- Slide: Split dị hướng — lưới chia tất định ---
-\begin{frame}{Split dị hướng (1/2): chia đúng trục, đặt con trên lưới tất định}
-\scriptsize
-\texttt{densify\_and\_split\_structgs} (\texttt{gaussian\_model.py:638--}) --- phiên bản split \textbf{mới} của SADGS,
-khi có sẵn \texttt{max\_eta\_3ch}, tính riêng cho từng trục:
-\[
-\boxed{\;k_{\text{axis}}=\big\lceil\sqrt{\max(\eta_{\text{axis}},1)}\big\rceil\;},\qquad
-N_{\text{con}}=k_x\,k_y\,k_z,\qquad s_{\text{con}}=\frac{s_{\text{cha}}}{k_{\text{axis}}^{\,p}}\ (p=\texttt{ks\_scale\_power}=1.0)
-\]
-\begin{itemize}\itemsep1pt
-    \item Điểm khác biệt lớn với split nguyên bản (slide trước, phần 1): $k$ được tính \textbf{riêng cho từng trục}
-    --- trục nào thực sự vi phạm ($\eta_{\text{axis}}>1$) mới bị chia; trục còn "khoẻ mạnh" giữ nguyên $k=1$.
-    \item Vị trí các con được đặt trên một \textbf{lưới tất định} (deterministic grid) --- \textbf{không} lấy mẫu ngẫu
-    nhiên như cơ chế gốc: khoảng cách tâm-tâm giữa các con liền kề $=\sigma_{\text{con}}\sqrt{12}$, toàn bộ lưới được
-    xoay theo đúng hướng $R$ của Gaussian cha (\texttt{gaussian\_model.py:766--780}).
-    \item Có thể kiểm chứng lưới này \textbf{bảo toàn phương sai}: tổng phương sai của các con đặt cách đều theo công
-    thức trên đúng bằng phương sai của cha ban đầu --- tức đây không phải một lựa chọn tuỳ ý mà có cơ sở thống kê.
-\end{itemize}
-\begin{center}
-\includegraphics[width=0.4\linewidth]{04_split_grid_2d.png}
-\end{center}
-\end{frame}
+    % --- Slide: Split dị hướng — lưới chia tất định ---
+    \begin{frame}{Split dị hướng (1/2): chia đúng trục, đặt con trên lưới tất định}
+    \scriptsize
+    \texttt{densify\_and\_split\_structgs} (\texttt{gaussian\_model.py:638--}) --- phiên bản split \textbf{mới} của SADGS,
+    khi có sẵn \texttt{max\_eta\_3ch}, tính riêng cho từng trục:
+    \[
+    \boxed{\;k_{\text{axis}}=\big\lceil\sqrt{\max(\eta_{\text{axis}},1)}\big\rceil\;},\qquad
+    N_{\text{con}}=k_x\,k_y\,k_z,\qquad s_{\text{con}}=\frac{s_{\text{cha}}}{k_{\text{axis}}^{\,p}}\ (p=\texttt{ks\_scale\_power}=1.0)
+    \]
+    \begin{itemize}\itemsep1pt
+        \item Điểm khác biệt lớn với split nguyên bản (slide trước, phần 1): $k$ được tính \textbf{riêng cho từng trục}
+        --- trục nào thực sự vi phạm ($\eta_{\text{axis}}>1$) mới bị chia; trục còn "khoẻ mạnh" giữ nguyên $k=1$.
+        \item Vị trí các con được đặt trên một \textbf{lưới tất định} (deterministic grid) --- \textbf{không} lấy mẫu ngẫu
+        nhiên như cơ chế gốc: khoảng cách tâm-tâm giữa các con liền kề $=\sigma_{\text{con}}\sqrt{12}$, toàn bộ lưới được
+        xoay theo đúng hướng $R$ của Gaussian cha (\texttt{gaussian\_model.py:766--780}).
+        \item Có thể kiểm chứng lưới này \textbf{bảo toàn phương sai}: tổng phương sai của các con đặt cách đều theo công
+        thức trên đúng bằng phương sai của cha ban đầu --- tức đây không phải một lựa chọn tuỳ ý mà có cơ sở thống kê.
+    \end{itemize}
+    \begin{center}
+    \includegraphics[width=0.4\linewidth]{04_split_grid_2d.png}
+    \end{center}
+    \end{frame}
 
-% --- Slide: Split dị hướng — bậc thang k theo eta ---
-\begin{frame}{Split dị hướng (2/2): $k$ tăng theo bậc thang khi $\eta$ tăng}
-\scriptsize
-Vì $k_{\text{axis}}=\lceil\sqrt{\max(\eta_{\text{axis}},1)}\rceil$ là một hàm \textbf{làm tròn lên}, quan hệ giữa $k$ và
-$\eta$ không mượt mà là một \textbf{dạng bậc thang}: $k$ chỉ nhảy lên một mức mới khi $\eta$ vượt qua các ngưỡng $1,4,9,16,\dots$
-($k^2$). Điều này có nghĩa:
-\begin{itemize}\itemsep1pt
-    \item Với $\eta$ vừa mới vượt $1$ (ví dụ $\eta=1.2$): $k=2$, sinh $N_{\text{con}}=2$ trên trục đó --- một mức tăng
-    "thận trọng", tương xứng với mức độ vi phạm còn nhẹ.
-    \item Với $\eta$ lớn hơn nhiều (ví dụ $\eta=20$): $k=\lceil\sqrt{20}\rceil=5$, sinh hẳn $5$ con trên trục đó --- phản
-    ứng \textbf{mạnh tay hơn} tương xứng với mức độ vi phạm nghiêm trọng hơn.
-    \item So với split nguyên bản (luôn cố định $N=2$ bất kể mức độ "quá to" ra sao), cách làm bậc thang này cho phép hệ
-    thống \textbf{tự điều chỉnh cường độ phản ứng} theo đúng quy mô của vấn đề --- tránh vừa chia không đủ (còn dư
-    $\eta>1$ sau một lần split) vừa tránh chia quá tay gây bùng nổ số lượng Gaussian không cần thiết.
-\end{itemize}
-\begin{center}
-\includegraphics[width=0.4\linewidth]{04_k_eta_stair.png}
-\end{center}
-\end{frame}
+    % --- Slide: Split dị hướng — bậc thang k theo eta ---
+    \begin{frame}{Split dị hướng (2/2): $k$ tăng theo bậc thang khi $\eta$ tăng}
+    \scriptsize
+    Vì $k_{\text{axis}}=\lceil\sqrt{\max(\eta_{\text{axis}},1)}\rceil$ là một hàm \textbf{làm tròn lên}, quan hệ giữa $k$ và
+    $\eta$ không mượt mà là một \textbf{dạng bậc thang}: $k$ chỉ nhảy lên một mức mới khi $\eta$ vượt qua các ngưỡng $1,4,9,16,\dots$
+    ($k^2$). Điều này có nghĩa:
+    \begin{itemize}\itemsep1pt
+        \item Với $\eta$ vừa mới vượt $1$ (ví dụ $\eta=1.2$): $k=2$, sinh $N_{\text{con}}=2$ trên trục đó --- một mức tăng
+        "thận trọng", tương xứng với mức độ vi phạm còn nhẹ.
+        \item Với $\eta$ lớn hơn nhiều (ví dụ $\eta=20$): $k=\lceil\sqrt{20}\rceil=5$, sinh hẳn $5$ con trên trục đó --- phản
+        ứng \textbf{mạnh tay hơn} tương xứng với mức độ vi phạm nghiêm trọng hơn.
+        \item So với split nguyên bản (luôn cố định $N=2$ bất kể mức độ "quá to" ra sao), cách làm bậc thang này cho phép hệ
+        thống \textbf{tự điều chỉnh cường độ phản ứng} theo đúng quy mô của vấn đề --- tránh vừa chia không đủ (còn dư
+        $\eta>1$ sau một lần split) vừa tránh chia quá tay gây bùng nổ số lượng Gaussian không cần thiết.
+    \end{itemize}
+    \begin{center}
+    \includegraphics[width=0.4\linewidth]{04_k_eta_stair.png}
+    \end{center}
+    \end{frame}
 
-% --- Slide: Prune theo nhất quán đa view ---
-\begin{frame}{Prune theo cấu trúc: OR với tiêu chí gốc, không thay thế}
-\scriptsize
-Trong \texttt{densify\_and\_prune\_structgs} (\texttt{gaussian\_model.py:1009--1019}), mặt nạ prune \textbf{cấu trúc}
-(low\_ratio$>0.8$, slide trước) được kết hợp bằng phép \textbf{OR} với các tiêu chí nguyên bản đã học ở phần ADC gốc
---- một Gaussian bị xoá nếu \textbf{bất kỳ} điều kiện nào sau đúng:
-\[
-\texttt{prune\_mask} = \underbrace{(\alpha<0.1)}_{\text{opacity thấp}} \;\lor\; \underbrace{(r_{2D}>\texttt{max\_screen\_size})}_{\text{quá to trên màn hình}} \;\lor\; \underbrace{(\max(s)>0.1\cdot\texttt{extent})}_{\text{quá to trong không gian}} \;\lor\; \underbrace{(\text{low\_ratio}>0.8)}_{\text{cấu trúc, đa view}}
-\]
-\begin{itemize}\itemsep1pt
-    \item \texttt{min\_opacity}$=0.1$ trong nhánh này --- \textbf{cao hơn nhiều} so với $0.005$ ở nhánh 3DGS gốc, tức
-    prune mạnh tay hơn theo tiêu chí opacity đơn thuần, không chỉ nhờ thêm điều kiện cấu trúc.
-    \item Cả clone lẫn split (2 slide trước) còn bị chặn thêm bởi \texttt{metric\_mask}$=(\texttt{accum\_view\_count}>0.5)$
-    --- một Gaussian vừa mới sinh, chưa từng được quan sát trong đợt tích luỹ hiện tại, sẽ \textbf{không} bị động tới ở
-    đợt densify đó, tránh phản ứng vội vàng dựa trên dữ liệu quá ít ỏi.
-\end{itemize}
-\begin{center}
-\includegraphics[width=0.4\linewidth]{07_mat_na_prune_or.png}
-\end{center}
-\end{frame}
+    % --- Slide: Prune theo nhất quán đa view ---
+    \begin{frame}{Prune theo cấu trúc: OR với tiêu chí gốc, không thay thế}
+    \scriptsize
+    Trong \texttt{densify\_and\_prune\_structgs} (\texttt{gaussian\_model.py:1009--1019}), mặt nạ prune \textbf{cấu trúc}
+    (low\_ratio$>0.8$, slide trước) được kết hợp bằng phép \textbf{OR} với các tiêu chí nguyên bản đã học ở phần ADC gốc
+    --- một Gaussian bị xoá nếu \textbf{bất kỳ} điều kiện nào sau đúng:
+    \[
+    \texttt{prune\_mask} = \underbrace{(\alpha<0.1)}_{\text{opacity thấp}} \;\lor\; \underbrace{(r_{2D}>\texttt{max\_screen\_size})}_{\text{quá to trên màn hình}} \;\lor\; \underbrace{(\max(s)>0.1\cdot\texttt{extent})}_{\text{quá to trong không gian}} \;\lor\; \underbrace{(\text{low\_ratio}>0.8)}_{\text{cấu trúc, đa view}}
+    \]
+    \begin{itemize}\itemsep1pt
+        \item \texttt{min\_opacity}$=0.1$ trong nhánh này --- \textbf{cao hơn nhiều} so với $0.005$ ở nhánh 3DGS gốc, tức
+        prune mạnh tay hơn theo tiêu chí opacity đơn thuần, không chỉ nhờ thêm điều kiện cấu trúc.
+        \item Cả clone lẫn split (2 slide trước) còn bị chặn thêm bởi \texttt{metric\_mask}$=(\texttt{accum\_view\_count}>0.5)$
+        --- một Gaussian vừa mới sinh, chưa từng được quan sát trong đợt tích luỹ hiện tại, sẽ \textbf{không} bị động tới ở
+        đợt densify đó, tránh phản ứng vội vàng dựa trên dữ liệu quá ít ỏi.
+    \end{itemize}
+    \begin{center}
+    \includegraphics[width=0.4\linewidth]{07_mat_na_prune_or.png}
+    \end{center}
+    \end{frame}

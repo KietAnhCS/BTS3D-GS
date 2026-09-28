@@ -1,9 +1,12 @@
-This is XeTeX, Version 3.141592653-2.6-0.999997 (MiKTeX 25.12) (preloaded format=xelatex 2026.9.22)  27 SEP 2026 19:25
+This is XeTeX, Version 3.141592653-2.6-0.999997 (MiKTeX 25.12) (preloaded format=xelatex 2026.9.22)  28 SEP 2026 19:06
 entering extended mode
  restricted \write18 enabled.
+ file:line:error style messages enabled.
  %&-line parsing enabled.
-**./main45.tex
-(main45.tex
+**c:/Users/kelly/OneDrive/Desktop/BTS_SADGS/DOCS/Slides67/Slides45min/main45.te
+x
+
+(c:/Users/kelly/OneDrive/Desktop/BTS_SADGS/DOCS/Slides67/Slides45min/main45.tex
 LaTeX2e <2025-11-01>
 L3 programming layer <2025-12-24>
 (C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/beamer\beamer.cls
@@ -1641,12 +1644,12 @@ Package rerunfilecheck Info: File `main45.out' has not changed.
 (rerunfilecheck)             Checksum: C1B8A5EC674BC5EEA51EEAAAA182CBE4;1040.
  ) 
 Here is how much of TeX's memory you used:
- 32510 strings out of 402987
- 707143 string characters out of 5448524
+ 32523 strings out of 402987
+ 707453 string characters out of 5448524
  1159768 words of memory out of 5000000
- 60544 multiletter control sequences out of 15000+600000
+ 60556 multiletter control sequences out of 15000+600000
  634412 words of font info for 114 fonts, out of 8000000 for 9000
  1348 hyphenation exceptions out of 8191
- 128i,16n,123p,421b,669s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 128i,16n,123p,487b,669s stack positions out of 10000i,1000n,20000p,200000b,200000s
 
 Output written on main45.pdf (51 pages).
