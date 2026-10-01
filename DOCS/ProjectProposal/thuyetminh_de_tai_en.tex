@@ -66,8 +66,8 @@
 \textbf{"Digital Twin Reconstruction of Base Transceiver Stations with 3D Gaussian Splatting: Studying Vanilla 3DGS and Building an Improved 3DGS Variant Better Suited to BTS Towers"}
 \end{itemize}
 
-\subsection*{A2. Duration}
-3 months .
+\subsection*{A2. Deadline}
+ Monday 30/11/2026
 
 \subsection*{A3. Principal Investigator}
 \begin{tabular}{@{}ll@{}}
@@ -98,8 +98,11 @@ as a digital twin from drone photographs, and look for a rendering method that w
 vanilla 3DGS for this kind of scene. A BTS scene is mostly flat surfaces (roofs, walls, sky), but
 the tower mast, antennas, and cables are thin structures that are harder to render well.
 
-Figure~1 shows a real result from our pipeline: a novel view of a BTS tower rendered by the
-trained 3DGS model, from drone photographs of a rooftop site in Ho Chi Minh City.
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.7\textwidth]{figures/input.png}
+\caption{"Camera poses and sparse point cloud generated from the BTS tower dataset."}
+\end{figure}
 
 \begin{figure}[h]
 \centering
@@ -128,6 +131,13 @@ count, training time, and memory use.
 \item A real benchmark table comparing the optimized pipeline with vanilla 3DGS.
 \end{itemize}
 
+\subsection*{B4. Why this project is suitable for a Computer Graphics course project}
+\begin{itemize}[leftmargin=1.2em]
+\item \textbf{T1 - Transformations/Hierarchy (Yes - Extensive):} Each Gaussian point in 3D space is defined by geometric transformations: Position (Translation), Rotation (often using Quaternions), and Scale. Additionally, to rapidly render millions of points, 3DGS employs spatial sorting/hierarchical structures (such as depth-based Radix Sort) instead of traditional Hierarchy structures.
+\item \textbf{T2 - Camera/Projection (Yes - Core):} The term ``Splatting'' refers exactly to this process. 3DGS uses Camera matrices (View \& Projection matrices) to project these 3D Gaussians onto the 2D screen plane, then rasterizes them into pixels based on the viewing angle.
+\item \textbf{T4 - Lighting/Shadows (Indirect / Baked):} The original 3DGS does not compute dynamic lighting or shadows. Lighting, shadow, and reflection effects (view-dependent specular) are all ``baked'' into the Spherical Harmonics parameters during the training process. The scene's luminance changes as you shift your viewing angle, but no actual light source is dynamically created.
+\item \textbf{T6 - Interaction/GUI (Yes):} The biggest advantage of 3DGS is its real-time rendering speed (extremely high FPS). This enables the creation of GUIs/Viewers that allow users to interact directly with the scene (rotate, zoom, and pan the camera) with incredible smoothness.
+\end{itemize}
 
 
 \end{document}

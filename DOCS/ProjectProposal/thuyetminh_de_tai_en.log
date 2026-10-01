@@ -1,9 +1,13 @@
-This is XeTeX, Version 3.141592653-2.6-0.999997 (MiKTeX 25.12) (preloaded format=xelatex 2026.9.22)  26 SEP 2026 16:55
+This is XeTeX, Version 3.141592653-2.6-0.999997 (MiKTeX 25.12) (preloaded format=xelatex 2026.9.22)  30 SEP 2026 13:07
 entering extended mode
  restricted \write18 enabled.
+ file:line:error style messages enabled.
  %&-line parsing enabled.
-**./thuyetminh_de_tai_en.tex
-(thuyetminh_de_tai_en.tex
+**c:/Users/kelly/OneDrive/Desktop/BTS_SADGS/DOCS/ProjectProposal/thuyetminh_de_
+tai_en.tex
+
+(c:/Users/kelly/OneDrive/Desktop/BTS_SADGS/DOCS/ProjectProposal/thuyetminh_de_t
+ai_en.tex
 LaTeX2e <2025-11-01>
 L3 programming layer <2025-12-24>
 (C:\Users\kelly\AppData\Local\Programs\MiKTeX\tex/latex/base\article.cls
@@ -470,7 +474,7 @@ Package: titlesec 2025/01/04 v2.17 Sectioning titles
 \titlewidthlast=\dimen195
 \titlewidthfirst=\dimen196
 )
-(thuyetminh_de_tai_en.aux)
+No file thuyetminh_de_tai_en.aux.
 \openout1 = `thuyetminh_de_tai_en.aux'.
 
 LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 38.
@@ -554,7 +558,6 @@ LaTeX Font Info:    Overwriting math alphabet `\mathsf' in version `bold'
 (Font)                  OT1/cmss/bx/n --> TU/NotoSans(0)/b/n on input line 38.
 LaTeX Font Info:    Overwriting math alphabet `\mathtt' in version `bold'
 (Font)                  OT1/cmtt/m/n --> TU/lmtt/b/n on input line 38.
-
 *geometry* driver: auto-detecting
 *geometry* detected driver: xetex
 *geometry* verbose mode - [ preamble ] result:
@@ -590,13 +593,15 @@ LaTeX Font Info:    Overwriting math alphabet `\mathtt' in version `bold'
 * (1in=72.27pt=25.4mm, 1cm=28.453pt)
 
 Package hyperref Info: Link coloring ON on input line 38.
-(thuyetminh_de_tai_en.out) (thuyetminh_de_tai_en.out)
 \@outlinefile=\write3
 \openout3 = `thuyetminh_de_tai_en.out'.
 
 
+Package hyperref Warning: Rerun to get /PageLabels entry.
 
-! LaTeX Error: Something's wrong--perhaps a missing \item.
+
+c:/Users/kelly/OneDrive/Desktop/BTS_SADGS/DOCS/ProjectProposal/thuyetminh_de_ta
+i_en.tex:67: LaTeX Error: Something's wrong--perhaps a missing \item.
 
 See the LaTeX manual or LaTeX Companion for explanation.
 Type  H <return>  for immediate help.
@@ -635,35 +640,48 @@ Underfull \hbox (badness 1168) in paragraph at lines 86--87
 [1
 
 ]
+File: figures/input.png Graphic file (type bmp)
+<figures/input.png>
 File: figures/render_0001.png Graphic file (type bmp)
 <figures/render_0001.png>
 
-Overfull \hbox (0.44196pt too wide) in paragraph at lines 120--122
+
+LaTeX Warning: `h' float specifier changed to `ht'.
+
+
+Overfull \hbox (0.44196pt too wide) in paragraph at lines 123--125
 []\TU/NotoSerif(0)/m/n/12 Benchmark the combined pipeline against vanilla 3DGS 
 using PSNR, SSIM, LPIPS,
  []
 
 [2]
-Overfull \hbox (1.3209pt too wide) in paragraph at lines 127--128
+Overfull \hbox (1.3209pt too wide) in paragraph at lines 130--131
 []\TU/NotoSerif(0)/m/n/12 An optimized 3DGS pipeline for BTS digital twins, com
 bining the best-performing
  []
 
-[3] (thuyetminh_de_tai_en.aux)
+[3] [4] (thuyetminh_de_tai_en.aux)
  ***********
 LaTeX2e <2025-11-01>
 L3 programming layer <2025-12-24>
  ***********
-Package rerunfilecheck Info: File `thuyetminh_de_tai_en.out' has not changed.
-(rerunfilecheck)             Checksum: D41D8CD98F00B204E9800998ECF8427E;0.
+
+
+Package rerunfilecheck Warning: File `thuyetminh_de_tai_en.out' has changed.
+(rerunfilecheck)                Rerun to get outlines right
+(rerunfilecheck)                or use package `bookmark'.
+
+Package rerunfilecheck Info: Checksums for `thuyetminh_de_tai_en.out':
+(rerunfilecheck)             Before: <no file>
+(rerunfilecheck)             After:  D41D8CD98F00B204E9800998ECF8427E;0.
  ) 
 Here is how much of TeX's memory you used:
- 13532 strings out of 402987
- 253759 string characters out of 5448524
- 722715 words of memory out of 5000000
- 42076 multiletter control sequences out of 15000+600000
+ 13533 strings out of 402987
+ 253916 string characters out of 5448524
+ 722559 words of memory out of 5000000
+ 42082 multiletter control sequences out of 15000+600000
  632982 words of font info for 91 fonts, out of 8000000 for 9000
  1348 hyphenation exceptions out of 8191
- 73i,6n,93p,268b,457s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 73i,6n,93p,509b,465s stack positions out of 10000i,1000n,20000p,200000b,200000s
 
-Output written on thuyetminh_de_tai_en.pdf (3 pages).
+Output written on thuyetminh_de_tai_en.pdf (4 pages).

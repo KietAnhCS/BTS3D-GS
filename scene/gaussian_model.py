@@ -35,7 +35,7 @@ class GaussianModel:
             actual_covariance = L @ L.transpose(1, 2)
             symm = strip_symmetric(actual_covariance)
             return symm
-        
+         
         self.scaling_activation = torch.exp
         self.scaling_inverse_activation = torch.log
 
